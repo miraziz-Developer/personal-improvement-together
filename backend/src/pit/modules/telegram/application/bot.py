@@ -48,6 +48,7 @@ from pit.modules.verification.domain.daily_code import daily_code
 from pit.modules.verification.domain.proof import Proof
 from pit.modules.verification.domain.verdict import ProofStatus
 from pit.shared.application.clock import Clock, local_date
+from pit.shared.application.errors_i18n import translate_error
 from pit.shared.application.messagebus import MessageBus
 from pit.shared.domain.errors import DomainError
 
@@ -151,7 +152,9 @@ class TelegramBot:
         try:
             await self._route(message)
         except DomainError as error:
-            await self._say(message.chat_id, f"⚠️ {html(error.message)}")
+            user = await self._user(message.chat_id)
+            lang = user.locale.value if user else pick(message.language)
+            await self._say(message.chat_id, f"⚠️ {html(translate_error(error.message, lang))}")
         finally:
             if message.callback_id:  # stops the spinner on the pressed button
                 with suppress(TelegramUnavailable):

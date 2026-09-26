@@ -535,3 +535,17 @@ async def test_analytics_for_moderators(api: Api) -> None:
     assert (data["users"], data["dau"], data["proofs_30d"]) == (1, 1, 1)
     assert [step["count"] for step in data["funnel"]] == [1, 1, 1, 1, 0]
     assert len(data["daily"]) == 30 and data["daily"][-1]["active"] == 1
+
+
+async def test_errors_speak_the_clients_language(api: Api) -> None:
+    ru = {"Accept-Language": "ru-RU,ru;q=0.9"}
+    wrong = await api.client.post(
+        "/api/v1/auth/login", json={"username": "nobody", "password": "whatever-1"}, headers=ru
+    )
+    assert wrong.json()["message"] == "Неверное имя пользователя или пароль"
+    unauthorized = await api.client.get("/api/v1/me", headers=ru)
+    assert unauthorized.json()["message"] == "Пожалуйста, войдите в систему"
+
+    auth = await api.register()
+    await api.client.put("/api/v1/me/locale", json={"locale": "ru"}, headers=auth)
+    assert (await api.client.get("/api/v1/me", headers=auth)).json()["locale"] == "ru"

@@ -61,6 +61,7 @@ select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 # Russian text is Cyrillic on purpose; the "looks like Latin" check does not apply.
 "**/*_ru.py" = ["RUF001"]
 "**/telegram/application/texts.py" = ["RUF001"]
+"**/shared/application/errors_i18n.py" = ["RUF001", "E501"]
 
 [tool.mypy]
 python_version = "3.13"
