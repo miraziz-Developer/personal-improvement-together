@@ -42,6 +42,7 @@ from pit.modules.telegram.application.ports import (
     TelegramApi,
     TelegramUnavailable,
 )
+from pit.modules.telegram.application.texts import LABELS, label, label_action, pick, tr
 from pit.modules.verification.application.commands import SubmitProof
 from pit.modules.verification.domain.daily_code import daily_code
 from pit.modules.verification.domain.proof import Proof
@@ -57,15 +58,28 @@ PROOF_CALLBACK = "p"  # p:<participation hex>:<task index> — fits Telegram's 6
 
 # The persistent menu under the input field — the bot is driven by these, not by commands.
 class Label:
-    TODAY = "📋 Bugungi vazifalar"
-    PROOF = "📸 Isbot yuborish"
-    STATUS = "📊 Natijalarim"
-    SETTINGS = "⚙️ Sozlamalar"
-    LATER = "⏭ Keyinroq"
+    """Uzbek button texts (the default language); see texts.LABELS for all languages."""
+
+    TODAY = LABELS["uz"]["today"]
+    PROOF = LABELS["uz"]["proof"]
+    STATUS = LABELS["uz"]["status"]
+    SETTINGS = LABELS["uz"]["settings"]
+    LATER = LABELS["uz"]["later"]
 
 
-MENU: Menu = [[Label.TODAY, Label.PROOF], [Label.STATUS, Label.SETTINGS]]
-PHONE_MENU: Menu = [[ShareContact("📱 Raqamni yuborish")], [Label.LATER]]
+def menu_for(locale: str) -> Menu:
+    return [
+        [label(locale, "today"), label(locale, "proof")],
+        [label(locale, "status"), label(locale, "settings")],
+    ]
+
+
+def phone_menu_for(locale: str) -> Menu:
+    return [[ShareContact(label(locale, "share_phone"))], [label(locale, "later")]]
+
+
+MENU: Menu = menu_for("uz")
+PHONE_MENU: Menu = phone_menu_for("uz")
 PHONE_DEEP_LINK = "phone"  # t.me/<bot>?start=phone — from the website's phone card
 
 
@@ -78,36 +92,26 @@ class Callback:
     PHONE = "phone"
 
 
-CANCEL_ROW = [Button("❌ Bekor qilish", callback=Callback.CANCEL)]
+def cancel_row(locale: str) -> list[Button]:
+    return [Button(tr(locale, "cancel"), callback=Callback.CANCEL)]
 
-HELP = (
-    "🤖 <b>Qanday ishlaydi</b>\n\n"
-    f"{Label.TODAY} — bugun nima qilish kerak\n"
-    f"{Label.PROOF} — vazifani tanlang va rasm yuboring\n"
-    f"{Label.STATUS} — streak va progress\n"
-    f"{Label.SETTINGS} — sayt va eslatmalar\n\n"
-    "💡 Rasmni to'g'ridan-to'g'ri yuborsangiz ham bo'ladi — qaysi vazifa uchunligini "
-    "o'zim so'rayman. Rasmga izoh yozsangiz, u ham isbotga qo'shiladi."
-)
-NOT_LINKED = (
-    "👋 Assalomu alaykum! Men <b>PIT murabbiyi</b>man.\n\n"
-    "Har kuni rejangizni eslatib turaman, isbotlaringizni qabul qilaman va har bir "
-    "g'alabangizni nishonlayman 🔥\n\n"
-    "Boshlash uchun saytda <b>Profil → Telegram'ni ulash</b> tugmasini bosing."
-)
-WELCOME = (
-    "🎉 Salom, <b>{name}</b>! Telegram ulandi.\n\n"
-    "Endi men sizga:\n"
-    "☀️ ertalab — bugungi rejani,\n"
-    "🌙 kechqurun — bajarilmagan vazifalarni,\n"
-    "🏆 har bir yutuqda — tabrikni yuboraman.\n\n"
-    "Hammasi pastdagi tugmalarda 👇"
-)
+
+def help_text(locale: str) -> str:
+    return tr(
+        locale,
+        "help",
+        today=label(locale, "today"),
+        proof=label(locale, "proof"),
+        status=label(locale, "status"),
+        settings=label(locale, "settings"),
+    )
+
+
 STATUS_ICON = {
     ProofStatus.APPROVED: ("✅", ""),
-    ProofStatus.PENDING: ("⏳", " · tekshirilmoqda"),
-    ProofStatus.NEEDS_REVIEW: ("👀", " · moderator ko'rmoqda"),
-    ProofStatus.REJECTED: ("❌", " · rad etildi, qayta yuboring"),
+    ProofStatus.PENDING: ("⏳", "checking"),
+    ProofStatus.NEEDS_REVIEW: ("👀", "in_review"),
+    ProofStatus.REJECTED: ("❌", "rejected"),
 }
 
 
@@ -158,12 +162,13 @@ class TelegramBot:
     async def _route(self, message: Incoming) -> None:
         chat_id = message.chat_id
         text = (message.text or "").strip()
+        guest = pick(message.language)  # Telegram's app language, until we know the user
         if text.startswith("/start"):
-            await self._start(chat_id, text.removeprefix("/start").strip())
+            await self._start(chat_id, text.removeprefix("/start").strip(), guest)
             return
         user = await self._user(chat_id)
         if user is None:
-            await self._not_linked(chat_id)
+            await self._not_linked(chat_id, guest)
             return
         if message.callback_data:
             await self._callback(user, chat_id, message.callback_data)
@@ -176,83 +181,88 @@ class TelegramBot:
 
     async def _menu(self, user: User, chat_id: int, text: str) -> bool:
         """Menu buttons (and their old command names). Returns False for anything else."""
+        lang = user.locale.value
         command = text.split()[0].split("@")[0].lower() if text.startswith("/") else text
-        match command:
-            case Label.TODAY | "/bugun" | "/today":
+        match label_action(text) or command:
+            case "today" | "/bugun" | "/today":
                 await self._conversation.clear(chat_id)  # changed their mind: start over
                 await self._today(user, chat_id)
-            case Label.PROOF:
+            case "proof":
                 await self._conversation.clear(chat_id)
                 await self._pick_task(user, chat_id)
-            case Label.STATUS | "/holat" | "/status":
+            case "status" | "/holat" | "/status":
                 await self._status(user, chat_id)
-            case Label.SETTINGS | "/stop":
+            case "settings" | "/stop":
                 await self._settings(user, chat_id)
-            case Label.LATER:
-                await self._say(
-                    chat_id, f"Mayli! Keyinroq «{Label.SETTINGS}» orqali tasdiqlaysiz 👌", menu=MENU
-                )
+            case "later":
+                later = tr(lang, "later_ok", settings=label(lang, "settings"))
+                await self._say(chat_id, later, menu=menu_for(lang))
             case _ if text.startswith("/"):
-                await self._say(chat_id, HELP, menu=MENU)
+                await self._say(chat_id, help_text(lang), menu=menu_for(lang))
             case _:
                 return False
         return True
 
-    async def _start(self, chat_id: int, token: str) -> None:
+    async def _start(self, chat_id: int, token: str, guest: str) -> None:
         if token == PHONE_DEEP_LINK:
             user = await self._user(chat_id)
             if user is None:
-                await self._not_linked(chat_id)
+                await self._not_linked(chat_id, guest)
             elif user.phone_verified:
-                await self._say(chat_id, f"✅ Raqamingiz tasdiqlangan: {user.phone}", menu=MENU)
+                lang = user.locale.value
+                done = tr(lang, "phone_already", phone=user.phone)
+                await self._say(chat_id, done, menu=menu_for(lang))
             else:
-                await self._ask_phone(chat_id)
+                await self._ask_phone(chat_id, user.locale.value)
             return
         if token:
             user_id: UUID = await self._bus.handle(LinkTelegram(token=token, chat_id=chat_id))
             uow = self._uow()
             async with uow:
                 user = await uow.users.get(user_id)
-            name = user.username if user else ""
-            await self._say(chat_id, WELCOME.format(name=html(name)), menu=MENU)
+            lang = user.locale.value if user else guest
+            name = html(user.username) if user else ""
+            await self._say(chat_id, tr(lang, "welcome", name=name), menu=menu_for(lang))
             if user is not None and not user.phone_verified:
-                await self._ask_phone(chat_id)
+                await self._ask_phone(chat_id, lang)
             return
-        if await self._user(chat_id) is not None:
-            await self._say(chat_id, f"Siz allaqachon ulangansiz ✅\n\n{HELP}", menu=MENU)
+        linked = await self._user(chat_id)
+        if linked is not None:
+            lang = linked.locale.value
+            again = tr(lang, "already_linked", help=help_text(lang))
+            await self._say(chat_id, again, menu=menu_for(lang))
         else:
-            await self._not_linked(chat_id)
+            await self._not_linked(chat_id, guest)
 
-    async def _not_linked(self, chat_id: int) -> None:
-        site = keyboard(site_row(self._web_url, "/profile"))
+    async def _not_linked(self, chat_id: int, lang: str) -> None:
+        site = keyboard(site_row(self._web_url, "/profile", tr(lang, "btn_site")))
         # Without a site button there is room to hide a menu left from an earlier link.
-        await self._say(chat_id, NOT_LINKED, site, menu=None if site else [])
+        await self._say(chat_id, tr(lang, "not_linked"), site, menu=None if site else [])
 
     async def _callback(self, user: User, chat_id: int, data: str) -> None:
+        lang = user.locale.value
         match data:
             case Callback.TODAY:
                 await self._today(user, chat_id)
                 return
             case Callback.HELP:
-                await self._say(chat_id, HELP, menu=MENU)
+                await self._say(chat_id, help_text(lang), menu=menu_for(lang))
                 return
             case Callback.PHONE:
-                await self._ask_phone(chat_id)
+                await self._ask_phone(chat_id, lang)
                 return
             case Callback.CANCEL:
                 await self._conversation.clear(chat_id)
-                await self._say(
-                    chat_id, "👌 Bekor qilindi. Kerak bo'lsa, pastdagi menyudan tanlang."
-                )
+                await self._say(chat_id, tr(lang, "cancelled"))
                 return
             case Callback.STOP_ASK:
                 await self._say(
                     chat_id,
-                    "🔕 Eslatmalar va tabriklar kelmay qoladi. Rostdan o'chiramizmi?",
+                    tr(lang, "stop_ask"),
                     [
                         [
-                            Button("✅ Ha, o'chirish", callback=Callback.STOP),
-                            Button("↩️ Yo'q", callback=Callback.CANCEL),
+                            Button(tr(lang, "stop_yes"), callback=Callback.STOP),
+                            Button(tr(lang, "stop_no"), callback=Callback.CANCEL),
                         ]
                     ],
                 )
@@ -260,12 +270,7 @@ class TelegramBot:
             case Callback.STOP:
                 await self._bus.handle(UnlinkTelegram(chat_id=chat_id))
                 await self._conversation.clear(chat_id)
-                await self._say(
-                    chat_id,
-                    "👋 Eslatmalar to'xtatildi. Qaytmoqchi bo'lsangiz — saytda "
-                    "<b>Profil → Telegram'ni ulash</b>. Sizni kutib qolamiz!",
-                    menu=[],
-                )
+                await self._say(chat_id, tr(lang, "stopped"), menu=[])
                 return
         if data.startswith(f"{CHEER_CALLBACK}:"):
             await self._cheer(user, chat_id, data.removeprefix(f"{CHEER_CALLBACK}:"))
@@ -309,68 +314,64 @@ class TelegramBot:
                 friend_username=friend.username,
             )
         )
-        await self._say(chat_id, f"👏 {html(friend.username)} olqishingizni oldi!")
+        await self._say(chat_id, tr(user.locale.value, "cheered", name=html(friend.username)))
 
     async def _choose(self, user: User, chat_id: int, target: _Open) -> None:
         """Remember the task; the next photo or text the user sends proves it."""
         await self._conversation.update(
             chat_id, participation=target.participation.id.hex, task=target.task.key
         )
-        await self._say(chat_id, self._ask_for_proof(user, target), [CANCEL_ROW])
+        await self._say(chat_id, self._ask_for_proof(user, target), [cancel_row(user.locale.value)])
 
     async def _pick_task(self, user: User, chat_id: int) -> None:
+        lang = user.locale.value
         open_tasks = await self._open_tasks(user)
         if not open_tasks:
-            await self._say(chat_id, "🎉 Bugun isbot kutayotgan vazifa yo'q. Dam oling!")
+            await self._say(chat_id, tr(lang, "nothing_open"))
         elif len(open_tasks) == 1:
             await self._choose(user, chat_id, open_tasks[0])
         else:
             await self._say(
                 chat_id,
-                "Qaysi vazifa uchun isbot yuborasiz? 👇",
-                [*([self._proof_button(o)] for o in open_tasks), CANCEL_ROW],
+                tr(lang, "which_task"),
+                [*([self._proof_button(o)] for o in open_tasks), cancel_row(lang)],
             )
 
-    async def _ask_phone(self, chat_id: int) -> None:
-        await self._say(
-            chat_id,
-            "📱 <b>Telefon raqamingizni tasdiqlaymiz</b>\n\n"
-            "Pastdagi tugmani bosing — Telegram raqamingizni o'zi yuboradi, hech narsa "
-            "yozish shart emas. Raqam parolni tiklash va akkaunt xavfsizligi uchun kerak.",
-            menu=PHONE_MENU,
-        )
+    async def _ask_phone(self, chat_id: int, lang: str) -> None:
+        await self._say(chat_id, tr(lang, "ask_phone"), menu=phone_menu_for(lang))
 
     async def _contact(self, user: User, chat_id: int, phone: str, own: bool) -> None:
+        lang = user.locale.value
         if not own:
-            await self._say(chat_id, "Faqat o'zingizning raqamingizni yuboring 👇", menu=PHONE_MENU)
+            await self._say(chat_id, tr(lang, "own_number_only"), menu=phone_menu_for(lang))
             return
         verified: str = await self._bus.handle(
             VerifyPhoneFromTelegram(chat_id=chat_id, phone=phone)
         )
-        await self._say(chat_id, f"✅ Raqamingiz tasdiqlandi: <b>{verified}</b>", menu=MENU)
+        await self._say(chat_id, tr(lang, "phone_verified", phone=verified), menu=menu_for(lang))
 
     async def _settings(self, user: User, chat_id: int) -> None:
+        lang = user.locale.value
         phone = (
-            f"📱 Telefon: {user.phone} ✅" if user.phone_verified else "📱 Telefon: tasdiqlanmagan"
+            tr(lang, "phone_ok", phone=user.phone)
+            if user.phone_verified
+            else tr(lang, "phone_missing")
         )
         await self._say(
             chat_id,
-            f"⚙️ <b>Sozlamalar</b>\n\n"
-            f"👤 Akkaunt: <b>{html(user.username)}</b>\n"
-            f"{phone}\n"
-            "☀️ Ertalabki reja — 08:00\n"
-            "🌙 Kechki eslatma — 20:00 (bajarilmagan vazifa qolsa)",
+            tr(lang, "settings_body", name=html(user.username), phone=phone),
             keyboard(
                 []
                 if user.phone_verified
-                else [Button("📱 Telefonni tasdiqlash", callback=Callback.PHONE)],
-                site_row(self._web_url, "/profile", "🌐 Saytda ochish"),
-                [Button("❓ Yordam", callback=Callback.HELP)],
-                [Button("🔕 Eslatmalarni o'chirish", callback=Callback.STOP_ASK)],
+                else [Button(tr(lang, "btn_verify_phone"), callback=Callback.PHONE)],
+                site_row(self._web_url, "/profile", tr(lang, "btn_site")),
+                [Button(tr(lang, "btn_help"), callback=Callback.HELP)],
+                [Button(tr(lang, "btn_stop"), callback=Callback.STOP_ASK)],
             ),
         )
 
     async def _photo(self, user: User, chat_id: int, file_id: str, caption: str | None) -> None:
+        lang = user.locale.value
         state = await self._conversation.get(chat_id)
         if "participation" in state:
             target = await self._open_task(user, UUID(hex=state["participation"]), state["task"])
@@ -380,27 +381,26 @@ class TelegramBot:
             o for o in await self._open_tasks(user) if o.challenge.accepts(ProofType.PHOTO)
         ]
         if not candidates:
-            await self._say(chat_id, f"Bugun rasm kutayotgan vazifa yo'q 🙂 Ro'yxat: {Label.TODAY}")
+            await self._say(chat_id, tr(lang, "no_photo_tasks", today=label(lang, "today")))
         elif len(candidates) == 1:
             await self._submit(user, chat_id, candidates[0], file_id=file_id, text=caption)
         else:
             await self._conversation.update(chat_id, photo=file_id)
             await self._say(
                 chat_id,
-                "📸 Rasm keldi! Qaysi vazifa uchun?",
-                [*([self._proof_button(o)] for o in candidates), CANCEL_ROW],
+                tr(lang, "photo_which"),
+                [*([self._proof_button(o)] for o in candidates), cancel_row(lang)],
             )
 
     async def _text(self, user: User, chat_id: int, text: str) -> None:
+        lang = user.locale.value
         state = await self._conversation.get(chat_id)
         if "participation" not in state:
-            await self._say(
-                chat_id, f"Isbot yuborish uchun pastdagi «{Label.PROOF}» tugmasini bosing 👇"
-            )
+            await self._say(chat_id, tr(lang, "press_proof", proof=label(lang, "proof")))
             return
         target = await self._open_task(user, UUID(hex=state["participation"]), state["task"])
         if not target.challenge.accepts(ProofType.TEXT):
-            await self._say(chat_id, "Bu vazifa uchun rasm kerak 📸 Rasmni yuboring.")
+            await self._say(chat_id, tr(lang, "needs_photo"))
             return
         await self._submit(user, chat_id, target, text=text[:2000])
 
@@ -430,13 +430,10 @@ class TelegramBot:
             )
         )
         await self._conversation.clear(chat_id)
-        await self._say(
-            chat_id,
-            f"📨 <b>{html(target.task.title)}</b> — isbot qabul qilindi!\n"
-            "Tekshirib, natijani shu yerga yozaman ⏳",
-        )
+        await self._say(chat_id, tr(user.locale.value, "accepted", title=html(target.task.title)))
 
     async def _today(self, user: User, chat_id: int) -> None:
+        lang = user.locale.value
         today = self._today_for(user)
         blocks: list[str] = []
         buttons: list[list[Button]] = []
@@ -444,50 +441,59 @@ class TelegramBot:
         async with uow:
             for p, challenge in await self._participations(uow, user):
                 proofs = await uow.proofs.list_for_day(p.id, today)
-                block, open_tasks = self._board(p, challenge, proofs, today)
+                block, open_tasks = self._board(p, challenge, proofs, today, lang)
                 blocks.append(block)
                 buttons.extend([self._proof_button(o)] for o in open_tasks)
         if not blocks:
             await self._say(
                 chat_id,
-                "Hozir faol challenge yo'q. Yangisini boshlash vaqti keldi! 🚀",
-                keyboard(site_row(self._web_url, "/challenges", "🚀 Challenge tanlash")),
+                tr(lang, "no_active"),
+                keyboard(site_row(self._web_url, "/challenges", tr(lang, "btn_pick_challenge"))),
             )
             return
-        footer = (
-            "Isbot yuborish uchun vazifani tanlang 👇"
-            if buttons
-            else "Bugungi hammasi joyida 🎉 Ertaga yana davom etamiz!"
-        )
-        header = f"📋 <b>Bugun</b> — {human_date(today)}"
+        footer = tr(lang, "pick_footer") if buttons else tr(lang, "all_done")
+        header = tr(lang, "today_header", date=human_date(today, lang))
         await self._say(chat_id, "\n\n".join([header, *blocks, footer]), buttons)
 
     async def _status(self, user: User, chat_id: int) -> None:
-        lines = ["📊 <b>Natijalaringiz</b>"]
+        lang = user.locale.value
+        lines = [tr(lang, "status_title")]
         uow = self._uow()
         async with uow:
             for p, challenge in await self._participations(uow, user):
                 lines.append(
-                    f"<b>{html(challenge.title)}</b>\n"
-                    f"🔥 Streak: {p.current_streak} kun (rekord: {p.best_streak})\n"
-                    f"📅 Bajarildi: {p.days_completed} / {len(p.days)} kun\n"
-                    f"🧊 Freeze: {p.freezes_left} ta"
+                    tr(
+                        lang,
+                        "status_block",
+                        title=html(challenge.title),
+                        streak=p.current_streak,
+                        best=p.best_streak,
+                        done=p.days_completed,
+                        total=len(p.days),
+                        freezes=p.freezes_left,
+                    )
                 )
         if len(lines) == 1:
-            lines.append("Faol challenge yo'q. Saytda yangisini boshlang 🚀")
-        await self._say(chat_id, "\n\n".join(lines), keyboard(site_row(self._web_url, "/profile")))
+            lines.append(tr(lang, "no_active_status"))
+        site = keyboard(site_row(self._web_url, "/profile", tr(lang, "btn_site")))
+        await self._say(chat_id, "\n\n".join(lines), site)
 
     # --- helpers ---------------------------------------------------------------------------
 
     def _board(
-        self, p: Participation, challenge: Challenge, proofs: list[Proof], today: date
+        self,
+        p: Participation,
+        challenge: Challenge,
+        proofs: list[Proof],
+        today: date,
+        lang: str = "uz",
     ) -> tuple[str, list[_Open]]:
         title = f"🎯 <b>{html(challenge.title)}</b>"
         if p.status is ParticipationStatus.SCHEDULED:
-            return f"{title}\n⏳ {human_date(p.start_date)} kuni boshlanadi", []
+            return f"{title}\n{tr(lang, 'starts_on', date=human_date(p.start_date, lang))}", []
         lines = [f"{title} · 🔥 {p.current_streak}"]
         if today not in p.days:
-            lines.append("😌 Bugun dam olish kuni — kuch yig'ing!")
+            lines.append(tr(lang, "rest_day"))
             return "\n".join(lines), []
         latest: dict[str, Proof] = {}
         for proof in sorted(proofs, key=lambda x: x.submitted_at):
@@ -495,16 +501,25 @@ class TelegramBot:
         open_tasks: list[_Open] = []
         for index, task in enumerate(p.tasks_on(today)):
             current = latest.get(task.key)
-            icon, note = STATUS_ICON[current.status] if current else ("⬜", "")
-            optional = " · ixtiyoriy" if not task.required else ""
-            lines.append(f"{icon} {html(task.title)} — {task.minutes} daq{optional}{note}")
+            icon, note_key = STATUS_ICON[current.status] if current else ("⬜", "")
+            lines.append(
+                tr(
+                    lang,
+                    "task_line",
+                    icon=icon,
+                    title=html(task.title),
+                    minutes=task.minutes,
+                    optional="" if task.required else tr(lang, "optional"),
+                    note=tr(lang, note_key) if note_key else "",
+                )
+            )
             if current is None or current.status is ProofStatus.REJECTED:
                 with suppress(DomainError):
                     p.ensure_accepts_proof(today, task.key)
                     open_tasks.append(_Open(p, challenge, task, index))
         if p.is_stake and open_tasks:
             code = daily_code(self._code_secret, p.id, today)
-            lines.append(f"🔑 Kunlik kod: <code>{code}</code> (rasmda ko'rinsin)")
+            lines.append(tr(lang, "daily_code", code=code))
         return "\n".join(lines), open_tasks
 
     @staticmethod
@@ -528,7 +543,11 @@ class TelegramBot:
         async with uow:
             for p, challenge in await self._participations(uow, user):
                 _, open_tasks = self._board(
-                    p, challenge, await uow.proofs.list_for_day(p.id, today), today
+                    p,
+                    challenge,
+                    await uow.proofs.list_for_day(p.id, today),
+                    today,
+                    user.locale.value,
                 )
                 result.extend(open_tasks)
         return result
@@ -539,7 +558,7 @@ class TelegramBot:
         async with uow:
             p = await uow.participations.get(participation_id)
             if p is None or p.user_id != user.id:
-                raise DomainError("Challenge topilmadi")
+                raise DomainError(tr(user.locale.value, "not_found"))
             challenge = await uow.challenges.get(p.challenge_id)
         today = self._today_for(user)
         tasks = p.tasks_on(today)
@@ -552,23 +571,21 @@ class TelegramBot:
             else -1
         )
         if challenge is None or not 0 <= index < len(tasks):
-            raise DomainError(f"Bu vazifa bugungi rejada yo'q. Ro'yxat: {Label.TODAY}")
+            lang = user.locale.value
+            raise DomainError(tr(lang, "not_in_plan", today=label(lang, "today")))
         p.ensure_accepts_proof(today, tasks[index].key)
         return _Open(p, challenge, tasks[index], index)
 
     def _ask_for_proof(self, user: User, target: _Open) -> str:
         photo = target.challenge.accepts(ProofType.PHOTO)
         text = target.challenge.accepts(ProofType.TEXT)
+        lang = user.locale.value
         title = html(target.task.title)
-        if photo and text:
-            ask = f"📸 <b>{title}</b> uchun rasm yuboring yoki nima qilganingizni yozing."
-        elif photo:
-            ask = f"📸 <b>{title}</b> uchun rasm yuboring."
-        else:
-            ask = f"✍️ <b>{title}</b> uchun nima qilganingizni yozib yuboring."
+        key = "ask_photo_or_text" if photo and text else "ask_photo" if photo else "ask_text"
+        ask = tr(lang, key, title=title)
         if photo and target.participation.is_stake:
             code = daily_code(self._code_secret, target.participation.id, self._today_for(user))
-            ask += f"\n🔑 Rasmda bugungi kod ko'rinsin: <code>{code}</code>"
+            ask += tr(lang, "code_in_photo", code=code)
         return ask
 
     @staticmethod

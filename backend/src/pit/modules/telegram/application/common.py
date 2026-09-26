@@ -6,14 +6,9 @@ from pit.modules.challenges.domain.repositories import ChallengeRepository, Part
 from pit.modules.coaching.domain.repositories import NotificationRepository
 from pit.modules.identity.domain.repositories import UserRepository
 from pit.modules.telegram.application.ports import Button, Keyboard
+from pit.modules.telegram.application.texts import MONTHS, WEEKDAYS, pick
 from pit.modules.verification.domain.repositories import ProofRepository
 from pit.shared.application.unit_of_work import Transaction
-
-MONTHS = (
-    "yanvar", "fevral", "mart", "aprel", "may", "iyun",
-    "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr",
-)  # fmt: skip
-WEEKDAYS = ("dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba", "yakshanba")
 
 TODAY_CALLBACK = "today"
 CHEER_CALLBACK = "cheer"  # cheer:<notification hex> — applaud the friend the news is about
@@ -41,8 +36,10 @@ def html(text: str) -> str:
     return escape(text, quote=False)
 
 
-def human_date(day: date) -> str:
-    return f"{WEEKDAYS[day.weekday()]}, {day.day}-{MONTHS[day.month - 1]}"
+def human_date(day: date, locale: str = "uz") -> str:
+    lang = pick(locale)
+    weekday, month = WEEKDAYS[lang][day.weekday()], MONTHS[lang][day.month - 1]
+    return f"{weekday}, {day.day} {month}" if lang == "ru" else f"{weekday}, {day.day}-{month}"
 
 
 def site_row(web_url: str, path: str, text: str = "🌐 Saytda ochish") -> list[Button]:

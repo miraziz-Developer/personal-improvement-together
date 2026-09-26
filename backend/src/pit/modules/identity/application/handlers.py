@@ -38,6 +38,12 @@ from pit.shared.domain.errors import DomainError
 _DUMMY_PASSWORD = "not-a-real-password-1"
 
 
+RESET_CODE_TEXT = {
+    "uz": "PIT parolni tiklash kodi: {code}. Agar siz so'ramagan bo'lsangiz, e'tibor bermang.",
+    "ru": "Код восстановления пароля PIT: {code}. Если вы его не запрашивали, игнорируйте.",  # noqa: RUF001
+}
+
+
 class IdentityUoW(Transaction, Protocol):
     @property
     def users(self) -> UserRepository: ...
@@ -124,7 +130,7 @@ async def request_password_reset(
     if user is None:
         return
     code = new_otp_code()
-    text = f"PIT parolni tiklash kodi: {code}. Agar siz so'ramagan bo'lsangiz, e'tibor bermang."
+    text = RESET_CODE_TEXT.get(user.locale.value, RESET_CODE_TEXT["uz"]).format(code=code)
     if messenger is not None and user.telegram_chat_id is not None:
         await otp.put(f"reset:{user.id}", user.phone or "", code)
         if await messenger.send(user, f"🔐 {text}"):

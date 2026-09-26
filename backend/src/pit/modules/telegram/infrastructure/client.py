@@ -149,6 +149,7 @@ def parse_update(update: dict[str, Any]) -> Incoming | None:
             chat_id=int(chat["id"]),
             callback_id=str(query["id"]),
             callback_data=str(query.get("data") or ""),
+            language=(query.get("from") or {}).get("language_code"),
         )
     message = update.get("message") or {}
     chat = message.get("chat") or {}
@@ -170,4 +171,5 @@ def parse_update(update: dict[str, Any]) -> Incoming | None:
         caption=message.get("caption"),
         contact_phone=contact.get("phone_number"),
         contact_is_own=sender is not None and contact.get("user_id") == sender,
+        language=(message.get("from") or {}).get("language_code"),
     )

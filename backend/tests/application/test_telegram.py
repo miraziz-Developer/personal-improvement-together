@@ -6,10 +6,18 @@ from pit.modules.challenges.domain.challenge import ProofType
 from pit.modules.challenges.domain.schedule import Schedule, TaskSpec
 from pit.modules.coaching.domain.messages import Moment
 from pit.modules.identity.application.commands import IssueTelegramLink, RequestPasswordReset
-from pit.modules.identity.domain.user import User
-from pit.modules.telegram.application.bot import MENU, PHONE_MENU, Callback, Label, TelegramBot
+from pit.modules.identity.domain.user import Locale, User
+from pit.modules.telegram.application.bot import (
+    MENU,
+    PHONE_MENU,
+    Callback,
+    Label,
+    TelegramBot,
+    menu_for,
+)
 from pit.modules.telegram.application.common import html
 from pit.modules.telegram.application.ports import Incoming
+from pit.modules.telegram.application.texts import LABELS
 from pit.modules.telegram.infrastructure.client import parse_update
 from pit.modules.verification.domain.proof import Proof
 from pit.modules.verification.domain.verdict import AiDecision, ProofStatus
@@ -387,3 +395,29 @@ async def test_password_reset_falls_back_to_sms(world: World, bot: TelegramBot) 
     world.telegram.down = True
     await world.bus.handle(RequestPasswordReset(username=user.username))
     assert world.sms.sent
+
+
+# --- the bot in Russian ----------------------------------------------------------------------
+
+
+async def test_a_russian_speaker_gets_a_russian_bot(world: World, bot: TelegramBot) -> None:
+    user = world.add_user()
+    user.change_locale(Locale.RU)
+    token: str = await world.bus.handle(IssueTelegramLink(user_id=user.id))
+    await say(bot, f"/start {token}")
+    welcome = world.telegram.last(CHAT)
+    assert "Telegram подключён" in welcome.text
+    assert welcome.menu == menu_for("ru")
+
+    await world.join(user, world.add_challenge())
+    await say(bot, LABELS["ru"]["today"])
+    assert "<b>Сегодня</b>" in world.telegram.last(CHAT).text
+    await say(bot, Label.TODAY)  # an old Uzbek keyboard still works after switching
+    assert "<b>Сегодня</b>" in world.telegram.last(CHAT).text
+
+
+async def test_a_stranger_is_greeted_in_their_telegram_language(
+    world: World, bot: TelegramBot
+) -> None:
+    await bot.handle(Incoming(chat_id=CHAT, text="/start", language="ru"))
+    assert "коуч PIT" in world.telegram.last(CHAT).text

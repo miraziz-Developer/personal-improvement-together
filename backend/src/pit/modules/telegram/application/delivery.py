@@ -23,6 +23,7 @@ from pit.modules.telegram.application.ports import (
     TelegramApi,
     TelegramUnavailable,
 )
+from pit.modules.telegram.application.texts import tr
 from pit.modules.verification.domain.events import ProofApproved
 from pit.modules.verification.domain.verdict import ProofStatus
 
@@ -49,15 +50,16 @@ async def send_or_unlink(
         logger.warning("Telegram is unavailable; message to %s dropped", user.id)
 
 
-def notification_keyboard(notification: Notification, web_url: str) -> Keyboard:
+def notification_keyboard(notification: Notification, web_url: str, lang: str = "uz") -> Keyboard:
     action: list[Button] = []
     if notification.participation_id and notification.moment not in _FINAL:
-        label = "📸 Isbot yuborish" if notification.moment in _ACT_NOW else "📋 Bugungi vazifalar"
-        action = [Button(label, callback=TODAY_CALLBACK)]
+        key = "btn_send_proof" if notification.moment in _ACT_NOW else "btn_today"
+        action = [Button(tr(lang, key), callback=TODAY_CALLBACK)]
     cheer: list[Button] = []
     if notification.moment is Moment.FRIEND_DAY_DONE and notification.subject_id:
-        cheer = [Button("👏 Olqishlash", callback=f"{CHEER_CALLBACK}:{notification.id.hex}")]
-    return keyboard(cheer, action, site_row(web_url, "/dashboard"))
+        cheer_data = f"{CHEER_CALLBACK}:{notification.id.hex}"
+        cheer = [Button(tr(lang, "btn_cheer"), callback=cheer_data)]
+    return keyboard(cheer, action, site_row(web_url, "/dashboard", tr(lang, "btn_site")))
 
 
 async def deliver_notification(
@@ -71,9 +73,8 @@ async def deliver_notification(
         if notification is None:
             return
         text = f"<b>{html(notification.title)}</b>\n\n{html(notification.body)}"
-        await send_or_unlink(
-            uow, user, text, notification_keyboard(notification, web_url), telegram
-        )
+        buttons = notification_keyboard(notification, web_url, user.locale.value)
+        await send_or_unlink(uow, user, text, buttons, telegram)
 
 
 class TelegramMessenger:
@@ -117,11 +118,12 @@ async def announce_task_approved(
         ]
         if task.required and not remaining:
             return
-        text = f"✅ <b>{html(task.title)}</b> tasdiqlandi!"
+        lang = user.locale.value
+        text = tr(lang, "task_approved", title=html(task.title))
         buttons: Keyboard = ()
         if remaining:
-            text += f"\nYana {len(remaining)} ta majburiy vazifa qoldi — davom eting 💪"
-            buttons = [[Button("📋 Bugungi vazifalar", callback=TODAY_CALLBACK)]]
+            text += tr(lang, "remaining", n=len(remaining))
+            buttons = [[Button(tr(lang, "btn_today"), callback=TODAY_CALLBACK)]]
         elif not task.required:
-            text += "\nQo'shimcha ball qo'shildi ⭐"
+            text += tr(lang, "bonus")
         await send_or_unlink(uow, user, text, buttons, telegram)

@@ -44,6 +44,7 @@ class Incoming:
     callback_data: str | None = None
     contact_phone: str | None = None
     contact_is_own: bool = False  # the sender's own number, not someone else's contact card
+    language: str | None = None  # the Telegram app's language ("ru", "uz", "en"...)
 
 
 class ChatUnavailable(Exception):
