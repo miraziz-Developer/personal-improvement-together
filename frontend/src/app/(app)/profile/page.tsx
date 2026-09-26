@@ -3,6 +3,7 @@
 import { BadgeCheck, LogOut, MapPin, Phone, Send } from "lucide-react";
 import { useState } from "react";
 
+import { AppInstall } from "@/components/AppInstall";
 import { OrDivider } from "@/components/AuthFields";
 import { Badges } from "@/components/Badges";
 import { DataRights } from "@/components/DataRights";
@@ -131,6 +132,8 @@ export default function ProfilePage() {
       </Card>
 
       <TelegramCard />
+
+      <AppInstall />
 
       <DataRights />
 

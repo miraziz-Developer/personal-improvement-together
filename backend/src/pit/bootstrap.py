@@ -63,6 +63,9 @@ from pit.modules.moderation.application.commands import FileReport, ResolveRepor
 from pit.modules.planning.application import handlers as planning
 from pit.modules.planning.application.commands import DraftPlan, EditPlan, StartPlan
 from pit.modules.planning.application.ports import PlanGenerator
+from pit.modules.push.application import handlers as push
+from pit.modules.push.application.commands import SubscribePush, UnsubscribePush
+from pit.modules.push.application.ports import WebPushSender
 from pit.modules.ranking.application import handlers as ranking
 from pit.modules.ranking.application.ports import LeaderboardIndex
 from pit.modules.telegram.application import delivery as telegram
@@ -106,6 +109,7 @@ class Dependencies:
     web_url: str = ""
     google: GoogleVerifier | None = None  # None = "Sign in with Google" is off
     files: StoredFiles | None = None  # proof photos; needed to erase accounts
+    push: WebPushSender | None = None  # None = browser notifications are off
 
 
 def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
@@ -177,6 +181,9 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         ReviewProof: partial(verification.review_proof, clock=clock),
         # wallet
         Deposit: partial(wallet.deposit, clock=clock),
+        # push
+        SubscribePush: partial(push.subscribe, clock=clock),
+        UnsubscribePush: push.unsubscribe,
         # moderation
         FileReport: partial(moderation.file_report, clock=clock),
         ResolveReport: partial(moderation.resolve_report, clock=clock),
@@ -200,6 +207,7 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         GroupMemberJoined: [partial(coaching.on_friend_joined, clock=clock)],
         # Privacy first: if a later handler fails, the photos and messages are already gone.
         AccountErased: [
+            push.forget_subscriptions,
             partial(verification.forget_proofs, files=deps.files),
             coaching.forget_notifications,
             partial(ranking.drop_from_leaderboards, index=deps.leaderboard),
@@ -223,11 +231,17 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         command_handlers[SignInWithGoogle] = partial(
             identity.sign_in_with_google, google=deps.google
         )
+    # Delivery channels are best effort: last in each list, never holding up the real work.
+    deliveries: list[Any] = []
+    if deps.push is not None:
+        deliveries.append(partial(push.deliver_push, sender=deps.push))
     if deps.telegram is not None:
-        # Last in each list: delivery is best effort and must never hold up the real work.
-        event_handlers[NotificationCreated] = [
+        deliveries.append(
             partial(telegram.deliver_notification, telegram=deps.telegram, web_url=deps.web_url)
-        ]
+        )
+    if deliveries:
+        event_handlers[NotificationCreated] = deliveries
+    if deps.telegram is not None:
         event_handlers[ProofApproved].append(
             partial(telegram.announce_task_approved, telegram=deps.telegram)
         )

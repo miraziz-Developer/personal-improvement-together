@@ -16,6 +16,8 @@ from pit.modules.identity.application.ports import GoogleIdentity
 from pit.modules.identity.domain.user import User
 from pit.modules.moderation.domain.report import Report, ReportStatus
 from pit.modules.planning.domain.plan import OnboardingAnswers, Plan, PlanProposal
+from pit.modules.push.application.ports import PushMessage, SubscriptionGone
+from pit.modules.push.domain.subscription import PushSubscription
 from pit.modules.ranking.domain.scoring import ScoreEntry
 from pit.modules.telegram.application.ports import (
     Button,
@@ -41,6 +43,7 @@ class InMemoryStore:
     participations: dict[UUID, Participation] = field(default_factory=dict)
     groups: dict[UUID, Group] = field(default_factory=dict)
     reports: dict[UUID, Report] = field(default_factory=dict)
+    push_subscriptions: dict[UUID, PushSubscription] = field(default_factory=dict)
     proofs: dict[UUID, Proof] = field(default_factory=dict)
     wallets: dict[UUID, Wallet] = field(default_factory=dict)
     ledger: list[LedgerTransaction] = field(default_factory=list)
@@ -127,6 +130,31 @@ class FakeReports(_Repo[Report]):
         )
 
 
+class FakePushSubscriptions(_Repo[PushSubscription]):
+    async def get_by_endpoint(self, endpoint: str) -> PushSubscription | None:
+        return next((s for s in self._all() if s.endpoint == endpoint), None)
+
+    async def list_for_user(self, user_id: UUID) -> list[PushSubscription]:
+        return [s for s in self._all() if s.user_id == user_id]
+
+    async def remove(self, subscription: PushSubscription) -> None:
+        self._store.pop(subscription.id, None)
+        self._staged.pop(subscription.id, None)
+
+
+class FakePush:
+    """Records pushes; endpoints in `gone` answer like an expired subscription."""
+
+    def __init__(self) -> None:
+        self.sent: list[tuple[str, PushMessage]] = []
+        self.gone: set[str] = set()
+
+    async def send(self, subscription: PushSubscription, message: PushMessage) -> None:
+        if subscription.endpoint in self.gone:
+            raise SubscriptionGone("410")
+        self.sent.append((subscription.endpoint, message))
+
+
 class FakeProofs(_Repo[Proof]):
     async def list_for_user(self, user_id: UUID) -> list[Proof]:
         return [p for p in self._all() if p.user_id == user_id]
@@ -209,6 +237,7 @@ class FakeUnitOfWork(UnitOfWork):
         self.participations = FakeParticipations(store.participations, self._seen)
         self.groups = FakeGroups(store.groups, self._seen)
         self.reports = FakeReports(store.reports, self._seen)
+        self.push_subscriptions = FakePushSubscriptions(store.push_subscriptions, self._seen)
         self.proofs = FakeProofs(store.proofs, self._seen)
         self.wallets = FakeWallets(store.wallets, self._seen)
         self.ledger = FakeLedger(store.ledger)
@@ -221,6 +250,7 @@ class FakeUnitOfWork(UnitOfWork):
             self.participations,
             self.groups,
             self.reports,
+            self.push_subscriptions,
             self.proofs,
             self.wallets,
             self.ledger,

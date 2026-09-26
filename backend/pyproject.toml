@@ -22,6 +22,7 @@ dependencies = [
     "boto3>=1.35",
     "openai>=1.50",
     "sentry-sdk[celery,fastapi]>=2.70.0",
+    "pywebpush>=2.5.0",
 ]
 
 [dependency-groups]
@@ -63,7 +64,7 @@ mypy_path = "src"
 packages = ["pit"]
 
 [[tool.mypy.overrides]]
-module = ["boto3", "boto3.*", "botocore", "botocore.*", "celery", "celery.*"]
+module = ["boto3", "boto3.*", "botocore", "botocore.*", "celery", "celery.*", "pywebpush", "py_vapid"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -88,6 +89,7 @@ source_modules = [
     "pit.modules.planning.domain",
     "pit.modules.coaching.domain",
     "pit.modules.moderation.domain",
+    "pit.modules.push.domain",
 ]
 forbidden_modules = [
     "pit.shared.application",
@@ -112,6 +114,7 @@ containers = [
     "pit.modules.planning",
     "pit.modules.coaching",
     "pit.modules.moderation",
+    "pit.modules.push",
 ]
 layers = ["(api)", "(infrastructure)", "application", "domain"]
 
@@ -125,7 +128,7 @@ layers = ["infrastructure", "application"]
 name = "Module dependency direction: downstream modules depend on upstream, never the reverse"
 type = "layers"
 layers = [
-    "pit.modules.telegram",
+    "pit.modules.telegram | pit.modules.push",
     "pit.modules.coaching",
     "pit.modules.ranking | pit.modules.wallet | pit.modules.verification | pit.modules.planning | pit.modules.moderation",
     "pit.modules.challenges",

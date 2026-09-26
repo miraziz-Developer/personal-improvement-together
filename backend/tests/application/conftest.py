@@ -24,6 +24,7 @@ from tests.fakes import (
     FakeLinkTokens,
     FakeOtpStore,
     FakePlanGenerator,
+    FakePush,
     FakeQueue,
     FakeSms,
     FakeTelegram,
@@ -174,6 +175,7 @@ def world() -> World:
         telegram=telegram,
         web_url="https://pit.uz",
         files=InMemoryStorage(),
+        push=FakePush(),
     )
     bus = bootstrap(deps, strict=True)
     return World(

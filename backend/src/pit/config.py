@@ -77,6 +77,11 @@ class Settings(BaseSettings):
     # Paid features (stake mode, wallet). Off: the whole platform is free.
     stakes_enabled: bool = False
 
+    # Browser push notifications (Web Push / VAPID). Generate: `python -m pit.cli vapid-keys`.
+    vapid_public_key: str = ""
+    vapid_private_key: SecretStr = SecretStr("")
+    vapid_subject: str = "mailto:support@pit.uz"
+
     # Error tracking (sentry.io); empty = off.
     sentry_dsn: SecretStr = SecretStr("")
     sentry_traces_sample_rate: float = 0.1

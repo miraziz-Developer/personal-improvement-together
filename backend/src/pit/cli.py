@@ -7,14 +7,18 @@ uv run python -m pit.cli nudges morning|evening   # send the coach's messages no
 uv run python -m pit.cli telegram-setup           # register the bot webhook and command menu
 uv run python -m pit.cli ai-check                 # prove the configured AI really answers
 uv run python -m pit.cli weekly                   # send the Sunday summaries now
+uv run python -m pit.cli vapid-keys               # key pair for browser push notifications
 """
 
 import argparse
 import asyncio
+import base64
 import io
 from uuid import uuid4
 
+from cryptography.hazmat.primitives import serialization
 from PIL import Image, ImageDraw
+from py_vapid import Vapid
 
 from pit.catalog import build_catalog
 from pit.config import Settings, get_settings
@@ -107,6 +111,20 @@ async def ai_check(settings: Settings) -> None:
             print(f"❌ {endpoint.label} plan: {type(error.__cause__).__name__}")
 
 
+def vapid_keys() -> str:
+    """A fresh key pair for browser push notifications, ready to paste into .env."""
+    vapid = Vapid()
+    vapid.generate_keys()
+    public = vapid.public_key.public_bytes(
+        serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint
+    )
+    private = vapid.private_key.private_numbers().private_value.to_bytes(32, "big")
+    return (
+        f"PIT_VAPID_PUBLIC_KEY={base64.urlsafe_b64encode(public).decode().rstrip('=')}\n"
+        f"PIT_VAPID_PRIVATE_KEY={base64.urlsafe_b64encode(private).decode().rstrip('=')}"
+    )
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser(prog="pit")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -119,8 +137,12 @@ async def main() -> None:
     sub.add_parser("telegram-setup")
     sub.add_parser("ai-check")
     sub.add_parser("weekly")
+    sub.add_parser("vapid-keys")
     args = parser.parse_args()
 
+    if args.command == "vapid-keys":
+        print(vapid_keys())
+        return
     if args.command == "ai-check":
         await ai_check(get_settings())
         return

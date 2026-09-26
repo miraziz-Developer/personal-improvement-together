@@ -393,6 +393,17 @@ class GroupMemberOut(BaseModel):
     total_days: int
 
 
+class PushSubscriptionIn(BaseModel):
+    """The browser's PushSubscription.toJSON()."""
+
+    endpoint: str = Field(max_length=1000)
+    keys: dict[str, str]
+
+
+class PushEndpointIn(BaseModel):
+    endpoint: str
+
+
 class BadgeOut(BaseModel):
     key: str
     emoji: str

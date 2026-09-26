@@ -71,6 +71,7 @@ export function useFeatures() {
     telegram_bot: string | null;
     google_client_id: string | null;
     sms_enabled: boolean;
+    push_public_key: string | null;
   }>("/features", { revalidateOnFocus: false });
   return {
     stakesEnabled: data?.stakes_enabled ?? false,
@@ -78,6 +79,7 @@ export function useFeatures() {
     telegramBot: data?.telegram_bot ?? null,
     googleClientId: data?.google_client_id ?? null,
     smsEnabled: data?.sms_enabled ?? false,
+    pushPublicKey: data?.push_public_key ?? null,
   };
 }
 

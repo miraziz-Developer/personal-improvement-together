@@ -169,6 +169,7 @@ async def features(container: ContainerDep) -> dict[str, bool | str | None]:
         # Public by design: Google's button needs it in the browser.
         "google_client_id": container.settings.google_client_id or None,
         "sms_enabled": container.settings.sms_provider == "eskiz",
+        "push_public_key": container.settings.vapid_public_key or None,
     }
 
 

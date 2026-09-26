@@ -13,6 +13,7 @@ from pit.modules.coaching.infrastructure.tables import notifications
 from pit.modules.identity.infrastructure.tables import users
 from pit.modules.moderation.application.commands import FileReport
 from pit.modules.moderation.domain.report import ReportReason
+from pit.modules.push.application.commands import SubscribePush, UnsubscribePush
 from pit.modules.ranking.domain.achievements import Record, badges_for
 from pit.modules.ranking.domain.scoring import MIN_COHORT_SIZE, period_keys
 from pit.shared.application.clock import local_date
@@ -181,3 +182,28 @@ async def my_badges(user_id: UserId, container: ContainerDep) -> list[s.BadgeOut
         s.BadgeOut(key=b.key, emoji=b.emoji, title=b.title, hint=b.hint, earned=earned)
         for b, earned in badges_for(record)
     ]
+
+
+@router.post(
+    "/me/push",
+    status_code=204,
+    dependencies=[Depends(rate_limit("push", 20, 3600, per="user"))],
+)
+async def subscribe_push(
+    body: s.PushSubscriptionIn, user_id: UserId, container: ContainerDep
+) -> None:
+    await container.bus.handle(
+        SubscribePush(
+            user_id=user_id,
+            endpoint=body.endpoint,
+            p256dh=body.keys.get("p256dh", ""),
+            auth=body.keys.get("auth", ""),
+        )
+    )
+
+
+@router.delete("/me/push", status_code=204)
+async def unsubscribe_push(
+    body: s.PushEndpointIn, user_id: UserId, container: ContainerDep
+) -> None:
+    await container.bus.handle(UnsubscribePush(user_id=user_id, endpoint=body.endpoint))

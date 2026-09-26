@@ -32,6 +32,7 @@ from pit.modules.planning.infrastructure.generators import (
     LlmPlanGenerator,
     TemplatePlanGenerator,
 )
+from pit.modules.push.infrastructure.sender import VapidWebPushSender
 from pit.modules.ranking.infrastructure.leaderboard import RedisLeaderboard
 from pit.modules.telegram.application.bot import TelegramBot
 from pit.modules.telegram.application.ports import TelegramApi
@@ -162,6 +163,13 @@ def _model(settings: Settings, name: str, purpose: AiPurpose) -> str:
     return (getattr(settings, f"{name}_plan_model") or vision) if purpose == "plan" else vision
 
 
+def _push_sender(settings: Settings) -> VapidWebPushSender | None:
+    private_key = settings.vapid_private_key.get_secret_value()
+    if not (settings.vapid_public_key and private_key):
+        return None
+    return VapidWebPushSender(private_key=private_key, subject=settings.vapid_subject)
+
+
 def ai_pool(settings: Settings, purpose: AiPurpose = "proof") -> LlmPool | None:
     names = settings.ai_provider_names
     # With company, fail over fast; alone, a provider gets a few patient retries.
@@ -274,6 +282,7 @@ def build_container(
             web_url=settings.web_url,
             google=google,
             files=storage,
+            push=_push_sender(settings),
         )
     )
     gateway = None
