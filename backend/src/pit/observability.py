@@ -25,6 +25,7 @@ def init_sentry(settings: Settings, component: str) -> bool:
         # Users are children too: no IPs, cookies or request bodies (passwords, photos) leave.
         send_default_pii=False,
         max_request_body_size="never",
+        shutdown_timeout=2,  # never hold a restart hostage to an unreachable Sentry
         integrations=[
             FastApiIntegration(),
             CeleryIntegration(),
