@@ -1,0 +1,131 @@
+from typing import Literal
+
+from fastapi import APIRouter, Query
+from sqlalchemy import select
+
+from pit.api import schemas as s
+from pit.api import views
+from pit.api.deps import ContainerDep, UserId
+from pit.modules.coaching.application.commands import MarkNotificationsRead
+from pit.modules.coaching.infrastructure.tables import notifications
+from pit.modules.identity.infrastructure.tables import users
+from pit.modules.ranking.domain.scoring import MIN_COHORT_SIZE, period_keys
+from pit.shared.application.clock import local_date
+from pit.shared.application.lookup import require
+from pit.shared.domain.money import Money
+
+router = APIRouter(tags=["me"])
+
+PERIOD_INDEX = {"week": 0, "season": 1, "all": 2}
+
+
+@router.get("/me", response_model=s.MeOut)
+async def me(user_id: UserId, container: ContainerDep) -> s.MeOut:
+    async with container.uow_factory() as uow:
+        user = require(await uow.users.get(user_id), "Foydalanuvchi topilmadi")
+        wallet = await uow.wallets.get(user_id)
+        points, active, completed, best, unread = await views.user_stats(uow, user_id)
+        return s.MeOut(
+            id=user.id,
+            username=user.username,
+            birth_date=user.birth_date,
+            birth_year=user.birth_year,
+            region_id=user.region_id,
+            region_name=await views.region_name(uow, user.region_id),
+            phone=user.phone,
+            phone_verified=user.phone_verified,
+            role=user.role.value,
+            wallet=s.WalletBalance(
+                available=(wallet.available if wallet else Money.zero()).amount,
+                locked=(wallet.locked if wallet else Money.zero()).amount,
+            ),
+            points=points,
+            active_challenges=active,
+            completed_challenges=completed,
+            best_streak=best,
+            unread_notifications=unread,
+            telegram_linked=user.telegram_chat_id is not None,
+        )
+
+
+@router.get("/me/notifications", response_model=list[s.NotificationOut])
+async def my_notifications(
+    user_id: UserId, container: ContainerDep, limit: int = Query(30, le=100)
+) -> list[s.NotificationOut]:
+    async with container.uow_factory() as uow:
+        rows = await uow.session.execute(
+            select(notifications)
+            .where(notifications.c.user_id == user_id)
+            .order_by(notifications.c.sent_at.desc())
+            .limit(limit)
+        )
+        return [
+            s.NotificationOut(
+                id=row["id"],
+                moment=row["moment"],
+                title=row["title"],
+                body=row["body"],
+                created_at=row["sent_at"],
+                read=row["read_at"] is not None,
+            )
+            for row in rows.mappings()
+        ]
+
+
+@router.post("/me/notifications/read", status_code=204)
+async def mark_read(body: s.ReadIn, user_id: UserId, container: ContainerDep) -> None:
+    await container.bus.handle(
+        MarkNotificationsRead(user_id=user_id, notification_ids=tuple(body.ids))
+    )
+
+
+@router.get("/leaderboard", response_model=s.LeaderboardOut, tags=["leaderboard"])
+async def leaderboard(
+    user_id: UserId,
+    container: ContainerDep,
+    scope: Literal["global", "age", "region"] = "global",
+    period: Literal["week", "season", "all"] = "week",
+    limit: int = Query(50, le=100),
+) -> s.LeaderboardOut:
+    async with container.uow_factory() as uow:
+        user = require(await uow.users.get(user_id), "Foydalanuvchi topilmadi")
+        region = await views.region_name(uow, user.region_id)
+    today = local_date(container.clock.now(), user.timezone)
+    period_key = period_keys(today)[PERIOD_INDEX[period]]
+    scope_key, title = {
+        "global": ("global", "Butun platforma"),
+        "age": (f"age:{user.birth_year}", f"{user.birth_year}-yilda tug'ilganlar"),
+        "region": (f"region:{user.region_id}", region or "Hududingiz"),
+    }[scope]
+    key = f"lb:{period_key}:{scope_key}"
+    board = container.leaderboard
+    size = await board.size(key)
+    position = await board.position(key, user_id)
+    hidden = scope != "global" and size < MIN_COHORT_SIZE
+    entries: list[s.LeaderboardEntry] = []
+    if not hidden:
+        top = await board.top(key, limit=limit)
+        async with container.uow_factory() as uow:
+            rows = await uow.session.execute(
+                select(users.c.id, users.c.username).where(users.c.id.in_([u for u, _ in top]))
+            )
+            names = {uid: name for uid, name in rows.tuples()}
+        entries = [
+            s.LeaderboardEntry(
+                rank=i + 1,
+                user_id=uid,
+                username=names.get(uid, "—"),
+                points=points,
+                is_me=uid == user_id,
+            )
+            for i, (uid, points) in enumerate(top)
+        ]
+    return s.LeaderboardOut(
+        scope=scope,
+        period=period,
+        title=title,
+        entries=entries,
+        me=s.MyRank(rank=position[0], points=position[1]) if position else None,
+        size=size,
+        hidden=hidden,
+    )

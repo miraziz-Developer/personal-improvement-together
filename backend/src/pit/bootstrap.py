@@ -1,0 +1,207 @@
+"""Composition root: the only place that knows every module and wires them together."""
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from functools import partial
+from typing import Any
+
+from pit.modules.challenges.application import handlers as challenges
+from pit.modules.challenges.application.commands import (
+    CancelParticipation,
+    ChangeSchedule,
+    CloseDays,
+    CreateGroup,
+    JoinChallenge,
+    JoinGroup,
+    RecordTaskApproved,
+    RefreshDay,
+)
+from pit.modules.challenges.domain.events import (
+    DayCompleted,
+    DayFrozen,
+    DayNeedsHumanReview,
+    GroupMemberJoined,
+    OptionalTaskCompleted,
+    ParticipationCancelled,
+    ParticipationCompleted,
+    ParticipationFailed,
+    ParticipationStarted,
+)
+from pit.modules.coaching.application import handlers as coaching
+from pit.modules.coaching.application.commands import MarkNotificationsRead, SendDailyNudges
+from pit.modules.coaching.domain.notification import NotificationCreated
+from pit.modules.identity.application import handlers as identity
+from pit.modules.identity.application.commands import (
+    ConfirmPhone,
+    IssueTelegramLink,
+    LinkTelegram,
+    RegisterUser,
+    RegisterWithGoogle,
+    RequestPasswordReset,
+    RequestPhoneCode,
+    ResetPassword,
+    SignInWithGoogle,
+    UnlinkTelegram,
+    VerifyPhoneFromTelegram,
+)
+from pit.modules.identity.application.ports import (
+    GoogleVerifier,
+    LinkTokens,
+    OtpStore,
+    PasswordHasher,
+    SmsSender,
+)
+from pit.modules.planning.application import handlers as planning
+from pit.modules.planning.application.commands import DraftPlan, EditPlan, StartPlan
+from pit.modules.planning.application.ports import PlanGenerator
+from pit.modules.ranking.application import handlers as ranking
+from pit.modules.ranking.application.ports import LeaderboardIndex
+from pit.modules.telegram.application import delivery as telegram
+from pit.modules.telegram.application.ports import TelegramApi
+from pit.modules.verification.application import handlers as verification
+from pit.modules.verification.application.commands import ReviewProof, SubmitProof, VerifyProof
+from pit.modules.verification.application.day_evidence import ProofDayEvidenceReader
+from pit.modules.verification.application.ports import ProofVerifier, VerificationQueue
+from pit.modules.verification.domain.events import (
+    ProofApproved,
+    ProofRejected,
+    ProofSentToReview,
+    ProofSubmitted,
+)
+from pit.modules.wallet.application import handlers as wallet
+from pit.modules.wallet.application.commands import Deposit
+from pit.shared.application.clock import Clock
+from pit.shared.application.messagebus import MessageBus
+from pit.shared.application.unit_of_work import UnitOfWork
+
+
+@dataclass(frozen=True)
+class Dependencies:
+    uow_factory: Callable[[], UnitOfWork]
+    clock: Clock
+    verifier: ProofVerifier
+    verification_queue: VerificationQueue
+    leaderboard: LeaderboardIndex
+    plan_generator: PlanGenerator
+    password_hasher: PasswordHasher
+    otp_store: OtpStore
+    sms_sender: SmsSender
+    link_tokens: LinkTokens
+    daily_code_secret: bytes
+    stakes_enabled: bool = True  # paid (stake) mode; off while the platform is free
+    telegram: TelegramApi | None = None  # None = no bot configured
+    web_url: str = ""
+    google: GoogleVerifier | None = None  # None = "Sign in with Google" is off
+
+
+def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
+    clock = deps.clock
+
+    def escrow(uow: Any) -> wallet.WalletStakeEscrow:
+        return wallet.WalletStakeEscrow(uow, clock)
+
+    evidence_reader = ProofDayEvidenceReader
+    release = partial(wallet.release_stake, clock=clock)
+    messenger = telegram.TelegramMessenger(deps.telegram) if deps.telegram else None
+
+    command_handlers: dict[type, Any] = {
+        # identity
+        RegisterUser: partial(identity.register_user, clock=clock, hasher=deps.password_hasher),
+        RequestPhoneCode: partial(
+            identity.request_phone_code, otp=deps.otp_store, sms=deps.sms_sender
+        ),
+        ConfirmPhone: partial(identity.confirm_phone, otp=deps.otp_store),
+        RequestPasswordReset: partial(
+            identity.request_password_reset,
+            otp=deps.otp_store,
+            sms=deps.sms_sender,
+            messenger=messenger,
+        ),
+        ResetPassword: partial(
+            identity.reset_password, otp=deps.otp_store, hasher=deps.password_hasher
+        ),
+        IssueTelegramLink: partial(identity.issue_telegram_link, tokens=deps.link_tokens),
+        LinkTelegram: partial(identity.link_telegram, tokens=deps.link_tokens),
+        UnlinkTelegram: identity.unlink_telegram,
+        VerifyPhoneFromTelegram: identity.verify_phone_from_telegram,
+        RegisterWithGoogle: partial(identity.register_with_google, clock=clock),
+        # coaching
+        SendDailyNudges: partial(coaching.send_daily_nudges, clock=clock),
+        MarkNotificationsRead: partial(coaching.mark_read, clock=clock),
+        # planning — the "make me a plan" path
+        DraftPlan: partial(planning.draft_plan, generator=deps.plan_generator),
+        EditPlan: planning.edit_plan,
+        StartPlan: partial(
+            planning.start_plan, clock=clock, escrow=escrow, stakes_enabled=deps.stakes_enabled
+        ),
+        # challenges — the "pick a ready-made challenge" path, and the daily calendar
+        JoinChallenge: partial(
+            challenges.join_challenge,
+            clock=clock,
+            escrow=escrow,
+            stakes_enabled=deps.stakes_enabled,
+        ),
+        CancelParticipation: partial(challenges.cancel_participation, clock=clock),
+        CreateGroup: partial(challenges.create_group, clock=clock),
+        JoinGroup: partial(
+            challenges.join_group, clock=clock, escrow=escrow, stakes_enabled=deps.stakes_enabled
+        ),
+        ChangeSchedule: partial(challenges.change_schedule, clock=clock),
+        CloseDays: partial(challenges.close_days, clock=clock, evidence_reader=evidence_reader),
+        RefreshDay: partial(challenges.refresh_day, evidence_reader=evidence_reader),
+        RecordTaskApproved: partial(
+            challenges.record_task_approved, evidence_reader=evidence_reader
+        ),
+        # verification
+        SubmitProof: partial(
+            verification.submit_proof, clock=clock, code_secret=deps.daily_code_secret
+        ),
+        VerifyProof: partial(verification.verify_proof, verifier=deps.verifier),
+        ReviewProof: partial(verification.review_proof, clock=clock),
+        # wallet
+        Deposit: partial(wallet.deposit, clock=clock),
+    }
+    event_handlers: dict[type, list[Any]] = {
+        ProofSubmitted: [partial(verification.enqueue_verification, queue=deps.verification_queue)],
+        ProofApproved: [verification.task_approved],
+        ProofRejected: [
+            verification.refresh_day_after_rejection,
+            partial(coaching.on_proof_rejected, clock=clock),
+        ],
+        ProofSentToReview: [partial(coaching.on_proof_in_review, clock=clock)],
+        ParticipationStarted: [partial(coaching.on_started, clock=clock)],
+        DayFrozen: [partial(coaching.on_day_frozen, clock=clock)],
+        DayNeedsHumanReview: [verification.escalate_for_review],
+        DayCompleted: [
+            partial(ranking.award_day_points, index=deps.leaderboard),
+            partial(coaching.on_day_completed, clock=clock),
+            partial(coaching.on_friend_day_done, clock=clock),
+        ],
+        GroupMemberJoined: [partial(coaching.on_friend_joined, clock=clock)],
+        OptionalTaskCompleted: [
+            partial(ranking.award_optional_task_points, index=deps.leaderboard)
+        ],
+        ParticipationCompleted: [
+            release,
+            partial(ranking.award_completion_bonus, index=deps.leaderboard),
+            partial(coaching.on_completed, clock=clock),
+        ],
+        ParticipationCancelled: [release],
+        ParticipationFailed: [
+            partial(wallet.forfeit_stake, clock=clock),
+            partial(coaching.on_failed, clock=clock),
+        ],
+    }
+    if deps.google is not None:
+        command_handlers[SignInWithGoogle] = partial(
+            identity.sign_in_with_google, google=deps.google
+        )
+    if deps.telegram is not None:
+        # Last in each list: delivery is best effort and must never hold up the real work.
+        event_handlers[NotificationCreated] = [
+            partial(telegram.deliver_notification, telegram=deps.telegram, web_url=deps.web_url)
+        ]
+        event_handlers[ProofApproved].append(
+            partial(telegram.announce_task_approved, telegram=deps.telegram)
+        )
+    return MessageBus(deps.uow_factory, command_handlers, event_handlers, strict=strict)

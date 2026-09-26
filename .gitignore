@@ -1,0 +1,22 @@
+# secrets and local data
+.env
+deploy/.env.prod
+.env.local
+.storage/
+
+# python
+.venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.import_linter_cache/
+
+# node / next
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+.DS_Store

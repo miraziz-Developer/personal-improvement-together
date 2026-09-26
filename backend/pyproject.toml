@@ -1,0 +1,130 @@
+[project]
+name = "pit-backend"
+version = "0.1.0"
+description = "Personal Improvement Together — backend (FastAPI, DDD modular monolith)"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+    "sqlalchemy[asyncio]>=2.0",
+    "psycopg[binary]>=3.2",
+    "alembic>=1.13",
+    "redis>=5.0",
+    "celery>=5.4",
+    "tzdata>=2024.1",
+    "httpx>=0.27",
+    "pyjwt[crypto]>=2.9",
+    "pwdlib[argon2]>=0.2",
+    "python-multipart>=0.0.9",
+    "pillow>=11",
+    "boto3>=1.35",
+    "openai>=1.50",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "import-linter>=2.1",
+    "httpx>=0.27",
+    "fakeredis>=2.26",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pit"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+mypy_path = "src"
+packages = ["pit"]
+
+[[tool.mypy.overrides]]
+module = ["boto3", "boto3.*", "botocore", "botocore.*", "celery", "celery.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["pit.worker"]
+disallow_untyped_decorators = false  # Celery has no type hints
+
+# --- Architecture rules (DDD) — checked with `lint-imports` ---------------------------
+[tool.importlinter]
+root_package = "pit"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Domain layers are pure: no frameworks, no outer layers"
+type = "forbidden"
+source_modules = [
+    "pit.shared.domain",
+    "pit.modules.identity.domain",
+    "pit.modules.challenges.domain",
+    "pit.modules.verification.domain",
+    "pit.modules.wallet.domain",
+    "pit.modules.ranking.domain",
+    "pit.modules.planning.domain",
+    "pit.modules.coaching.domain",
+]
+forbidden_modules = [
+    "pit.shared.application",
+    "pit.bootstrap",
+    "pit.main",
+    "fastapi",
+    "sqlalchemy",
+    "celery",
+    "redis",
+    "pydantic",
+]
+
+[[tool.importlinter.contracts]]
+name = "Each module is layered: api > infrastructure > application > domain"
+type = "layers"
+containers = [
+    "pit.modules.identity",
+    "pit.modules.challenges",
+    "pit.modules.verification",
+    "pit.modules.wallet",
+    "pit.modules.ranking",
+    "pit.modules.planning",
+    "pit.modules.coaching",
+]
+layers = ["(api)", "(infrastructure)", "application", "domain"]
+
+[[tool.importlinter.contracts]]
+name = "Telegram is a front door with no domain of its own: infrastructure > application"
+type = "layers"
+containers = ["pit.modules.telegram"]
+layers = ["infrastructure", "application"]
+
+[[tool.importlinter.contracts]]
+name = "Module dependency direction: downstream modules depend on upstream, never the reverse"
+type = "layers"
+layers = [
+    "pit.modules.telegram",
+    "pit.modules.coaching",
+    "pit.modules.ranking | pit.modules.wallet | pit.modules.verification | pit.modules.planning",
+    "pit.modules.challenges",
+    "pit.modules.identity",
+]

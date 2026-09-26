@@ -1,0 +1,16 @@
+from typing import Protocol
+from uuid import UUID
+
+from pit.modules.identity.domain.user import User
+
+
+class UserRepository(Protocol):
+    def add(self, user: User) -> None: ...
+
+    async def get(self, user_id: UUID) -> User | None: ...
+
+    async def get_by_username(self, username: str) -> User | None: ...
+
+    async def get_by_telegram_chat(self, chat_id: int) -> User | None: ...
+
+    async def get_by_google_sub(self, sub: str) -> User | None: ...
