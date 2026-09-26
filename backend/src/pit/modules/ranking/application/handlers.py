@@ -6,6 +6,7 @@ from pit.modules.challenges.domain.events import (
     OptionalTaskCompleted,
     ParticipationCompleted,
 )
+from pit.modules.identity.domain.events import AccountErased
 from pit.modules.identity.domain.repositories import UserRepository
 from pit.modules.ranking.application.ports import LeaderboardIndex
 from pit.modules.ranking.domain.repositories import ScoreRepository
@@ -81,3 +82,10 @@ async def _award(entry: ScoreEntry, uow: RankingUoW, index: LeaderboardIndex) ->
             day=entry.earned_on, birth_year=user.birth_year, region_id=user.region_id
         )
         await index.increment(keys, entry.user_id, entry.points)
+
+
+async def drop_from_leaderboards(
+    event: AccountErased, uow: Transaction, *, index: LeaderboardIndex
+) -> None:
+    """Erased users leave the boards; their points stay in the ledger of scores, anonymous."""
+    await index.remove_user(event.user_id)

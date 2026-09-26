@@ -13,6 +13,7 @@ from pit.api.routes import (
     challenges,
     media,
     plans,
+    privacy,
     social,
     telegram,
     together,
@@ -100,7 +101,8 @@ def create_app(container: Container | None = None) -> FastAPI:
         field = ".".join(str(p) for p in first.get("loc", [])[1:])
         return _error(422, "validation_error", f"Ma'lumot noto'g'ri: {field}".rstrip(": "))
 
-    for module in (auth, challenges, plans, social, wallet, admin, media, telegram, together):
+    modules = (auth, challenges, plans, social, wallet, admin, media, telegram, together, privacy)
+    for module in modules:
         app.include_router(module.router, prefix="/api/v1")
 
     @app.get("/health")

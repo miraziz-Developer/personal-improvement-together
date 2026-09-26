@@ -25,6 +25,7 @@ class SqlUserRepository(SqlRepository[User]):
             "telegram_chat_id": item.telegram_chat_id,
             "google_sub": item.google_sub,
             "email": item.email,
+            "deleted_at": item.deleted_at,
         }
 
     async def _to_aggregate(self, row: Mapping[str, Any]) -> User:
@@ -43,6 +44,7 @@ class SqlUserRepository(SqlRepository[User]):
             telegram_chat_id=row["telegram_chat_id"],
             google_sub=row["google_sub"],
             email=row["email"],
+            deleted_at=row["deleted_at"],
         )
 
     async def get_by_username(self, username: str) -> User | None:

@@ -6,7 +6,7 @@ from datetime import date, datetime
 from enum import StrEnum
 from uuid import UUID
 
-from pit.modules.identity.domain.events import PhoneVerified, UserRegistered
+from pit.modules.identity.domain.events import AccountErased, PhoneVerified, UserRegistered
 from pit.shared.domain.aggregate import AggregateRoot
 from pit.shared.domain.errors import DomainError, InvariantViolation
 
@@ -48,6 +48,7 @@ class User(AggregateRoot):
     # "Sign in with Google": the account's stable Google id; such users may have no password.
     google_sub: str | None = None
     email: str | None = None
+    deleted_at: datetime | None = None  # erased at the user's request; only statistics remain
 
     @classmethod
     def register(
@@ -106,6 +107,26 @@ class User(AggregateRoot):
 
     def unlink_telegram(self) -> None:
         self.telegram_chat_id = None
+
+    @property
+    def is_erased(self) -> bool:
+        return self.deleted_at is not None
+
+    def erase(self, at: datetime) -> None:
+        """The right to be forgotten: identifying data goes, the anonymous record of days stays
+        (group and ranking history keep adding up). Birth date keeps only the cohort year."""
+        if self.is_erased:
+            raise DomainError("Akkaunt allaqachon o'chirilgan")
+        self.username = f"deleted_{self.id.hex[:10]}"
+        self.birth_date = date(self.birth_date.year, 1, 1)
+        self.phone = None
+        self.phone_verified = False
+        self.password_hash = ""
+        self.telegram_chat_id = None
+        self.google_sub = None
+        self.email = None
+        self.deleted_at = at
+        self._record(AccountErased(user_id=self.id))
 
     def connect_google(self, sub: str, email: str | None) -> None:
         self.google_sub = sub

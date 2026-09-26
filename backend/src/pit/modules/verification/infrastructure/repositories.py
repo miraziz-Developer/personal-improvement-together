@@ -78,6 +78,10 @@ class SqlProofRepository(SqlRepository[Proof]):
             review=review,
         )
 
+    async def list_for_user(self, user_id: UUID) -> list[Proof]:
+        stored = await self._select(proofs.c.user_id == user_id)
+        return stored + self._pending(lambda p: p.user_id == user_id)
+
     async def list_for_day(self, participation_id: UUID, day: date) -> list[Proof]:
         stored = await self._select(
             proofs.c.participation_id == participation_id, proofs.c.for_date == day

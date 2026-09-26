@@ -89,6 +89,10 @@ class GoogleRegisterIn(BaseModel):
     accepted_terms_version: str = ""
 
 
+class EraseIn(BaseModel):
+    username: str  # typed again to confirm
+
+
 class ForgotIn(BaseModel):
     username: str
 

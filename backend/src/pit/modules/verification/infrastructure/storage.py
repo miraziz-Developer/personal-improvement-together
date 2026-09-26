@@ -17,6 +17,8 @@ class FileStorage(Protocol):
 
     async def url(self, key: str, expires_seconds: int = 900) -> str: ...
 
+    async def delete(self, key: str) -> None: ...
+
 
 class S3Storage:
     """Any S3-compatible store (MinIO locally). Files are private; clients get short-lived URLs."""
@@ -63,6 +65,9 @@ class S3Storage:
             )
         )
 
+    async def delete(self, key: str) -> None:
+        await asyncio.to_thread(self._client.delete_object, Bucket=self._bucket, Key=key)
+
 
 class LocalFileStorage:
     """Local development: files on disk, served by the API through short-lived signed links."""
@@ -103,6 +108,9 @@ class LocalFileStorage:
         signature = self.sign(key, expires_at)
         return f"{self._base}/api/v1/media/{key}?exp={expires_at}&sig={signature}"
 
+    async def delete(self, key: str) -> None:
+        await asyncio.to_thread(self.path_for(key).unlink, missing_ok=True)
+
 
 class InMemoryStorage:
     """For tests and for running without MinIO."""
@@ -118,3 +126,6 @@ class InMemoryStorage:
 
     async def url(self, key: str, expires_seconds: int = 900) -> str:
         return f"memory://{key}"
+
+    async def delete(self, key: str) -> None:
+        self.files.pop(key, None)

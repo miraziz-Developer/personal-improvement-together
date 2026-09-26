@@ -11,6 +11,7 @@ from pit.modules.challenges.domain.challenge import Challenge, ParticipationMode
 from pit.modules.challenges.domain.participation import Participation
 from pit.modules.identity.domain.user import Role, User
 from pit.modules.verification.application.commands import SubmitProof, VerifyProof
+from pit.modules.verification.infrastructure.storage import InMemoryStorage
 from pit.modules.wallet.application.commands import Deposit
 from pit.modules.wallet.domain.wallet import Wallet
 from pit.shared.application.clock import local_date
@@ -172,6 +173,7 @@ def world() -> World:
         daily_code_secret=b"test-secret",
         telegram=telegram,
         web_url="https://pit.uz",
+        files=InMemoryStorage(),
     )
     bus = bootstrap(deps, strict=True)
     return World(

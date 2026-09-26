@@ -29,6 +29,7 @@ from pit.modules.challenges.domain.repositories import (
     ParticipationRepository,
 )
 from pit.modules.challenges.domain.schedule import Schedule
+from pit.modules.identity.domain.events import AccountErased
 from pit.modules.identity.domain.repositories import UserRepository
 from pit.modules.identity.domain.user import User
 from pit.shared.application.clock import Clock, local_date
@@ -274,3 +275,17 @@ async def join_group(
         )
         await uow.commit()
         return participation.id
+
+
+async def withdraw_participations(
+    event: AccountErased, uow: ChallengesUoW, *, clock: Clock
+) -> None:
+    async with uow:
+        user = require(await uow.users.get(event.user_id), "Foydalanuvchi topilmadi")
+        today = local_date(clock.now(), user.timezone)
+        for participation_id in await uow.participations.list_open_ids(user.id):
+            participation = require(
+                await uow.participations.get(participation_id), "Challenge topilmadi"
+            )
+            participation.withdraw(today)
+        await uow.commit()

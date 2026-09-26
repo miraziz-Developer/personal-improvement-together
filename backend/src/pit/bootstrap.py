@@ -33,6 +33,7 @@ from pit.modules.coaching.domain.notification import NotificationCreated
 from pit.modules.identity.application import handlers as identity
 from pit.modules.identity.application.commands import (
     ConfirmPhone,
+    EraseAccount,
     IssueTelegramLink,
     LinkTelegram,
     RegisterUser,
@@ -51,6 +52,7 @@ from pit.modules.identity.application.ports import (
     PasswordHasher,
     SmsSender,
 )
+from pit.modules.identity.domain.events import AccountErased
 from pit.modules.planning.application import handlers as planning
 from pit.modules.planning.application.commands import DraftPlan, EditPlan, StartPlan
 from pit.modules.planning.application.ports import PlanGenerator
@@ -61,7 +63,11 @@ from pit.modules.telegram.application.ports import TelegramApi
 from pit.modules.verification.application import handlers as verification
 from pit.modules.verification.application.commands import ReviewProof, SubmitProof, VerifyProof
 from pit.modules.verification.application.day_evidence import ProofDayEvidenceReader
-from pit.modules.verification.application.ports import ProofVerifier, VerificationQueue
+from pit.modules.verification.application.ports import (
+    ProofVerifier,
+    StoredFiles,
+    VerificationQueue,
+)
 from pit.modules.verification.domain.events import (
     ProofApproved,
     ProofRejected,
@@ -92,6 +98,7 @@ class Dependencies:
     telegram: TelegramApi | None = None  # None = no bot configured
     web_url: str = ""
     google: GoogleVerifier | None = None  # None = "Sign in with Google" is off
+    files: StoredFiles | None = None  # proof photos; needed to erase accounts
 
 
 def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
@@ -124,6 +131,7 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         LinkTelegram: partial(identity.link_telegram, tokens=deps.link_tokens),
         UnlinkTelegram: identity.unlink_telegram,
         VerifyPhoneFromTelegram: identity.verify_phone_from_telegram,
+        EraseAccount: partial(identity.erase_account, clock=clock),
         RegisterWithGoogle: partial(identity.register_with_google, clock=clock),
         # coaching
         SendDailyNudges: partial(coaching.send_daily_nudges, clock=clock),
@@ -178,6 +186,13 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
             partial(coaching.on_friend_day_done, clock=clock),
         ],
         GroupMemberJoined: [partial(coaching.on_friend_joined, clock=clock)],
+        # Privacy first: if a later handler fails, the photos and messages are already gone.
+        AccountErased: [
+            partial(verification.forget_proofs, files=deps.files),
+            coaching.forget_notifications,
+            partial(ranking.drop_from_leaderboards, index=deps.leaderboard),
+            partial(challenges.withdraw_participations, clock=clock),
+        ],
         OptionalTaskCompleted: [
             partial(ranking.award_optional_task_points, index=deps.leaderboard)
         ],

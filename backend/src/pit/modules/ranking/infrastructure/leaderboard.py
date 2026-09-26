@@ -19,6 +19,10 @@ class RedisLeaderboard:
                     pipe.expire(key, PERIOD_TTL_SECONDS)
             await pipe.execute()
 
+    async def remove_user(self, user_id: UUID) -> None:
+        async for key in self._redis.scan_iter(match="lb:*", count=500):
+            await self._redis.zrem(key, str(user_id))
+
     async def top(self, key: str, *, limit: int, offset: int = 0) -> list[tuple[UUID, int]]:
         rows = await self._redis.zrevrange(key, offset, offset + limit - 1, withscores=True)
         return [(UUID(member), int(score)) for member, score in rows]

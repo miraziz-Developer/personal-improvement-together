@@ -421,3 +421,34 @@ async def test_together_invite_join_and_group_board(api: Api) -> None:
     assert board["members"][0]["is_me"] and board["members"][0]["is_owner"]
     notes = (await api.client.get("/api/v1/me/notifications", headers=owner)).json()
     assert any("vali_2009" in n["body"] for n in notes)
+
+
+async def test_export_then_erase_the_account(api: Api) -> None:
+    auth = await api.register("ali_2008")
+    reading = str(catalog_id("reading-30"))
+    await api.client.post(f"/api/v1/challenges/{reading}/join", json={"mode": "free"}, headers=auth)
+
+    export = await api.client.get("/api/v1/me/export", headers=auth)
+    assert export.status_code == 200
+    assert "attachment" in export.headers["content-disposition"]
+    data = export.json()
+    assert data["profile"]["username"] == "ali_2008"
+    assert data["challenges"][0]["status"] == "active"
+    assert data["notifications"]  # the coach's welcome message
+
+    wrong = await api.client.request(
+        "DELETE", "/api/v1/me", json={"username": "boshqa"}, headers=auth
+    )
+    assert wrong.status_code == 422
+    erased = await api.client.request(
+        "DELETE", "/api/v1/me", json={"username": "ali_2008"}, headers=auth
+    )
+    assert erased.status_code == 204
+
+    assert (await api.client.get("/api/v1/me", headers=auth)).status_code == 401  # old token
+    login = await api.client.post(
+        "/api/v1/auth/login", json={"username": "ali_2008", "password": "kuchli-parol-1"}
+    )
+    assert login.status_code == 422
+    # The username is free again for someone new.
+    assert await api.register("ali_2008")

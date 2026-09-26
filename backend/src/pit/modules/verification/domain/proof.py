@@ -40,6 +40,12 @@ class Proof(AggregateRoot):
     ai_verdict: AiVerdict | None = None
     review: HumanReview | None = None
 
+    def forget_content(self) -> None:
+        """Account erased: the photo and the words go; the verdict (a statistic) stays."""
+        self.file_key = None
+        self.text_note = None
+        self.phash = None
+
     @classmethod
     def submit(
         cls,

@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 from pit.modules.identity.application.commands import (
     ConfirmPhone,
+    EraseAccount,
     IssueTelegramLink,
     LinkTelegram,
     RegisterUser,
@@ -224,3 +225,12 @@ async def register_with_google(cmd: RegisterWithGoogle, uow: IdentityUoW, *, clo
         uow.users.add(user)
         await uow.commit()
         return user.id
+
+
+async def erase_account(cmd: EraseAccount, uow: IdentityUoW, *, clock: Clock) -> None:
+    async with uow:
+        user = require(await uow.users.get(cmd.user_id), "Foydalanuvchi topilmadi")
+        if cmd.confirm_username.strip().lower() != user.username:
+            raise DomainError("Tasdiqlash uchun username'ingizni aynan yozing")
+        user.erase(clock.now())
+        await uow.commit()

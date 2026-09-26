@@ -4,6 +4,7 @@ import { BadgeCheck, LogOut, MapPin, Phone, Send } from "lucide-react";
 import { useState } from "react";
 
 import { OrDivider } from "@/components/AuthFields";
+import { DataRights } from "@/components/DataRights";
 import { TelegramCard } from "@/components/Telegram";
 import { useToast } from "@/components/toast";
 import { Badge, Button, Card, Input, Label, PageHeader, Skeleton, StreakFlame } from "@/components/ui";
@@ -127,6 +128,8 @@ export default function ProfilePage() {
       </Card>
 
       <TelegramCard />
+
+      <DataRights />
 
       <Button variant="ghost" className="mt-6" onClick={signOut}>
         <LogOut className="size-4" /> Chiqish

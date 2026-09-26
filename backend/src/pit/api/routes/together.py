@@ -86,6 +86,8 @@ async def board(
         for member_id in await uow.participations.list_in_group(group.id):
             p = require(await uow.participations.get(member_id), "Challenge topilmadi")
             user = require(await uow.users.get(p.user_id), "Foydalanuvchi topilmadi")
+            if user.is_erased:
+                continue  # left the platform; their name is gone, so is their row
             today = local_date(now, user.timezone)
             members.append(
                 s.GroupMemberOut(

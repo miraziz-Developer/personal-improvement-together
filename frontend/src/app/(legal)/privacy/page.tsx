@@ -42,7 +42,7 @@ export default function PrivacyPage() {
       <ul>
         <li>Shaxsiy ma'lumotlar O'zbekiston Respublikasi hududidagi serverlarda saqlanadi.</li>
         <li>Zaxira nusxalar 14 kun saqlanadi, keyin avtomatik o'chiriladi.</li>
-        <li>So'rovingiz bo'yicha akkauntingiz, shaxsiy ma'lumotlaringiz va rasmlaringiz o'chiriladi.</li>
+        <li>Akkauntingizni Profil sahifasida istalgan vaqt o'zingiz o'chirasiz: shaxsiy ma'lumotlar, rasmlar va xabarlar darhol o'chiriladi, faqat anonim statistika (bajarilgan kunlar soni) qoladi.</li>
       </ul>
 
       <h2>6. Bolalar</h2>
@@ -53,8 +53,8 @@ export default function PrivacyPage() {
 
       <h2>7. Sizning huquqlaringiz</h2>
       <p>
-        Ma'lumotlaringiz nusxasini olish, tuzatish yoki o'chirishni so'rashingiz mumkin — pastdagi manzilga yozing. Ma'lumotlaringizni
-        sotmaymiz va reklama uchun uchinchi shaxslarga bermaymiz.
+        Profil sahifasida istalgan vaqt ma'lumotlaringiz nusxasini (JSON fayl) yuklab olasiz yoki akkauntni o'chirasiz. Tuzatish
+        kerak bo'lsa — pastdagi manzilga yozing. Ma'lumotlaringizni sotmaymiz va reklama uchun uchinchi shaxslarga bermaymiz.
       </p>
     </>
   );

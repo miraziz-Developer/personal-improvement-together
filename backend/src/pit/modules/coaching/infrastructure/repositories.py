@@ -1,5 +1,8 @@
 from collections.abc import Mapping
 from typing import Any
+from uuid import UUID
+
+from sqlalchemy import delete
 
 from pit.modules.coaching.domain.messages import Moment
 from pit.modules.coaching.domain.notification import Notification
@@ -33,3 +36,7 @@ class SqlNotificationRepository(SqlRepository[Notification]):
             participation_id=row["participation_id"],
             read_at=row["read_at"],
         )
+
+    async def delete_for_user(self, user_id: UUID) -> None:
+        # Bulk delete: nothing else in this transaction reads them afterwards.
+        await self._session.execute(delete(notifications).where(notifications.c.user_id == user_id))

@@ -88,3 +88,11 @@ class RegisterWithGoogle(Command):
     region_id: UUID
     accepted_terms_version: str = ""
     timezone: str = DEFAULT_TIMEZONE
+
+
+@dataclass(frozen=True, kw_only=True)
+class EraseAccount(Command):
+    """Typing the username again guards against a stray click."""
+
+    user_id: UUID
+    confirm_username: str

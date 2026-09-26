@@ -21,6 +21,7 @@ from pit.modules.coaching.application.commands import MarkNotificationsRead, Sen
 from pit.modules.coaching.domain.messages import STREAK_MILESTONES, Moment, compose
 from pit.modules.coaching.domain.notification import Notification
 from pit.modules.coaching.domain.repositories import NotificationRepository
+from pit.modules.identity.domain.events import AccountErased
 from pit.modules.identity.domain.repositories import UserRepository
 from pit.modules.verification.domain.events import ProofRejected, ProofSentToReview
 from pit.shared.application.clock import Clock, local_date
@@ -301,4 +302,10 @@ async def mark_read(cmd: MarkNotificationsRead, uow: CoachingUoW, *, clock: Cloc
             notification = await uow.notifications.get(notification_id)
             if notification is not None and notification.user_id == cmd.user_id:
                 notification.mark_read(clock.now())
+        await uow.commit()
+
+
+async def forget_notifications(event: AccountErased, uow: CoachingUoW) -> None:
+    async with uow:
+        await uow.notifications.delete_for_user(event.user_id)
         await uow.commit()

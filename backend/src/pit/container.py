@@ -265,6 +265,7 @@ def build_container(
             telegram=telegram_api,
             web_url=settings.web_url,
             google=google,
+            files=storage,
         )
     )
     gateway = None

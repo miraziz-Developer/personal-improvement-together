@@ -6,11 +6,13 @@ from pit.modules.challenges.domain.challenge import ProofType
 from pit.modules.challenges.domain.events import DayNeedsHumanReview
 from pit.modules.challenges.domain.participation import DayEvidence
 from pit.modules.challenges.domain.repositories import ChallengeRepository, ParticipationRepository
+from pit.modules.identity.domain.events import AccountErased
 from pit.modules.identity.domain.repositories import UserRepository
 from pit.modules.verification.application.commands import ReviewProof, SubmitProof, VerifyProof
 from pit.modules.verification.application.day_evidence import task_evidence
 from pit.modules.verification.application.ports import (
     ProofVerifier,
+    StoredFiles,
     VerificationQueue,
     VerificationRequest,
 )
@@ -176,3 +178,14 @@ async def escalate_for_review(event: DayNeedsHumanReview, uow: VerificationUoW) 
             return [RefreshDay(participation_id=event.participation_id, day=event.day)]
         await uow.commit()
         return []
+
+
+async def forget_proofs(
+    event: AccountErased, uow: VerificationUoW, *, files: StoredFiles | None
+) -> None:
+    async with uow:
+        for proof in await uow.proofs.list_for_user(event.user_id):
+            if proof.file_key and files is not None:
+                await files.delete(proof.file_key)
+            proof.forget_content()
+        await uow.commit()

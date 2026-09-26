@@ -188,6 +188,17 @@ class Participation(AggregateRoot):
 
     # --- Lifecycle ---------------------------------------------------------------------
 
+    def withdraw(self, today: date) -> None:
+        """The user erased their account: an open run simply ends, nobody is judged."""
+        if not self.is_open:
+            return
+        if self.is_stake:
+            raise InvalidStateTransition(
+                "Garovli challenge tugamaguncha akkauntni o'chirib bo'lmaydi"
+            )
+        self.status = ParticipationStatus.CANCELLED
+        self.finished_on = today
+
     def attach_to_group(self, group_id: UUID) -> None:
         """The owner of a new "Together" group brings their running participation into it."""
         if self.group_id is not None and self.group_id != group_id:

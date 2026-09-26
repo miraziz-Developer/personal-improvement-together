@@ -116,6 +116,9 @@ class FakeGroups(_Repo[Group]):
 
 
 class FakeProofs(_Repo[Proof]):
+    async def list_for_user(self, user_id: UUID) -> list[Proof]:
+        return [p for p in self._all() if p.user_id == user_id]
+
     async def list_for_day(self, participation_id: UUID, day: date) -> list[Proof]:
         return [
             p for p in self._all() if p.participation_id == participation_id and p.for_date == day
@@ -137,7 +140,10 @@ class FakePlans(_Repo[Plan]):
 
 
 class FakeNotifications(_Repo[Notification]):
-    pass
+    async def delete_for_user(self, user_id: UUID) -> None:
+        for notification_id in [n.id for n in self._all() if n.user_id == user_id]:
+            self._store.pop(notification_id, None)
+            self._staged.pop(notification_id, None)
 
 
 class FakeLedger:
@@ -290,6 +296,10 @@ class FakeLeaderboard:
         for key in keys:
             board = self.boards.setdefault(key, {})
             board[user_id] = board.get(user_id, 0) + points
+
+    async def remove_user(self, user_id: UUID) -> None:
+        for board in self.boards.values():
+            board.pop(user_id, None)
 
 
 class FakePlanGenerator:

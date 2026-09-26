@@ -26,3 +26,9 @@ class VerificationQueue(Protocol):
     """Hands a proof to a background worker (Celery in production)."""
 
     async def enqueue(self, proof_id: UUID) -> None: ...
+
+
+class StoredFiles(Protocol):
+    """Proof photos in storage; deleting a missing file is not an error."""
+
+    async def delete(self, key: str) -> None: ...

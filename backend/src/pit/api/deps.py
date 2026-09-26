@@ -26,9 +26,16 @@ async def current_user_id(
     if credentials is None:
         raise HTTPException(401, "Iltimos, tizimga kiring")
     try:
-        return read_token(credentials.credentials, container.settings)
+        user_id = read_token(credentials.credentials, container.settings)
     except (jwt.PyJWTError, ValueError, KeyError) as error:
         raise HTTPException(401, "Sessiya muddati tugagan, qayta kiring") from error
+    if await container.redis.exists(revoked_key(user_id)):  # the account was erased
+        raise HTTPException(401, "Akkaunt o'chirilgan")
+    return user_id
+
+
+def revoked_key(user_id: UUID) -> str:
+    return f"revoked:{user_id}"
 
 
 UserId = Annotated[UUID, Depends(current_user_id)]

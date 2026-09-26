@@ -14,3 +14,10 @@ class UserRegistered(DomainEvent):
 @dataclass(frozen=True, kw_only=True)
 class PhoneVerified(DomainEvent):
     user_id: UUID
+
+
+@dataclass(frozen=True, kw_only=True)
+class AccountErased(DomainEvent):
+    """Every module forgets what it holds about this user (photos, notes, notifications...)."""
+
+    user_id: UUID
