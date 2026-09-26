@@ -2,6 +2,7 @@ import clsx from "clsx";
 
 import { DAY_STATUS, WEEKDAYS_SHORT } from "@/lib/format";
 import type { DayStatus } from "@/lib/types";
+import { useI18n } from "@/lib/i18n";
 
 function isoDay(date: Date) {
   const y = date.getFullYear();
@@ -21,6 +22,7 @@ export function Calendar({
   days: { date: string; status: DayStatus }[];
   today: string;
 }) {
+  const { t } = useI18n();
   const byDate = new Map(days.map((d) => [d.date, d.status]));
   const first = new Date(`${start}T00:00:00`);
   const last = new Date(`${end}T00:00:00`);
@@ -32,7 +34,7 @@ export function Calendar({
     <div>
       <div className="grid grid-cols-7 gap-1.5 text-center text-[11px] text-mist">
         {WEEKDAYS_SHORT.map((w) => (
-          <span key={w}>{w}</span>
+          <span key={w}>{t(w)}</span>
         ))}
       </div>
       <div className="mt-2 grid grid-cols-7 gap-1.5">
@@ -43,7 +45,7 @@ export function Calendar({
           return (
             <div
               key={key}
-              title={status ? DAY_STATUS[status].label : "Dam olish kuni"}
+              title={t(status ? DAY_STATUS[status].label : "Dam olish kuni")}
               className={clsx(
                 "grid aspect-square place-items-center rounded-lg text-[11px] font-semibold",
                 status ? DAY_STATUS[status].cell : "bg-transparent text-white/20",
@@ -58,7 +60,7 @@ export function Calendar({
       <div className="mt-4 flex flex-wrap gap-3 text-xs text-mist">
         {(["done", "frozen", "awaiting_review", "missed", "pending"] as DayStatus[]).map((s) => (
           <span key={s} className="flex items-center gap-1.5">
-            <span className={clsx("size-2.5 rounded-full", DAY_STATUS[s].dot)} /> {DAY_STATUS[s].label}
+            <span className={clsx("size-2.5 rounded-full", DAY_STATUS[s].dot)} /> {t(DAY_STATUS[s].label)}
           </span>
         ))}
       </div>

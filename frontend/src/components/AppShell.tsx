@@ -6,15 +6,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { Spinner } from "@/components/ui";
 import { useAuth, useFeatures } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 
 const NAV = [
-  { href: "/dashboard", label: "Bosh sahifa", icon: Home },
-  { href: "/challenges", label: "Challenge'lar", icon: Compass },
-  { href: "/leaderboard", label: "Reyting", icon: Trophy },
-  { href: "/wallet", label: "Hamyon", icon: Wallet },
-  { href: "/profile", label: "Profil", icon: User },
+  { href: "/dashboard", label: "Bosh sahifa", short: "Bosh", icon: Home },
+  { href: "/challenges", label: "Challenge'lar", short: "Challenge", icon: Compass },
+  { href: "/leaderboard", label: "Reyting", short: "Reyting", icon: Trophy },
+  { href: "/wallet", label: "Hamyon", short: "Hamyon", icon: Wallet },
+  { href: "/profile", label: "Profil", short: "Profil", icon: User },
 ];
 
 export function Logo({ className }: { className?: string }) {
@@ -29,8 +31,9 @@ export function Logo({ className }: { className?: string }) {
 }
 
 function Bellbutton({ unread }: { unread: number }) {
+  const { t } = useI18n();
   return (
-    <Link href="/notifications" className="relative rounded-xl p-2.5 text-mist transition hover:bg-white/5 hover:text-white" aria-label="Xabarlar">
+    <Link href="/notifications" className="relative rounded-xl p-2.5 text-mist transition hover:bg-white/5 hover:text-white" aria-label={t("Xabarlar")}>
       <Bell className="size-5" />
       {unread > 0 && (
         <span className="bg-flame absolute -top-0.5 -right-0.5 grid min-w-5 place-items-center rounded-full px-1 text-[11px] font-bold text-white">
@@ -44,6 +47,7 @@ function Bellbutton({ unread }: { unread: number }) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { ready, token, me, signOut } = useAuth();
   const { stakesEnabled } = useFeatures();
+  const { t } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -60,7 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const base = stakesEnabled ? NAV : NAV.filter((item) => item.href !== "/wallet");
-  const nav = me && me.role !== "user" ? [...base, { href: "/admin", label: "Moderator", icon: Shield }] : base;
+  const nav = me && me.role !== "user" ? [...base, { href: "/admin", label: "Moderator", short: "Moderator", icon: Shield }] : base;
   const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
@@ -71,7 +75,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           href="/onboarding"
           className="bg-flame glow-flame mt-8 flex items-center justify-center gap-2 rounded-2xl py-3 font-semibold text-white transition hover:brightness-110"
         >
-          <Plus className="size-5" /> Yangi maqsad
+          <Plus className="size-5" /> {t("Yangi maqsad")}
         </Link>
         <nav className="mt-6 flex flex-col gap-1">
           {nav.map(({ href, label, icon: Icon }) => (
@@ -84,7 +88,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
             >
               <Icon className={clsx("size-5", active(href) && "text-flame-400")} />
-              {label}
+              {t(label)}
             </Link>
           ))}
         </nav>
@@ -96,9 +100,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{me.username}</p>
-                <p className="text-xs text-mist">{me.points} ball</p>
+                <p className="text-xs text-mist">{t("{n} ball", { n: me.points })}</p>
               </div>
-              <button onClick={signOut} className="rounded-xl p-2 text-mist hover:bg-white/5 hover:text-white" aria-label="Chiqish">
+              <button onClick={signOut} className="rounded-xl p-2 text-mist hover:bg-white/5 hover:text-white" aria-label={t("Chiqish")}>
                 <LogOut className="size-4" />
               </button>
             </div>
@@ -110,8 +114,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/5 bg-ink-950/70 px-4 py-3 backdrop-blur-xl sm:px-8">
           <Logo className="lg:invisible" />
           <div className="flex items-center gap-1">
+            <LanguageSwitch className="mr-1" />
             <Bellbutton unread={me?.unread_notifications ?? 0} />
-            <Link href="/onboarding" className="rounded-xl p-2.5 text-mist hover:bg-white/5 hover:text-white lg:hidden" aria-label="Yangi maqsad">
+            <Link href="/onboarding" className="rounded-xl p-2.5 text-mist hover:bg-white/5 hover:text-white lg:hidden" aria-label={t("Yangi maqsad")}>
               <Plus className="size-5" />
             </Link>
           </div>
@@ -122,7 +127,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <nav
         style={{ gridTemplateColumns: `repeat(${base.length}, minmax(0, 1fr))` }}
         className="fixed inset-x-3 bottom-3 z-40 grid rounded-3xl border border-white/10 bg-ink-800/85 p-1.5 shadow-2xl backdrop-blur-xl lg:hidden">
-        {base.map(({ href, label, icon: Icon }) => (
+        {base.map(({ href, short, icon: Icon }) => (
           <Link
             key={href}
             href={href}
@@ -132,7 +137,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           >
             <Icon className={clsx("size-5", active(href) && "text-flame-400")} />
-            {label.split(" ")[0].replace("'lar", "")}
+            {t(short)}
           </Link>
         ))}
       </nav>

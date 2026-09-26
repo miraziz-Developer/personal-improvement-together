@@ -1,8 +1,9 @@
 import re
 import secrets
+from typing import Annotated
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 
 from pit.api import schemas as s
@@ -181,6 +182,8 @@ async def list_regions(container: ContainerDep) -> list[s.RegionOut]:
 
 
 @router.get("/quote", response_model=s.QuoteOut, tags=["meta"])
-async def quote(container: ContainerDep) -> s.QuoteOut:
-    text, author = quote_of_the_day(local_date(container.clock.now(), "Asia/Tashkent"))
+async def quote(
+    container: ContainerDep, lang: Annotated[str, Query(max_length=5)] = "uz"
+) -> s.QuoteOut:
+    text, author = quote_of_the_day(local_date(container.clock.now(), "Asia/Tashkent"), lang)
     return s.QuoteOut(text=text, author=author)

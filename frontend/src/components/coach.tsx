@@ -9,6 +9,7 @@ import useSWR from "swr";
 import { Card, Skeleton } from "@/components/ui";
 import { timeAgo } from "@/lib/format";
 import type { Notification } from "@/lib/types";
+import { useI18n } from "@/lib/i18n";
 
 const MOMENT_EMOJI: Record<string, string> = {
   challenge_started: "🚀",
@@ -40,11 +41,12 @@ export function CoachAvatar({ className }: { className?: string }) {
 }
 
 export function QuoteCard() {
-  const { data } = useSWR<{ text: string; author: string }>("/quote");
+  const { locale, t } = useI18n();
+  const { data } = useSWR<{ text: string; author: string }>(`/quote?lang=${locale}`);
   return (
     <Card className="relative overflow-hidden">
       <Quote className="absolute -top-2 -right-2 size-24 text-white/[0.04]" />
-      <p className="text-xs font-semibold tracking-widest text-flame-400 uppercase">Kun hikmati</p>
+      <p className="text-xs font-semibold tracking-widest text-flame-400 uppercase">{t("Kun hikmati")}</p>
       {data ? (
         <>
           <p className="mt-3 font-display text-lg leading-snug">«{data.text}»</p>
@@ -83,24 +85,25 @@ export function NotificationItem({ item, index = 0 }: { item: Notification; inde
 }
 
 export function CoachFeed({ limit = 4 }: { limit?: number }) {
+  const { t } = useI18n();
   const { data } = useSWR<Notification[]>(`/me/notifications?limit=${limit}`, { refreshInterval: 20_000 });
   return (
     <Card>
       <div className="mb-4 flex items-center gap-3">
         <CoachAvatar />
         <div className="flex-1">
-          <p className="font-display font-semibold">Murabbiyingiz</p>
-          <p className="text-sm text-mist">Har qadamingizda yoningizda</p>
+          <p className="font-display font-semibold">{t("Murabbiyingiz")}</p>
+          <p className="text-sm text-mist">{t("Har qadamingizda yoningizda")}</p>
         </div>
         <Link href="/notifications" className="text-sm font-semibold text-flame-400 hover:text-flame-300">
-          Hammasi
+          {t("Hammasi")}
         </Link>
       </div>
       <div className="flex flex-col gap-2">
         {!data && [0, 1, 2].map((i) => <Skeleton key={i} className="h-16" />)}
         {data?.length === 0 && (
           <p className="rounded-2xl bg-white/[0.03] p-4 text-sm text-mist">
-            Birinchi challenge'ingizni boshlang — men har kuni siz bilan bo'laman. 💪
+            {t("Birinchi challenge'ingizni boshlang — men har kuni siz bilan bo'laman. 💪")}
           </p>
         )}
         {data?.map((item, i) => <NotificationItem key={item.id} item={item} index={i} />)}

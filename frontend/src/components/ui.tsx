@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Flame, Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { forwardRef } from "react";
+import { currentLocale, translate } from "@/lib/i18n";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost" | "danger" | "sky";
@@ -234,7 +235,7 @@ export function Modal({
           >
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-display text-lg font-semibold">{title}</h3>
-              <button onClick={onClose} className="rounded-xl p-2 text-mist hover:bg-white/5 hover:text-white" aria-label="Yopish">
+              <button onClick={onClose} className="rounded-xl p-2 text-mist hover:bg-white/5 hover:text-white" aria-label={translate(currentLocale(), "Yopish")}>
                 <X className="size-5" />
               </button>
             </div>
