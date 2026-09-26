@@ -36,6 +36,7 @@ export interface Me {
   best_streak: number;
   unread_notifications: number;
   telegram_linked: boolean;
+  locale: "uz" | "ru";
 }
 
 export interface Challenge {

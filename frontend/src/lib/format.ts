@@ -8,42 +8,51 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { currentLocale, type Locale, translate } from "./i18n";
 import type { Category, DayStatus, ProofStatus } from "./types";
 
 export const WEEKDAYS = ["Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba", "Yakshanba"];
 export const WEEKDAYS_SHORT = ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"];
-const MONTHS = ["yan", "fev", "mar", "apr", "may", "iyn", "iyl", "avg", "sen", "okt", "noy", "dek"];
+const MONTHS: Record<Locale, string[]> = {
+  uz: ["yan", "fev", "mar", "apr", "may", "iyn", "iyl", "avg", "sen", "okt", "noy", "dek"],
+  ru: ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"],
+};
+
+// These build sentences outside React, so they read the current language themselves.
+const t = (text: string, values?: Record<string, string | number>) => translate(currentLocale(), text, values);
 
 export function money(amount: number): string {
-  return `${Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} so'm`;
+  return `${Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} ${t("so'm")}`;
 }
 
 export function shortDate(iso: string): string {
   const d = new Date(`${iso.slice(0, 10)}T00:00:00`);
-  return `${d.getDate()}-${MONTHS[d.getMonth()]}`;
+  const locale = currentLocale();
+  const month = MONTHS[locale][d.getMonth()];
+  return locale === "ru" ? `${d.getDate()} ${month}` : `${d.getDate()}-${month}`;
 }
 
 export function minutes(total: number): string {
-  if (total < 60) return `${total} daq`;
+  if (total < 60) return t("{m} daq", { m: total });
   const h = Math.floor(total / 60);
   const m = total % 60;
-  return m ? `${h} soat ${m} daq` : `${h} soat`;
+  return m ? t("{h} soat {m} daq", { h, m }) : t("{h} soat", { h });
 }
 
 export function timeAgo(iso: string): string {
   const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return "hozirgina";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} daqiqa oldin`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} soat oldin`;
-  return `${Math.floor(seconds / 86400)} kun oldin`;
+  if (seconds < 60) return t("hozirgina");
+  if (seconds < 3600) return t("{n} daqiqa oldin", { n: Math.floor(seconds / 60) });
+  if (seconds < 86400) return t("{n} soat oldin", { n: Math.floor(seconds / 3600) });
+  return t("{n} kun oldin", { n: Math.floor(seconds / 86400) });
 }
 
 export function greeting(name: string): string {
   const hour = new Date().getHours();
-  if (hour < 5) return `Tun bo'yi bedormisiz, ${name}? 🌙`;
-  if (hour < 12) return `Xayrli tong, ${name} ☀️`;
-  if (hour < 18) return `Xayrli kun, ${name} 👋`;
-  return `Xayrli kech, ${name} 🌆`;
+  if (hour < 5) return t("Tun bo'yi bedormisiz, {name}? 🌙", { name });
+  if (hour < 12) return t("Xayrli tong, {name} ☀️", { name });
+  if (hour < 18) return t("Xayrli kun, {name} 👋", { name });
+  return t("Xayrli kech, {name} 🌆", { name });
 }
 
 export const CATEGORY: Record<Category, { label: string; icon: LucideIcon; gradient: string }> = {

@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
 import useSWR, { type KeyedMutator } from "swr";
 
-import { tokenStore } from "./api";
+import { api, tokenStore } from "./api";
+import { useI18n } from "./i18n";
 import type { Me } from "./types";
 
 interface AuthState {
@@ -38,6 +39,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const token = useSyncExternalStore(subscribe, tokenStore.get, () => null);
   const ready = useSyncExternalStore(subscribe, () => true, () => false);
   const { data: me, mutate } = useSWR<Me>(token ? "/me" : null, { refreshInterval: 60_000 });
+  const { locale } = useI18n();
+
+  // The interface language is the truth; the server follows it so the coach and the bot speak
+  // the same language as the site.
+  useEffect(() => {
+    if (me && me.locale !== locale) {
+      api("/me/locale", { method: "PUT", json: { locale } })
+        .then(() => mutate())
+        .catch(() => {});
+    }
+  }, [me, locale, mutate]);
 
   const signIn = useCallback((value: string) => {
     tokenStore.set(value);
