@@ -4,28 +4,11 @@ so a retried job never sends a different text for the same moment."""
 
 import hashlib
 from datetime import date
-from enum import StrEnum
 
-
-class Moment(StrEnum):
-    CHALLENGE_STARTED = "challenge_started"
-    DAY_DONE = "day_done"
-    STREAK_MILESTONE = "streak_milestone"
-    DAY_FROZEN = "day_frozen"
-    CHALLENGE_FAILED = "challenge_failed"
-    CHALLENGE_COMPLETED = "challenge_completed"
-    PROOF_REJECTED = "proof_rejected"
-    PROOF_IN_REVIEW = "proof_in_review"
-    MORNING = "morning"
-    REST_DAY = "rest_day"
-    EVENING_REMINDER = "evening_reminder"
-    FRIEND_DAY_DONE = "friend_day_done"
-    FRIEND_JOINED = "friend_joined"
-    WEEKLY_GREAT = "weekly_great"
-    WEEKLY_OK = "weekly_ok"
-    WEEKLY_TOUGH = "weekly_tough"
-    CHEER = "cheer"
-
+from pit.modules.coaching.domain.messages_ru import LIBRARY_RU, PHRASES_RU, QUOTES_RU
+from pit.modules.coaching.domain.moments import (
+    Moment as Moment,  # re-exported: callers import it from here
+)
 
 STREAK_MILESTONES = frozenset({3, 7, 14, 21, 30, 50, 75, 100})
 
@@ -245,10 +228,33 @@ def _index(seed: str, size: int) -> int:
     return int(hashlib.sha256(seed.encode()).hexdigest(), 16) % size
 
 
-def compose(moment: Moment, *, seed: str, **facts: object) -> tuple[str, str]:
-    title, body = LIBRARY[moment][_index(seed, len(LIBRARY[moment]))]
-    return title.format(**facts), body.format(**facts)
+PHRASES = {
+    "group_line": "Guruhda {rank}-o'rin. ",
+    "money_line": "Garovingiz ({stake}) to'liq qaytarildi.",
+}
+
+_BY_LOCALE = {
+    "uz": (LIBRARY, PHRASES, QUOTES),
+    "ru": (LIBRARY_RU, PHRASES_RU, QUOTES_RU),
+}
 
 
-def quote_of_the_day(day: date) -> tuple[str, str]:
-    return QUOTES[_index(day.isoformat(), len(QUOTES))]
+def _derived(phrases: dict[str, str], facts: dict[str, object]) -> dict[str, object]:
+    """Sub-sentences that exist only sometimes, in the reader's language."""
+    rank, stake = facts.get("rank"), facts.get("stake")
+    return {
+        "group_line": phrases["group_line"].format(rank=rank) if rank else "",
+        "money_line": phrases["money_line"].format(stake=stake) if stake else "",
+    }
+
+
+def compose(moment: Moment, *, seed: str, locale: str = "uz", **facts: object) -> tuple[str, str]:
+    library, phrases, _ = _BY_LOCALE.get(locale, _BY_LOCALE["uz"])
+    title, body = library[moment][_index(seed, len(library[moment]))]
+    values = {**_derived(phrases, facts), **facts}
+    return title.format(**values), body.format(**values)
+
+
+def quote_of_the_day(day: date, locale: str = "uz") -> tuple[str, str]:
+    quotes = _BY_LOCALE.get(locale, _BY_LOCALE["uz"])[2]
+    return quotes[_index(day.isoformat(), len(quotes))]

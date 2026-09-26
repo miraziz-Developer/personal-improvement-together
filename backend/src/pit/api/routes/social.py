@@ -10,6 +10,7 @@ from pit.api.ratelimit import rate_limit
 from pit.modules.challenges.infrastructure.tables import participations
 from pit.modules.coaching.application.commands import MarkNotificationsRead
 from pit.modules.coaching.infrastructure.tables import notifications
+from pit.modules.identity.application.commands import ChangeLocale
 from pit.modules.identity.infrastructure.tables import users
 from pit.modules.moderation.application.commands import FileReport
 from pit.modules.moderation.domain.report import ReportReason
@@ -51,6 +52,7 @@ async def me(user_id: UserId, container: ContainerDep) -> s.MeOut:
             best_streak=best,
             unread_notifications=unread,
             telegram_linked=user.telegram_chat_id is not None,
+            locale=user.locale.value,
         )
 
 
@@ -207,3 +209,8 @@ async def unsubscribe_push(
     body: s.PushEndpointIn, user_id: UserId, container: ContainerDep
 ) -> None:
     await container.bus.handle(UnsubscribePush(user_id=user_id, endpoint=body.endpoint))
+
+
+@router.put("/me/locale", status_code=204)
+async def change_locale(body: s.LocaleIn, user_id: UserId, container: ContainerDep) -> None:
+    await container.bus.handle(ChangeLocale(user_id=user_id, locale=body.locale))

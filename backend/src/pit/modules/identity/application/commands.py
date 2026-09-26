@@ -96,3 +96,9 @@ class EraseAccount(Command):
 
     user_id: UUID
     confirm_username: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class ChangeLocale(Command):
+    user_id: UUID
+    locale: str

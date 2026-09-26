@@ -19,6 +19,13 @@ MIN_PASSWORD_LENGTH = 8
 CURRENT_TERMS_VERSION = "2026-09-25"
 
 
+class Locale(StrEnum):
+    """The language the platform speaks to the user (coach, bot, e-mails)."""
+
+    UZ = "uz"
+    RU = "ru"
+
+
 class Role(StrEnum):
     USER = "user"
     MODERATOR = "moderator"
@@ -49,6 +56,7 @@ class User(AggregateRoot):
     google_sub: str | None = None
     email: str | None = None
     deleted_at: datetime | None = None  # erased at the user's request; only statistics remain
+    locale: Locale = Locale.UZ
 
     @classmethod
     def register(
@@ -127,6 +135,9 @@ class User(AggregateRoot):
         self.email = None
         self.deleted_at = at
         self._record(AccountErased(user_id=self.id))
+
+    def change_locale(self, locale: Locale) -> None:
+        self.locale = locale
 
     def reset_username(self) -> None:
         """A moderator removes an offensive username; the user may pick a new one later."""

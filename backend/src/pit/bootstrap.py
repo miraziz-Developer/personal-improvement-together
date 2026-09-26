@@ -37,6 +37,7 @@ from pit.modules.coaching.application.commands import (
 from pit.modules.coaching.domain.notification import NotificationCreated
 from pit.modules.identity.application import handlers as identity
 from pit.modules.identity.application.commands import (
+    ChangeLocale,
     ConfirmPhone,
     EraseAccount,
     IssueTelegramLink,
@@ -143,6 +144,7 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         UnlinkTelegram: identity.unlink_telegram,
         VerifyPhoneFromTelegram: identity.verify_phone_from_telegram,
         EraseAccount: partial(identity.erase_account, clock=clock),
+        ChangeLocale: identity.change_locale,
         RegisterWithGoogle: partial(identity.register_with_google, clock=clock),
         # coaching
         SendDailyNudges: partial(coaching.send_daily_nudges, clock=clock),

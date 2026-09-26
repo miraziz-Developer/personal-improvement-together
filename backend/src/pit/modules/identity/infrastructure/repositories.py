@@ -1,7 +1,7 @@
 from collections.abc import Mapping
 from typing import Any
 
-from pit.modules.identity.domain.user import Role, User
+from pit.modules.identity.domain.user import Locale, Role, User
 from pit.modules.identity.infrastructure.tables import users
 from pit.shared.infrastructure.repository import Row, SqlRepository
 
@@ -26,6 +26,7 @@ class SqlUserRepository(SqlRepository[User]):
             "google_sub": item.google_sub,
             "email": item.email,
             "deleted_at": item.deleted_at,
+            "locale": item.locale.value,
         }
 
     async def _to_aggregate(self, row: Mapping[str, Any]) -> User:
@@ -45,6 +46,7 @@ class SqlUserRepository(SqlRepository[User]):
             google_sub=row["google_sub"],
             email=row["email"],
             deleted_at=row["deleted_at"],
+            locale=Locale(row["locale"]),
         )
 
     async def get_by_username(self, username: str) -> User | None:

@@ -67,7 +67,9 @@ async def _notify(
     notification_id = uuid5(_NAMESPACE, key)
     if await uow.notifications.get(notification_id) is not None:
         return
-    title, body = compose(moment, seed=key, **facts)
+    reader = await uow.users.get(user_id)
+    locale = reader.locale.value if reader else "uz"
+    title, body = compose(moment, seed=key, locale=locale, **facts)
     uow.notifications.add(
         Notification.create(
             notification_id=notification_id,
@@ -169,7 +171,6 @@ async def on_failed(event: ParticipationFailed, uow: CoachingUoW, *, clock: Cloc
 async def on_completed(event: ParticipationCompleted, uow: CoachingUoW, *, clock: Clock) -> None:
     async with uow:
         _, name, title = await _context(uow, event.participation_id)
-        money_line = "" if event.stake.is_zero else f"Garovingiz ({event.stake}) to'liq qaytarildi."
         await _notify(
             uow,
             clock,
@@ -179,7 +180,7 @@ async def on_completed(event: ParticipationCompleted, uow: CoachingUoW, *, clock
             participation_id=event.participation_id,
             name=name,
             title=title,
-            money_line=money_line,
+            stake="" if event.stake.is_zero else str(event.stake),
         )
         await uow.commit()
 
@@ -380,7 +381,7 @@ async def send_weekly_summaries(cmd: SendWeeklySummaries, uow: CoachingUoW, *, c
                 done=done,
                 planned=len(week),
                 streak=max(run.current_streak for run in runs),
-                group_line=f"Guruhda {rank}-o'rin. " if rank else "",
+                rank=rank or "",
             )
             sent += 1
         await uow.commit()

@@ -6,7 +6,12 @@ import pytest
 
 from pit.modules.coaching.application.commands import SendDailyNudges
 from pit.modules.coaching.domain.messages import Moment
-from pit.modules.identity.application.commands import ConfirmPhone, RegisterUser, RequestPhoneCode
+from pit.modules.identity.application.commands import (
+    ChangeLocale,
+    ConfirmPhone,
+    RegisterUser,
+    RequestPhoneCode,
+)
 from pit.modules.identity.domain.user import CURRENT_TERMS_VERSION
 from pit.shared.domain.errors import DomainError, InvariantViolation
 from tests.application.conftest import World
@@ -113,3 +118,11 @@ async def test_morning_plan_and_evening_reminder_are_sent_once(world: World) -> 
     evening_count = moments(world).count(Moment.EVENING_REMINDER)
     await world.bus.handle(SendDailyNudges(kind="evening"))
     assert moments(world).count(Moment.EVENING_REMINDER) == evening_count  # nothing left to do
+
+
+async def test_the_coach_speaks_the_users_language(world: World) -> None:
+    user = world.add_user()
+    await world.bus.handle(ChangeLocale(user_id=user.id, locale="ru"))
+    await world.join(user, world.add_challenge())
+    (welcome,) = world.store.notifications.values()
+    assert any(word in welcome.title for word in ("Путь", "Решение", "Новая"))

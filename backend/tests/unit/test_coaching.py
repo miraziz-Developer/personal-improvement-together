@@ -3,6 +3,7 @@ from datetime import date, timedelta
 import pytest
 
 from pit.modules.coaching.domain.messages import LIBRARY, QUOTES, Moment, compose, quote_of_the_day
+from pit.modules.coaching.domain.messages_ru import LIBRARY_RU
 
 ALL_FACTS = {
     "name": "ali_2008",
@@ -43,3 +44,31 @@ def test_quote_of_the_day_changes_over_a_month() -> None:
     start = date(2026, 10, 1)
     quotes = {quote_of_the_day(start + timedelta(days=i)) for i in range(30)}
     assert len(quotes) > 3 and quotes <= set(QUOTES)
+
+
+@pytest.mark.parametrize("moment", list(Moment))
+def test_every_moment_speaks_russian_too(moment: Moment) -> None:
+    assert LIBRARY_RU[moment], f"{moment} has no Russian messages"
+    for title, body in LIBRARY_RU[moment]:
+        assert title.format(**ALL_FACTS).strip()
+        assert body.format(**ALL_FACTS).strip()
+
+
+def test_sometimes_sentences_follow_the_language() -> None:
+    _, uz = compose(
+        Moment.CHALLENGE_COMPLETED, seed="x", name="ali", title="Kitob", stake="100 000 so'm"
+    )
+    _, ru = compose(
+        Moment.CHALLENGE_COMPLETED,
+        seed="x",
+        locale="ru",
+        name="ali",
+        title="Kitob",
+        stake="100 000 so'm",
+    )
+    assert "to'liq qaytarildi" in uz and "полностью возвращена" in ru
+    _, free = compose(
+        Moment.CHALLENGE_COMPLETED, seed="x", locale="ru", name="ali", title="Kitob", stake=""
+    )
+    assert "ставка" not in free
+    assert quote_of_the_day(date(2026, 10, 1), "ru") != quote_of_the_day(date(2026, 10, 1))

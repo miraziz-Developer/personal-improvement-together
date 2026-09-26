@@ -41,6 +41,7 @@ users = Table(
     Column("google_sub", String(255), nullable=True, unique=True),
     Column("email", String(255), nullable=True),
     Column("deleted_at", DateTime(timezone=True), nullable=True),
+    Column("locale", String(2), nullable=False, server_default="uz"),
     *audit_columns(),
     # Deferred: moving a chat between accounts unlinks one and links the other in a single
     # transaction, in whatever order the updates are flushed.

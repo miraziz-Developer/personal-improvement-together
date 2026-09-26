@@ -89,6 +89,10 @@ class GoogleRegisterIn(BaseModel):
     accepted_terms_version: str = ""
 
 
+class LocaleIn(BaseModel):
+    locale: Literal["uz", "ru"]
+
+
 class EraseIn(BaseModel):
     username: str  # typed again to confirm
 
@@ -144,6 +148,7 @@ class MeOut(BaseModel):
     best_streak: int
     unread_notifications: int
     telegram_linked: bool
+    locale: str
 
 
 class TelegramLinkOut(BaseModel):
