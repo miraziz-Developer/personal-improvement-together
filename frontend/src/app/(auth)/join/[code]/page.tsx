@@ -11,6 +11,7 @@ import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { CATEGORY, minutes } from "@/lib/format";
 import type { GroupPreview } from "@/lib/types";
+import { useI18n } from "@/lib/i18n";
 
 /** Where an invite link lands — for people with or without an account. */
 export default function JoinPage() {
@@ -18,6 +19,7 @@ export default function JoinPage() {
   const { token } = useAuth();
   const router = useRouter();
   const toast = useToast();
+  const { t, tx } = useI18n();
   const { data, error } = useSWR<GroupPreview>(`/groups/${code}`);
   const [joining, setJoining] = useState(false);
   const here = `/join/${code}`;
@@ -26,7 +28,7 @@ export default function JoinPage() {
     setJoining(true);
     try {
       const { id } = await api<{ id: string }>(`/groups/${code}/join`, { method: "POST" });
-      toast("success", "Guruhga qo'shildingiz! 🤝", "Bugundan birga boshlaymiz.");
+      toast("success", t("Guruhga qo'shildingiz! 🤝"), t("Bugundan birga boshlaymiz."));
       router.push(`/c/${id}`);
     } catch (err) {
       toast("error", errorMessage(err));
@@ -38,9 +40,9 @@ export default function JoinPage() {
   if (error) {
     return (
       <div className="flex flex-col gap-4 text-center">
-        <h1 className="font-display text-2xl font-bold">Havola ishlamayapti 😕</h1>
+        <h1 className="font-display text-2xl font-bold">{t("Havola ishlamayapti 😕")}</h1>
         <p className="text-mist">{errorMessage(error)}</p>
-        <Button href="/">Bosh sahifa</Button>
+        <Button href="/">{t("Bosh sahifa")}</Button>
       </div>
     );
   }
@@ -55,10 +57,10 @@ export default function JoinPage() {
     <div className="flex flex-col gap-6">
       <div>
         <Badge className="border-flame-500/30 bg-flame-500/10 text-flame-300">
-          <Users className="size-3.5" /> Taklif
+          <Users className="size-3.5" /> {t("Taklif")}
         </Badge>
         <h1 className="mt-4 font-display text-3xl font-bold">
-          <span className="text-flame">{data.owner}</span> sizni birga challenge'ga chaqiryapti
+          {tx("{owner} sizni birga challenge'ga chaqiryapti", { owner: <span className="text-flame">{data.owner}</span> })}
         </h1>
       </div>
 
@@ -73,34 +75,34 @@ export default function JoinPage() {
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-1.5">
-          <Badge>{data.duration_days} kun</Badge>
-          <Badge>Haftada {days} kun</Badge>
-          <Badge>{minutes(weekly)}/hafta</Badge>
+          <Badge>{t("{n} kun", { n: data.duration_days })}</Badge>
+          <Badge>{t("Haftada {n} kun", { n: days })}</Badge>
+          <Badge>{t("{time}/hafta", { time: minutes(weekly) })}</Badge>
           <Badge>
-            <Users className="size-3.5" /> {data.members} kishi
+            <Users className="size-3.5" /> {t("{n} kishi", { n: data.members })}
           </Badge>
         </div>
       </div>
 
       <ul className="flex flex-col gap-2 text-sm text-white/85">
-        <li>🤝 Hammangiz bir xil reja bo'yicha harakat qilasiz</li>
-        <li>🔥 Kim bugun bajarganini guruhda ko'rib turasiz</li>
-        <li>📲 Do'stingiz bajarsa, murabbiy sizga ham xabar beradi</li>
+        <li>{t("🤝 Hammangiz bir xil reja bo'yicha harakat qilasiz")}</li>
+        <li>{t("🔥 Kim bugun bajarganini guruhda ko'rib turasiz")}</li>
+        <li>{t("📲 Do'stingiz bajarsa, murabbiy sizga ham xabar beradi")}</li>
       </ul>
 
       {data.is_full ? (
-        <p className="rounded-2xl bg-white/5 p-4 text-center text-mist">Bu guruh to'lgan. {data.owner}dan yangi guruh ochishini so'rang.</p>
+        <p className="rounded-2xl bg-white/5 p-4 text-center text-mist">{t("Bu guruh to'lgan. {owner}dan yangi guruh ochishini so'rang.", { owner: data.owner })}</p>
       ) : token ? (
         <Button size="lg" loading={joining} onClick={join}>
-          Qo'shilish va boshlash 🚀
+          {t("Qo'shilish va boshlash 🚀")}
         </Button>
       ) : (
         <div className="flex flex-col gap-3">
           <Button href={`/register?next=${encodeURIComponent(here)}`} size="lg">
-            Ro'yxatdan o'tib qo'shilish 🚀
+            {t("Ro'yxatdan o'tib qo'shilish 🚀")}
           </Button>
           <Button href={`/login?next=${encodeURIComponent(here)}`} variant="secondary">
-            Akkauntim bor — kirish
+            {t("Akkauntim bor — kirish")}
           </Button>
         </div>
       )}

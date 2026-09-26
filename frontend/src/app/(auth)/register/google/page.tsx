@@ -10,6 +10,7 @@ import { useToast } from "@/components/toast";
 import { Button, Input, Label } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { safeNext, useAuth, useFeatures } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 
 const noSubscription = () => () => {};
 
@@ -27,6 +28,7 @@ export default function GoogleRegisterPage() {
   const signup = useMemo(() => (raw ? (JSON.parse(raw) as GoogleSignup) : null), [raw]);
   const { signIn } = useAuth();
   const { termsVersion } = useFeatures();
+  const { t } = useI18n();
   const router = useRouter();
   const toast = useToast();
   const [username, setUsername] = useState<string | null>(null);
@@ -38,9 +40,9 @@ export default function GoogleRegisterPage() {
   if (!signup) {
     return (
       <div className="flex flex-col gap-4 text-center">
-        <h1 className="font-display text-2xl font-bold">Sessiya topilmadi</h1>
-        <p className="text-mist">Google orqali qaytadan kiring — bu bir soniya oladi.</p>
-        <Button href="/register">Ro'yxatdan o'tish</Button>
+        <h1 className="font-display text-2xl font-bold">{t("Sessiya topilmadi")}</h1>
+        <p className="text-mist">{t("Google orqali qaytadan kiring — bu bir soniya oladi.")}</p>
+        <Button href="/register">{t("Ro'yxatdan o'tish")}</Button>
       </div>
     );
   }
@@ -63,7 +65,7 @@ export default function GoogleRegisterPage() {
       });
       sessionStorage.removeItem(GOOGLE_SIGNUP_KEY);
       signIn(access_token);
-      toast("success", "Xush kelibsiz! 🎉", "Keling, birinchi maqsadingizni belgilaymiz.");
+      toast("success", t("Xush kelibsiz! 🎉"), t("Keling, birinchi maqsadingizni belgilaymiz."));
       router.push(safeNext(signup.next) ?? "/onboarding");
     } catch (error) {
       toast("error", errorMessage(error));
@@ -75,33 +77,33 @@ export default function GoogleRegisterPage() {
   return (
     <form onSubmit={submit} className="flex flex-col gap-5">
       <div>
-        <h1 className="font-display text-3xl font-bold">Oxirgi qadam ✨</h1>
+        <h1 className="font-display text-3xl font-bold">{t("Oxirgi qadam ✨")}</h1>
         <p className="mt-2 text-mist">
-          {signup.email ? <b className="text-white">{signup.email}</b> : "Google akkauntingiz"} ulandi. Reyting uchun yoshingiz va hududingiz kerak.
+          {signup.email ? <b className="text-white">{signup.email}</b> : t("Google akkauntingiz")} {t("ulandi. Reyting uchun yoshingiz va hududingiz kerak.")}
         </p>
       </div>
       <label>
-        <Label hint="lotin harflari, raqam, _">Username</Label>
+        <Label hint={t("lotin harflari, raqam, _")}>Username</Label>
         <Input value={name} onChange={(e) => setUsername(e.target.value)} autoComplete="username" required />
       </label>
       <div className="grid gap-4 sm:grid-cols-2">
         <label>
-          <Label hint="7 yoshdan">Tug'ilgan sana</Label>
+          <Label hint={t("7 yoshdan")}>{t("Tug'ilgan sana")}</Label>
           <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required />
         </label>
         <label>
-          <Label>Hudud</Label>
+          <Label>{t("Hudud")}</Label>
           <RegionSelect value={regionId} onChange={setRegionId} />
         </label>
       </div>
       <TermsConsent checked={agreed} onChange={setAgreed} />
       <Button type="submit" size="lg" loading={loading} disabled={!agreed || !termsVersion}>
-        Boshlash 🚀
+        {t("Boshlash 🚀")}
       </Button>
       <p className="text-center text-sm text-mist">
-        Boshqa akkaunt?{" "}
+        {t("Boshqa akkaunt?")}{" "}
         <Link href="/login" className="font-semibold text-flame-400 hover:text-flame-300">
-          Kirish
+          {t("Kirish")}
         </Link>
       </p>
     </form>

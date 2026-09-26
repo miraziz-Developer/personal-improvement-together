@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { Fragment, useCallback, useSyncExternalStore, type ReactNode } from "react";
 
 import { RU } from "@/lib/ru";
 
@@ -52,11 +52,24 @@ export function translate(locale: Locale, text: string, values?: Record<string, 
   return template.replace(/\{(\w+)\}/g, (match, name: string) => (name in values ? String(values[name]) : match));
 }
 
+/** Like translate(), but placeholders may be React elements (a highlighted name, a link). */
+export function translateNodes(locale: Locale, text: string, nodes: Record<string, ReactNode>): ReactNode {
+  const template = DICTIONARIES[locale][text] ?? text;
+  return template.split(/(\{\w+\})/).map((part, index) => {
+    const name = part.match(/^\{(\w+)\}$/)?.[1];
+    return <Fragment key={index}>{name && name in nodes ? nodes[name] : part}</Fragment>;
+  });
+}
+
 export function useI18n() {
   const locale = useSyncExternalStore(subscribe, read, () => "uz" as Locale);
   const t = useCallback(
     (text: string, values?: Record<string, string | number>) => translate(locale, text, values),
     [locale],
   );
-  return { locale, t };
+  const tx = useCallback(
+    (text: string, nodes: Record<string, ReactNode>) => translateNodes(locale, text, nodes),
+    [locale],
+  );
+  return { locale, t, tx };
 }
