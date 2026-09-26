@@ -22,7 +22,43 @@ const TODAY: Record<string, { icon: string; label: string }> = {
   missed: { icon: "💤", label: "o'tkazib yubordi" },
 };
 
-function MemberRow({ member, rank }: { member: GroupMember; rank: number }) {
+function CheerButton({ participationId, username }: { participationId: string; username: string }) {
+  const toast = useToast();
+  const [sent, setSent] = useState(false);
+
+  async function cheer() {
+    try {
+      await api(`/me/participations/${participationId}/group/cheer`, { method: "POST", json: { username, emoji: "👏" } });
+      setSent(true);
+      toast("success", `👏 ${username} olqishingizni oldi!`);
+    } catch (error) {
+      toast("error", errorMessage(error));
+    }
+  }
+
+  return (
+    <button
+      onClick={cheer}
+      disabled={sent}
+      aria-label={`${username}ni olqishlash`}
+      className="rounded-xl bg-white/5 px-2 py-1 text-sm transition hover:bg-flame-500/20 disabled:opacity-40"
+    >
+      👏
+    </button>
+  );
+}
+
+function MemberRow({
+  member,
+  rank,
+  participationId,
+  open,
+}: {
+  member: GroupMember;
+  rank: number;
+  participationId: string;
+  open: boolean;
+}) {
   const today = member.today_status ? TODAY[member.today_status] : { icon: "🌿", label: "dam olish" };
   const progress = member.total_days ? member.days_completed / member.total_days : 0;
   return (
@@ -49,6 +85,7 @@ function MemberRow({ member, rank }: { member: GroupMember; rank: number }) {
       <span title={today.label} className="text-lg">
         {today.icon}
       </span>
+      {open && !member.is_me && <CheerButton participationId={participationId} username={member.username} />}
       <StreakFlame streak={member.current_streak} size="sm" />
     </li>
   );
@@ -122,7 +159,7 @@ export function TogetherCard({ participationId, open }: { participationId: strin
 
       <ul className="mt-4 flex flex-col gap-1.5">
         {board.members.map((member, index) => (
-          <MemberRow key={member.username} member={member} rank={index + 1} />
+          <MemberRow key={member.username} member={member} rank={index + 1} participationId={participationId} open={open} />
         ))}
       </ul>
 

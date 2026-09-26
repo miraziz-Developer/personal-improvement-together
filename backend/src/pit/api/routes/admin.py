@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 
 from pit.api import schemas as s
 from pit.api.deps import ContainerDep, ModeratorId
-from pit.jobs import close_all_days, send_nudges
+from pit.jobs import close_all_days, send_nudges, send_weekly_summaries
 from pit.modules.challenges.infrastructure.tables import challenges, participations
 from pit.modules.identity.infrastructure.tables import users
 from pit.modules.moderation.application.commands import ResolveReport
@@ -82,6 +82,11 @@ async def run_nudges(
     kind: Literal["morning", "evening"], moderator_id: ModeratorId, container: ContainerDep
 ) -> dict[str, int]:
     return {"sent": await send_nudges(container, kind)}
+
+
+@router.post("/jobs/weekly")
+async def run_weekly(moderator_id: ModeratorId, container: ContainerDep) -> dict[str, int]:
+    return {"sent": await send_weekly_summaries(container)}
 
 
 @router.get("/reports", response_model=list[s.ReportOut])

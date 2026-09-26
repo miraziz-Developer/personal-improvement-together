@@ -393,6 +393,19 @@ class GroupMemberOut(BaseModel):
     total_days: int
 
 
+class BadgeOut(BaseModel):
+    key: str
+    emoji: str
+    title: str
+    hint: str
+    earned: bool
+
+
+class CheerIn(BaseModel):
+    username: str
+    emoji: str = "👏"
+
+
 class GroupBoardOut(BaseModel):
     invite_code: str
     members: list[GroupMemberOut]  # best first: most days done, then the longest streak

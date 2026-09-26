@@ -193,3 +193,11 @@ export interface ReportItem {
   created_at: string;
   reports_against: number;
 }
+
+export interface Badge {
+  key: string;
+  emoji: string;
+  title: string;
+  hint: string;
+  earned: boolean;
+}

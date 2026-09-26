@@ -25,6 +25,7 @@ class Notification(AggregateRoot):
     body: str
     created_at: datetime
     participation_id: UUID | None = None
+    subject_id: UUID | None = None  # the friend this news is about (lets the reader cheer them)
     read_at: datetime | None = None
 
     @classmethod
@@ -38,6 +39,7 @@ class Notification(AggregateRoot):
         body: str,
         created_at: datetime,
         participation_id: UUID | None = None,
+        subject_id: UUID | None = None,
     ) -> Notification:
         notification = cls(
             id=notification_id,
@@ -47,6 +49,7 @@ class Notification(AggregateRoot):
             body=body,
             created_at=created_at,
             participation_id=participation_id,
+            subject_id=subject_id,
         )
         notification._record(NotificationCreated(notification_id=notification_id, user_id=user_id))
         return notification

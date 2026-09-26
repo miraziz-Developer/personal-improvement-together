@@ -28,7 +28,12 @@ from pit.modules.challenges.domain.events import (
     ParticipationStarted,
 )
 from pit.modules.coaching.application import handlers as coaching
-from pit.modules.coaching.application.commands import MarkNotificationsRead, SendDailyNudges
+from pit.modules.coaching.application.commands import (
+    CheerFriend,
+    MarkNotificationsRead,
+    SendDailyNudges,
+    SendWeeklySummaries,
+)
 from pit.modules.coaching.domain.notification import NotificationCreated
 from pit.modules.identity.application import handlers as identity
 from pit.modules.identity.application.commands import (
@@ -138,6 +143,8 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         # coaching
         SendDailyNudges: partial(coaching.send_daily_nudges, clock=clock),
         MarkNotificationsRead: partial(coaching.mark_read, clock=clock),
+        SendWeeklySummaries: partial(coaching.send_weekly_summaries, clock=clock),
+        CheerFriend: partial(coaching.cheer_friend, clock=clock),
         # planning — the "make me a plan" path
         DraftPlan: partial(planning.draft_plan, generator=deps.plan_generator),
         EditPlan: planning.edit_plan,

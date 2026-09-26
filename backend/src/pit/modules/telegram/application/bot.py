@@ -15,6 +15,7 @@ from uuid import UUID
 from pit.modules.challenges.domain.challenge import Challenge, ProofType
 from pit.modules.challenges.domain.participation import Participation, ParticipationStatus
 from pit.modules.challenges.domain.schedule import TaskSpec
+from pit.modules.coaching.application.commands import CheerFriend
 from pit.modules.identity.application.commands import (
     LinkTelegram,
     UnlinkTelegram,
@@ -22,6 +23,7 @@ from pit.modules.identity.application.commands import (
 )
 from pit.modules.identity.domain.user import User
 from pit.modules.telegram.application.common import (
+    CHEER_CALLBACK,
     TODAY_CALLBACK,
     TelegramUoW,
     html,
@@ -265,6 +267,9 @@ class TelegramBot:
                     menu=[],
                 )
                 return
+        if data.startswith(f"{CHEER_CALLBACK}:"):
+            await self._cheer(user, chat_id, data.removeprefix(f"{CHEER_CALLBACK}:"))
+            return
         parts = data.split(":", 2)
         if len(parts) != 3 or parts[0] != PROOF_CALLBACK:
             return
@@ -278,6 +283,33 @@ class TelegramBot:
             await self._submit(user, chat_id, target, file_id=held_photo)
             return
         await self._choose(user, chat_id, target)
+
+    async def _cheer(self, user: User, chat_id: int, notification_hex: str) -> None:
+        try:
+            notification_id = UUID(hex=notification_hex)
+        except ValueError:
+            return
+        uow = self._uow()
+        async with uow:
+            notification = await uow.notifications.get(notification_id)
+            if (
+                notification is None
+                or notification.user_id != user.id
+                or notification.subject_id is None
+                or notification.participation_id is None
+            ):
+                return
+            friend = await uow.users.get(notification.subject_id)
+        if friend is None or friend.is_erased:
+            return
+        await self._bus.handle(
+            CheerFriend(
+                user_id=user.id,
+                participation_id=notification.participation_id,
+                friend_username=friend.username,
+            )
+        )
+        await self._say(chat_id, f"👏 {html(friend.username)} olqishingizni oldi!")
 
     async def _choose(self, user: User, chat_id: int, target: _Open) -> None:
         """Remember the task; the next photo or text the user sends proves it."""

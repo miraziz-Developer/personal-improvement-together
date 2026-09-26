@@ -16,3 +16,18 @@ class SendDailyNudges(Command):
 class MarkNotificationsRead(Command):
     user_id: UUID
     notification_ids: tuple[UUID, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
+class SendWeeklySummaries(Command):
+    """Scheduled: Sunday 21:00 — how the week went, per user."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class CheerFriend(Command):
+    """A group member applauds a friend; at most once a day per pair."""
+
+    user_id: UUID
+    participation_id: UUID  # the sender's own run, which ties them to the group
+    friend_username: str
+    emoji: str = "👏"

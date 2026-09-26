@@ -4,6 +4,7 @@ import { BadgeCheck, LogOut, MapPin, Phone, Send } from "lucide-react";
 import { useState } from "react";
 
 import { OrDivider } from "@/components/AuthFields";
+import { Badges } from "@/components/Badges";
 import { DataRights } from "@/components/DataRights";
 import { TelegramCard } from "@/components/Telegram";
 import { useToast } from "@/components/toast";
@@ -68,6 +69,8 @@ export default function ProfilePage() {
           <p className="text-xs text-mist">eng uzun streak</p>
         </div>
       </Card>
+
+      <Badges />
 
       <Card className="mt-6">
         <h3 className="flex items-center gap-2 font-semibold">

@@ -24,6 +24,10 @@ const MOMENT_EMOJI: Record<string, string> = {
   evening_reminder: "⏰",
   friend_day_done: "🔥",
   friend_joined: "👋",
+  weekly_great: "🏆",
+  weekly_ok: "📊",
+  weekly_tough: "🌱",
+  cheer: "👏",
 };
 
 export function CoachAvatar({ className }: { className?: string }) {

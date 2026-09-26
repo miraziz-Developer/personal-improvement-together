@@ -7,11 +7,13 @@ from pit.api import schemas as s
 from pit.api import views
 from pit.api.deps import ContainerDep, UserId
 from pit.api.ratelimit import rate_limit
+from pit.modules.challenges.infrastructure.tables import participations
 from pit.modules.coaching.application.commands import MarkNotificationsRead
 from pit.modules.coaching.infrastructure.tables import notifications
 from pit.modules.identity.infrastructure.tables import users
 from pit.modules.moderation.application.commands import FileReport
 from pit.modules.moderation.domain.report import ReportReason
+from pit.modules.ranking.domain.achievements import Record, badges_for
 from pit.modules.ranking.domain.scoring import MIN_COHORT_SIZE, period_keys
 from pit.shared.application.clock import local_date
 from pit.shared.application.lookup import require
@@ -151,3 +153,31 @@ async def report_user(body: s.ReportIn, user_id: UserId, container: ContainerDep
         )
     )
     return s.IdOut(id=report_id)
+
+
+@router.get("/me/badges", response_model=list[s.BadgeOut])
+async def my_badges(user_id: UserId, container: ContainerDep) -> list[s.BadgeOut]:
+    async with container.uow_factory() as uow:
+        user = require(await uow.users.get(user_id), "Foydalanuvchi topilmadi")
+        points, _, completed, best, _ = await views.user_stats(uow, user_id)
+        runs = await uow.session.execute(
+            select(participations.c.id).where(participations.c.user_id == user_id)
+        )
+        days_done, in_group = 0, False
+        for participation_id in runs.scalars():
+            run = await uow.participations.get(participation_id)
+            if run is not None:
+                days_done += run.days_completed
+                in_group = in_group or run.group_id is not None
+    record = Record(
+        days_done=days_done,
+        best_streak=best,
+        completed_challenges=completed,
+        points=points,
+        in_group=in_group,
+        telegram_linked=user.telegram_chat_id is not None,
+    )
+    return [
+        s.BadgeOut(key=b.key, emoji=b.emoji, title=b.title, hint=b.hint, earned=earned)
+        for b, earned in badges_for(record)
+    ]

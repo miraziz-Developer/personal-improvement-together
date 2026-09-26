@@ -9,6 +9,7 @@ from pit.api.deps import ContainerDep, UserId
 from pit.api.ratelimit import rate_limit
 from pit.modules.challenges.application.commands import CreateGroup, JoinGroup
 from pit.modules.challenges.domain.group import normalize_invite_code
+from pit.modules.coaching.application.commands import CheerFriend
 from pit.shared.application.clock import local_date
 from pit.shared.application.lookup import require
 from pit.shared.domain.errors import PermissionDenied
@@ -104,3 +105,21 @@ async def board(
             )
         members.sort(key=lambda m: (m.days_completed, m.current_streak), reverse=True)
         return s.GroupBoardOut(invite_code=group.invite_code, members=members)
+
+
+@router.post(
+    "/me/participations/{participation_id}/group/cheer",
+    status_code=204,
+    dependencies=[Depends(rate_limit("cheer", 60, 3600, per="user"))],
+)
+async def cheer(
+    participation_id: UUID, body: s.CheerIn, user_id: UserId, container: ContainerDep
+) -> None:
+    await container.bus.handle(
+        CheerFriend(
+            user_id=user_id,
+            participation_id=participation_id,
+            friend_username=body.username,
+            emoji=body.emoji,
+        )
+    )

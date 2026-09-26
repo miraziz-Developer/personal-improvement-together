@@ -62,6 +62,9 @@ from pit.shared.infrastructure.llm import LlmEndpoint, LlmPool
 logger = logging.getLogger(__name__)
 
 
+DRAIN_TIMEOUT_SECONDS = 10.0
+
+
 class InlineVerificationQueue:
     """Local development: verify right after the proof is committed, inside the API process."""
 
@@ -76,9 +79,14 @@ class InlineVerificationQueue:
         self._running.add(task)
         task.add_done_callback(self._running.discard)
 
-    async def drain(self) -> None:
-        while self._running:
-            await asyncio.gather(*self._running, return_exceptions=True)
+    async def drain(self, timeout: float = DRAIN_TIMEOUT_SECONDS) -> None:
+        """Let running checks finish on shutdown, but never hang a restart on a slow AI:
+        cancelled proofs stay pending and `requeue_stale_proofs` picks them up again."""
+        if not self._running:
+            return
+        _, still_running = await asyncio.wait(set(self._running), timeout=timeout)
+        for task in still_running:
+            task.cancel()
 
 
 class CeleryVerificationQueue:

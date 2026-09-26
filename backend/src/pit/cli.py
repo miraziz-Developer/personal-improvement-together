@@ -6,6 +6,7 @@ uv run python -m pit.cli close-days               # run the daily job once
 uv run python -m pit.cli nudges morning|evening   # send the coach's messages now
 uv run python -m pit.cli telegram-setup           # register the bot webhook and command menu
 uv run python -m pit.cli ai-check                 # prove the configured AI really answers
+uv run python -m pit.cli weekly                   # send the Sunday summaries now
 """
 
 import argparse
@@ -18,7 +19,7 @@ from PIL import Image, ImageDraw
 from pit.catalog import build_catalog
 from pit.config import Settings, get_settings
 from pit.container import Container, ai_pool, build_container
-from pit.jobs import close_all_days, send_nudges
+from pit.jobs import close_all_days, send_nudges, send_weekly_summaries
 from pit.modules.challenges.domain.challenge import Category
 from pit.modules.planning.domain.plan import Availability, OnboardingAnswers
 from pit.modules.planning.infrastructure.generators import (
@@ -117,6 +118,7 @@ async def main() -> None:
     nudges.add_argument("kind", choices=["morning", "evening"])
     sub.add_parser("telegram-setup")
     sub.add_parser("ai-check")
+    sub.add_parser("weekly")
     args = parser.parse_args()
 
     if args.command == "ai-check":
@@ -134,6 +136,8 @@ async def main() -> None:
                 print(f"Closed days for {await close_all_days(container)} participations")
             case "nudges":
                 print(f"Sent {await send_nudges(container, args.kind)} messages")
+            case "weekly":
+                print(f"Sent {await send_weekly_summaries(container)} weekly summaries")
             case "telegram-setup":
                 print(await telegram_setup(container))
     finally:

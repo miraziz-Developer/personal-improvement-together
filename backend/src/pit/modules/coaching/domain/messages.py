@@ -21,6 +21,10 @@ class Moment(StrEnum):
     EVENING_REMINDER = "evening_reminder"
     FRIEND_DAY_DONE = "friend_day_done"
     FRIEND_JOINED = "friend_joined"
+    WEEKLY_GREAT = "weekly_great"
+    WEEKLY_OK = "weekly_ok"
+    WEEKLY_TOUGH = "weekly_tough"
+    CHEER = "cheer"
 
 
 STREAK_MILESTONES = frozenset({3, 7, 14, 21, 30, 50, 75, 100})
@@ -171,6 +175,45 @@ LIBRARY: dict[Moment, tuple[tuple[str, str], ...]] = {
             "Jamoa harakatda 🤝",
             "{friend} bugun ham uddaladi. Sizning navbatingiz — bugungi rejani bajaring!",
         ),
+    ),
+    Moment.WEEKLY_GREAT: (
+        (
+            "Ajoyib hafta! 🏆",
+            "{name}, bu hafta {done}/{planned} kun bajarildi, streak — {streak}. {group_line}"
+            "Keyingi haftani ham shunday o'tkazamiz! 💪",
+        ),
+        (
+            "Hafta yakuni: a'lo! 🔥",
+            "{done}/{planned} kun — bu intizom. {group_line}O'zingiz bilan faxrlaning, {name}!",
+        ),
+    ),
+    Moment.WEEKLY_OK: (
+        (
+            "Hafta yakuni 📊",
+            "{done}/{planned} kun — yaxshi natija. {group_line}"
+            "Keyingi hafta yana bitta kun qo'shsangiz — yangi rekord! 🔥",
+        ),
+        (
+            "Yarim yo'ldan o'tdingiz 💪",
+            "{name}, bu hafta {done}/{planned} kun. {group_line}"
+            "Dushanba — qaytadan kuchli boshlash uchun eng yaxshi kun.",
+        ),
+    ),
+    Moment.WEEKLY_TOUGH: (
+        (
+            "Yangi hafta — yangi imkoniyat 🌱",
+            "Bu hafta {done}/{planned} kun. Qiyin bo'ldi, bilaman. Lekin siz hali shu yerdasiz — "
+            "bu eng muhimi. {group_line}Dushanbadan kichik qadam bilan boshlaymiz.",
+        ),
+        (
+            "Taslim bo'lmaymiz 🤝",
+            "{name}, bu hafta {done}/{planned} kun chiqdi. Har bir chempion qiyin haftalarni "
+            "boshidan o'tkazgan. {group_line}Ertaga bitta vazifadan boshlang.",
+        ),
+    ),
+    Moment.CHEER: (
+        ("{friend} sizni olqishladi {emoji}", "{friend} bugungi natijangizni ko'rdi. Davom eting!"),
+        ("{emoji} {friend}dan", "Do'stingiz sizni qo'llab-quvvatlayapti. Bugun ham uddalaysiz!"),
     ),
     Moment.FRIEND_JOINED: (
         (

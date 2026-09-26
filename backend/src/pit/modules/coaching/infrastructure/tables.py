@@ -12,6 +12,7 @@ notifications = Table(
     Column("title", String(200), nullable=False),
     Column("body", Text, nullable=False),
     Column("participation_id", Uuid, ForeignKey("participations.id"), nullable=True),
+    Column("subject_id", Uuid, ForeignKey("users.id"), nullable=True),
     Column("sent_at", DateTime(timezone=True), nullable=False),
     Column("read_at", DateTime(timezone=True), nullable=True),
     *audit_columns(),

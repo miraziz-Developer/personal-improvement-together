@@ -18,6 +18,7 @@ from pit.catalog import catalog_id
 from pit.cli import make_moderator, seed
 from pit.config import Settings
 from pit.container import Container, InlineVerificationQueue, build_container
+from pit.jobs import requeue_stale_proofs
 from pit.modules.identity.application.ports import GoogleIdentity
 from pit.modules.identity.domain.user import CURRENT_TERMS_VERSION
 from pit.modules.telegram.application.ports import ShareContact
@@ -479,3 +480,34 @@ async def test_report_reaches_the_moderator_queue(api: Api) -> None:
     )
     assert resolved.status_code == 204
     assert (await api.client.get("/api/v1/admin/reports", headers=moderator)).json() == []
+
+
+async def test_a_proof_whose_check_was_lost_is_checked_again(api: Api) -> None:
+    auth = await api.register()
+    reading = str(catalog_id("reading-30"))
+    pid = (
+        await api.client.post(
+            f"/api/v1/challenges/{reading}/join", json={"mode": "free"}, headers=auth
+        )
+    ).json()["id"]
+    proof = await api.client.post(
+        "/api/v1/proofs",
+        data={"participation_id": pid, "task_key": "read"},
+        files={"file": ("page.jpg", jpeg(), "image/jpeg")},
+        headers=auth,
+    )
+    await api.settle()
+    proof_id = proof.json()["id"]
+    # Simulate a restart that killed the check: pending, and submitted a while ago.
+    async with api.container.engine.begin() as connection:
+        await connection.execute(
+            text(
+                "UPDATE proofs SET status = 'pending', ai_decision = NULL, "
+                "submitted_at = now() - interval '10 minutes' WHERE id = :id"
+            ),
+            {"id": proof_id},
+        )
+    assert await requeue_stale_proofs(api.container) == 1
+    await api.settle()
+    status = (await api.client.get(f"/api/v1/proofs/{proof_id}", headers=auth)).json()
+    assert status["status"] == "approved"

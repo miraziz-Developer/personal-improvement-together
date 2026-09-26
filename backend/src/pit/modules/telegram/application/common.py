@@ -16,6 +16,7 @@ MONTHS = (
 WEEKDAYS = ("dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba", "yakshanba")
 
 TODAY_CALLBACK = "today"
+CHEER_CALLBACK = "cheer"  # cheer:<notification hex> — applaud the friend the news is about
 
 
 class TelegramUoW(Transaction, Protocol):

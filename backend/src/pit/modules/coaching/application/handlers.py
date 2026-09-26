@@ -1,5 +1,6 @@
 """The coach reacts to what happens in the user's challenge and says something useful."""
 
+from datetime import timedelta
 from typing import Protocol
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -17,7 +18,12 @@ from pit.modules.challenges.domain.participation import (
     ParticipationStatus,
 )
 from pit.modules.challenges.domain.repositories import ChallengeRepository, ParticipationRepository
-from pit.modules.coaching.application.commands import MarkNotificationsRead, SendDailyNudges
+from pit.modules.coaching.application.commands import (
+    CheerFriend,
+    MarkNotificationsRead,
+    SendDailyNudges,
+    SendWeeklySummaries,
+)
 from pit.modules.coaching.domain.messages import STREAK_MILESTONES, Moment, compose
 from pit.modules.coaching.domain.notification import Notification
 from pit.modules.coaching.domain.repositories import NotificationRepository
@@ -27,6 +33,7 @@ from pit.modules.verification.domain.events import ProofRejected, ProofSentToRev
 from pit.shared.application.clock import Clock, local_date
 from pit.shared.application.lookup import require
 from pit.shared.application.unit_of_work import Transaction
+from pit.shared.domain.errors import DomainError, PermissionDenied
 
 _NAMESPACE = uuid5(NAMESPACE_URL, "pit:notification")
 
@@ -53,6 +60,7 @@ async def _notify(
     user_id: UUID,
     moment: Moment,
     participation_id: UUID | None,
+    subject_id: UUID | None = None,
     **facts: object,
 ) -> None:
     # The id is derived from the moment, so a retried handler or job never sends twice.
@@ -69,6 +77,7 @@ async def _notify(
             body=body,
             created_at=clock.now(),
             participation_id=participation_id,
+            subject_id=subject_id,
         )
     )
 
@@ -228,6 +237,7 @@ async def on_friend_day_done(event: DayCompleted, uow: CoachingUoW, *, clock: Cl
                 user_id=mate.user_id,
                 moment=Moment.FRIEND_DAY_DONE,
                 participation_id=mate.id,
+                subject_id=participation.user_id,
                 friend=name,
                 streak=event.streak,
             )
@@ -308,4 +318,103 @@ async def mark_read(cmd: MarkNotificationsRead, uow: CoachingUoW, *, clock: Cloc
 async def forget_notifications(event: AccountErased, uow: CoachingUoW) -> None:
     async with uow:
         await uow.notifications.delete_for_user(event.user_id)
+        await uow.commit()
+
+
+# --- weekly summary and cheers ---------------------------------------------------------------
+
+CHEER_EMOJIS = ("👏", "🔥", "💪", "❤️")
+
+
+async def _group_rank(uow: CoachingUoW, participation: Participation) -> int | None:
+    """1-based place in the group (most days done, then the longest streak); None if alone."""
+    if participation.group_id is None:
+        return None
+    members = []
+    for member_id in await uow.participations.list_in_group(participation.group_id):
+        member = await uow.participations.get(member_id)
+        if member is not None and member.status is not ParticipationStatus.CANCELLED:
+            members.append(member)
+    if len(members) < 2:
+        return None
+    members.sort(key=lambda m: (m.days_completed, m.current_streak), reverse=True)
+    return next(i for i, m in enumerate(members, 1) if m.id == participation.id)
+
+
+async def send_weekly_summaries(cmd: SendWeeklySummaries, uow: CoachingUoW, *, clock: Clock) -> int:
+    sent = 0
+    async with uow:
+        runs_by_user: dict[UUID, list[Participation]] = {}
+        for participation_id in await uow.participations.list_open_ids():
+            run = await uow.participations.get(participation_id)
+            if run is not None and run.status is ParticipationStatus.ACTIVE:
+                runs_by_user.setdefault(run.user_id, []).append(run)
+        for user_id, runs in runs_by_user.items():
+            user = await uow.users.get(user_id)
+            if user is None or user.is_erased:
+                continue
+            today = local_date(clock.now(), user.timezone)
+            monday = today - timedelta(days=today.weekday())
+            week = [(d, s) for run in runs for d, s in run.days.items() if monday <= d <= today]
+            if not week:
+                continue  # a rest week: nothing to sum up
+            done = sum(1 for _, status in week if status is DayStatus.DONE)
+            ratio = done / len(week)
+            moment = (
+                Moment.WEEKLY_GREAT
+                if ratio >= 0.8
+                else Moment.WEEKLY_OK
+                if ratio >= 0.5
+                else Moment.WEEKLY_TOUGH
+            )
+            grouped = next((run for run in runs if run.group_id), None)
+            rank = await _group_rank(uow, grouped) if grouped else None
+            await _notify(
+                uow,
+                clock,
+                key=f"weekly:{user_id}:{monday.isoformat()}",
+                user_id=user_id,
+                moment=moment,
+                participation_id=(grouped or runs[0]).id,
+                name=user.username,
+                done=done,
+                planned=len(week),
+                streak=max(run.current_streak for run in runs),
+                group_line=f"Guruhda {rank}-o'rin. " if rank else "",
+            )
+            sent += 1
+        await uow.commit()
+    return sent
+
+
+async def cheer_friend(cmd: CheerFriend, uow: CoachingUoW, *, clock: Clock) -> None:
+    """Idempotent per day and pair: a second cheer the same day changes nothing."""
+    async with uow:
+        mine = require(await uow.participations.get(cmd.participation_id), "Challenge topilmadi")
+        if mine.user_id != cmd.user_id:
+            raise PermissionDenied("Bu sizning challenge'ingiz emas")
+        if mine.group_id is None:
+            raise DomainError("Bu challenge guruhda emas")
+        sender = require(await uow.users.get(cmd.user_id), "Foydalanuvchi topilmadi")
+        friend = require(
+            await uow.users.get_by_username(cmd.friend_username.strip().lower()),
+            "Foydalanuvchi topilmadi",
+        )
+        mates = await _group_mates(uow, mine.group_id, cmd.user_id)
+        target = next((m for m in mates if m.user_id == friend.id), None)
+        if target is None:
+            raise DomainError("Bu foydalanuvchi guruhingizda emas")
+        emoji = cmd.emoji if cmd.emoji in CHEER_EMOJIS else CHEER_EMOJIS[0]
+        today = local_date(clock.now(), friend.timezone)
+        await _notify(
+            uow,
+            clock,
+            key=f"cheer:{sender.id}:{friend.id}:{today.isoformat()}",
+            user_id=friend.id,
+            moment=Moment.CHEER,
+            participation_id=target.id,
+            subject_id=sender.id,
+            friend=sender.username,
+            emoji=emoji,
+        )
         await uow.commit()

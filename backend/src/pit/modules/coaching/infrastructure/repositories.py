@@ -21,6 +21,7 @@ class SqlNotificationRepository(SqlRepository[Notification]):
             "title": item.title,
             "body": item.body,
             "participation_id": item.participation_id,
+            "subject_id": item.subject_id,
             "sent_at": utc(item.created_at),
             "read_at": utc(item.read_at) if item.read_at else None,
         }
@@ -34,6 +35,7 @@ class SqlNotificationRepository(SqlRepository[Notification]):
             body=row["body"],
             created_at=row["sent_at"],
             participation_id=row["participation_id"],
+            subject_id=row["subject_id"],
             read_at=row["read_at"],
         )
 

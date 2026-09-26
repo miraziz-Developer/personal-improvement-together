@@ -12,6 +12,7 @@ def make_celery(settings: Settings) -> Celery:
         worker_prefetch_multiplier=1,
         beat_schedule={
             "close-days": {"task": "pit.close_days", "schedule": crontab(minute=15, hour=0)},
+            "requeue-proofs": {"task": "pit.requeue_proofs", "schedule": crontab(minute="*/10")},
             "morning-nudges": {
                 "task": "pit.daily_nudges",
                 "schedule": crontab(minute=0, hour=8),
@@ -21,6 +22,10 @@ def make_celery(settings: Settings) -> Celery:
                 "task": "pit.daily_nudges",
                 "schedule": crontab(minute=0, hour=20),
                 "args": ("evening",),
+            },
+            "weekly-summaries": {
+                "task": "pit.weekly_summaries",
+                "schedule": crontab(minute=0, hour=21, day_of_week="sun"),
             },
         },
     )

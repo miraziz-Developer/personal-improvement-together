@@ -9,6 +9,7 @@ from pit.modules.coaching.domain.messages import Moment
 from pit.modules.coaching.domain.notification import Notification, NotificationCreated
 from pit.modules.identity.domain.user import User
 from pit.modules.telegram.application.common import (
+    CHEER_CALLBACK,
     TODAY_CALLBACK,
     TelegramUoW,
     html,
@@ -53,7 +54,10 @@ def notification_keyboard(notification: Notification, web_url: str) -> Keyboard:
     if notification.participation_id and notification.moment not in _FINAL:
         label = "📸 Isbot yuborish" if notification.moment in _ACT_NOW else "📋 Bugungi vazifalar"
         action = [Button(label, callback=TODAY_CALLBACK)]
-    return keyboard(action, site_row(web_url, "/dashboard"))
+    cheer: list[Button] = []
+    if notification.moment is Moment.FRIEND_DAY_DONE and notification.subject_id:
+        cheer = [Button("👏 Olqishlash", callback=f"{CHEER_CALLBACK}:{notification.id.hex}")]
+    return keyboard(cheer, action, site_row(web_url, "/dashboard"))
 
 
 async def deliver_notification(
