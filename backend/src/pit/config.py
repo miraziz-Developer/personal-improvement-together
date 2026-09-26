@@ -77,6 +77,10 @@ class Settings(BaseSettings):
     # Paid features (stake mode, wallet). Off: the whole platform is free.
     stakes_enabled: bool = False
 
+    # Error tracking (sentry.io); empty = off.
+    sentry_dsn: SecretStr = SecretStr("")
+    sentry_traces_sample_rate: float = 0.1
+
     rate_limits_enabled: bool = True
     # Only behind a trusted reverse proxy (Caddy in docker-compose.prod.yml).
     trust_proxy_headers: bool = False

@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: pit
+          POSTGRES_PASSWORD: pit
+          POSTGRES_DB: pit_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pit -d pit_test"
+          --health-interval 5s
+          --health-retries 20
+    env:
+      PIT_TEST_DATABASE_URL: postgresql+psycopg://pit:pit@localhost:5432/pit_test
+      PIT_REQUIRE_DB: "1" # integration tests fail instead of silently skipping
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Lint
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Types
+        run: uv run mypy
+      - name: Architecture (module boundaries)
+        run: uv run lint-imports
+      - name: Tests (unit, application, Postgres integration)
+        run: uv run pytest -q
+      - name: Migrations match the models
+        env:
+          PIT_DATABASE_URL: postgresql+psycopg://pit:pit@localhost:5432/pit_test
+        run: uv run alembic check
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Types
+        run: pnpm exec tsc --noEmit
+      - name: Lint
+        run: pnpm lint
+      - name: Build
+        run: pnpm build
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Production images build
+        run: |
+          docker build -t pit-backend ./backend
+          docker build -t pit-frontend ./frontend

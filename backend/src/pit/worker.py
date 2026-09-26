@@ -14,8 +14,10 @@ from pit.config import get_settings
 from pit.container import Container, build_container
 from pit.jobs import close_all_days, send_nudges
 from pit.modules.verification.application.commands import VerifyProof
+from pit.observability import init_sentry
 
 settings = get_settings().model_copy(update={"inline_tasks": False})
+init_sentry(settings, "worker")
 app = make_celery(settings)
 
 

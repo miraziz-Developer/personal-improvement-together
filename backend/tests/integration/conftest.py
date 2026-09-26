@@ -29,6 +29,8 @@ def migrated_database() -> str:
     try:
         psycopg.connect(TEST_DATABASE_URL.replace("+psycopg", ""), connect_timeout=2).close()
     except psycopg.OperationalError:
+        if os.environ.get("PIT_REQUIRE_DB"):  # CI: a missing database must fail, not skip
+            raise
         pytest.skip("Postgres ishlamayapti: `docker compose up -d postgres`")
     config = Config(str(BACKEND_DIR / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", TEST_DATABASE_URL)

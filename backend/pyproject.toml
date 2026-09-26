@@ -21,6 +21,7 @@ dependencies = [
     "pillow>=11",
     "boto3>=1.35",
     "openai>=1.50",
+    "sentry-sdk[celery,fastapi]>=2.70.0",
 ]
 
 [dependency-groups]
