@@ -128,6 +128,10 @@ class User(AggregateRoot):
         self.deleted_at = at
         self._record(AccountErased(user_id=self.id))
 
+    def reset_username(self) -> None:
+        """A moderator removes an offensive username; the user may pick a new one later."""
+        self.username = f"user_{self.id.hex[:10]}"
+
     def connect_google(self, sub: str, email: str | None) -> None:
         self.google_sub = sub
         self.email = email

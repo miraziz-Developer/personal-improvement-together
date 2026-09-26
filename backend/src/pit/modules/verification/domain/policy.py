@@ -11,6 +11,8 @@ STAKE_REJECT_CONFIDENCE = 0.9
 
 
 def decide(verdict: AiVerdict, *, stake_mode: bool) -> ProofStatus:
+    if verdict.unsafe:
+        return ProofStatus.NEEDS_REVIEW  # a person looks at it, whatever the mode
     if not stake_mode:
         return (
             ProofStatus.APPROVED if verdict.decision is AiDecision.APPROVE else ProofStatus.REJECTED

@@ -14,6 +14,7 @@ from pit.modules.challenges.domain.participation import Participation
 from pit.modules.coaching.domain.notification import Notification
 from pit.modules.identity.application.ports import GoogleIdentity
 from pit.modules.identity.domain.user import User
+from pit.modules.moderation.domain.report import Report, ReportStatus
 from pit.modules.planning.domain.plan import OnboardingAnswers, Plan, PlanProposal
 from pit.modules.ranking.domain.scoring import ScoreEntry
 from pit.modules.telegram.application.ports import (
@@ -39,6 +40,7 @@ class InMemoryStore:
     challenges: dict[UUID, Challenge] = field(default_factory=dict)
     participations: dict[UUID, Participation] = field(default_factory=dict)
     groups: dict[UUID, Group] = field(default_factory=dict)
+    reports: dict[UUID, Report] = field(default_factory=dict)
     proofs: dict[UUID, Proof] = field(default_factory=dict)
     wallets: dict[UUID, Wallet] = field(default_factory=dict)
     ledger: list[LedgerTransaction] = field(default_factory=list)
@@ -113,6 +115,16 @@ class FakeParticipations(_Repo[Participation]):
 class FakeGroups(_Repo[Group]):
     async def get_by_code(self, invite_code: str) -> Group | None:
         return next((g for g in self._all() if g.invite_code == invite_code), None)
+
+
+class FakeReports(_Repo[Report]):
+    async def has_open(self, reporter_id: UUID, reported_user_id: UUID) -> bool:
+        return any(
+            r.reporter_id == reporter_id
+            and r.reported_user_id == reported_user_id
+            and r.status is ReportStatus.OPEN
+            for r in self._all()
+        )
 
 
 class FakeProofs(_Repo[Proof]):
@@ -196,6 +208,7 @@ class FakeUnitOfWork(UnitOfWork):
         self.challenges = FakeChallenges(store.challenges, self._seen)
         self.participations = FakeParticipations(store.participations, self._seen)
         self.groups = FakeGroups(store.groups, self._seen)
+        self.reports = FakeReports(store.reports, self._seen)
         self.proofs = FakeProofs(store.proofs, self._seen)
         self.wallets = FakeWallets(store.wallets, self._seen)
         self.ledger = FakeLedger(store.ledger)
@@ -207,6 +220,7 @@ class FakeUnitOfWork(UnitOfWork):
             self.challenges,
             self.participations,
             self.groups,
+            self.reports,
             self.proofs,
             self.wallets,
             self.ledger,
@@ -256,6 +270,7 @@ class FakeVerifier:
         confidence: float = 0.95,
         reason: str = "test",
         detected_code: str | None = None,
+        unsafe: bool = False,
     ) -> None:
         self.planned.append(
             AiVerdict(
@@ -264,6 +279,7 @@ class FakeVerifier:
                 reason=reason,
                 model="fake",
                 detected_code=detected_code,
+                unsafe=unsafe,
             )
         )
 

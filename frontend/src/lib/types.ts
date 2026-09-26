@@ -140,6 +140,7 @@ export interface Wallet {
 }
 
 export interface ReviewItem {
+  flagged: boolean;
   proof_id: string;
   username: string;
   challenge_title: string;
@@ -179,4 +180,16 @@ export interface GroupPreview {
   members: number;
   is_full: boolean;
   week: Week;
+}
+
+export type ReportReason = "abuse" | "bad_name" | "spam" | "other";
+
+export interface ReportItem {
+  id: string;
+  reporter: string;
+  reported: string;
+  reason: ReportReason;
+  details: string;
+  created_at: string;
+  reports_against: number;
 }

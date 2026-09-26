@@ -53,6 +53,8 @@ from pit.modules.identity.application.ports import (
     SmsSender,
 )
 from pit.modules.identity.domain.events import AccountErased
+from pit.modules.moderation.application import handlers as moderation
+from pit.modules.moderation.application.commands import FileReport, ResolveReport
 from pit.modules.planning.application import handlers as planning
 from pit.modules.planning.application.commands import DraftPlan, EditPlan, StartPlan
 from pit.modules.planning.application.ports import PlanGenerator
@@ -168,6 +170,9 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         ReviewProof: partial(verification.review_proof, clock=clock),
         # wallet
         Deposit: partial(wallet.deposit, clock=clock),
+        # moderation
+        FileReport: partial(moderation.file_report, clock=clock),
+        ResolveReport: partial(moderation.resolve_report, clock=clock),
     }
     event_handlers: dict[type, list[Any]] = {
         ProofSubmitted: [partial(verification.enqueue_verification, queue=deps.verification_queue)],

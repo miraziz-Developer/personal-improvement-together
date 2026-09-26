@@ -21,7 +21,10 @@ Qoidalar:
 - Internetdan olinganga, skrinshotga yoki boshqa odamning rasmiga o'xshasa — reject.
 - Kutilgan kod berilgan bo'lsa, rasmda qog'ozga yozilgan kodni toping va detected_code ga
   aynan yozing; topilmasa null qo'ying.
-- reason foydalanuvchiga ko'rsatiladi: o'zbek tilida, bitta qisqa gap, hurmat bilan."""
+- reason foydalanuvchiga ko'rsatiladi: o'zbek tilida, bitta qisqa gap, hurmat bilan.
+- Foydalanuvchilar orasida bolalar bor. Rasm yoki matnda yalang'ochlik, zo'ravonlik, qon,
+  o'ziga zarar yetkazish, qurol bilan tahdid, giyohvandlik yoki nafrat bo'lsa — unsafe: true
+  (qaror baribir moderatorga boradi). Aks holda unsafe: false."""
 
 VERDICT_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -30,8 +33,9 @@ VERDICT_SCHEMA: dict[str, Any] = {
         "confidence": {"type": "number"},
         "reason": {"type": "string"},
         "detected_code": {"type": ["string", "null"]},
+        "unsafe": {"type": "boolean"},
     },
-    "required": ["decision", "confidence", "reason", "detected_code"],
+    "required": ["decision", "confidence", "reason", "detected_code", "unsafe"],
     "additionalProperties": False,
 }
 
@@ -44,6 +48,7 @@ def _parse_verdict(raw: str) -> AiVerdict:
         reason=str(data["reason"])[:300],
         model="",  # filled in with the provider that answered
         detected_code=data.get("detected_code"),
+        unsafe=bool(data.get("unsafe", False)),
     )
 
 

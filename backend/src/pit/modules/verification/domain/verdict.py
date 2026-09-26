@@ -25,6 +25,8 @@ class AiVerdict:
     reason: str
     model: str
     detected_code: str | None = None
+    # Nudity, violence, self-harm, hate...: never auto-approved, always seen by a moderator.
+    unsafe: bool = False
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.confidence <= 1.0:

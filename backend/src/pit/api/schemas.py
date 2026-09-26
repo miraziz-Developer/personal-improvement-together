@@ -332,11 +332,32 @@ class ReviewItemOut(BaseModel):
     ai_reason: str | None
     ai_confidence: float | None
     stake: int
+    flagged: bool  # AI suspects harmful content: look at this one first
 
 
 class ReviewIn(BaseModel):
     approved: bool
     note: str = ""
+
+
+class ReportIn(BaseModel):
+    username: str
+    reason: Literal["abuse", "bad_name", "spam", "other"]
+    details: str = Field("", max_length=500)
+
+
+class ReportOut(BaseModel):
+    id: UUID
+    reporter: str
+    reported: str
+    reason: str
+    details: str
+    created_at: datetime
+    reports_against: int  # open reports about the same person: many = act first
+
+
+class ResolveReportIn(BaseModel):
+    action: Literal["dismiss", "reset_username"]
 
 
 # --- together (groups) ---------------------------------------------------------------------

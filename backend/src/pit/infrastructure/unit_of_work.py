@@ -14,6 +14,7 @@ from pit.modules.challenges.infrastructure.repositories import (
 )
 from pit.modules.coaching.infrastructure.repositories import SqlNotificationRepository
 from pit.modules.identity.infrastructure.repositories import SqlUserRepository
+from pit.modules.moderation.infrastructure.repositories import SqlReportRepository
 from pit.modules.planning.infrastructure.repositories import SqlPlanRepository
 from pit.modules.ranking.infrastructure.repositories import SqlScoreRepository
 from pit.modules.verification.infrastructure.repositories import SqlProofRepository
@@ -41,6 +42,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
     scores: SqlScoreRepository
     plans: SqlPlanRepository
     notifications: SqlNotificationRepository
+    reports: SqlReportRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         super().__init__()
@@ -58,6 +60,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
         self.wallets = SqlWalletRepository(self._session, self._seen)
         self.plans = SqlPlanRepository(self._session, self._seen)
         self.notifications = SqlNotificationRepository(self._session, self._seen)
+        self.reports = SqlReportRepository(self._session, self._seen)
         self.ledger = SqlLedgerRepository(self._session)
         self.scores = SqlScoreRepository(self._session)
         return self
@@ -82,6 +85,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
             self.wallets,
             self.plans,
             self.notifications,
+            self.reports,
         )
         try:
             for repository in repositories:

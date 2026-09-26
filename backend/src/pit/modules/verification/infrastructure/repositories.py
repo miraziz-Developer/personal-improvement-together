@@ -37,6 +37,7 @@ class SqlProofRepository(SqlRepository[Proof]):
             "ai_reason": verdict.reason if verdict else None,
             "ai_model": verdict.model if verdict else None,
             "ai_detected_code": verdict.detected_code if verdict else None,
+            "ai_unsafe": verdict.unsafe if verdict else False,
             "reviewer_id": review.reviewer_id if review else None,
             "review_approved": review.approved if review else None,
             "review_note": review.note if review else None,
@@ -52,6 +53,7 @@ class SqlProofRepository(SqlRepository[Proof]):
                 reason=row["ai_reason"],
                 model=row["ai_model"],
                 detected_code=row["ai_detected_code"],
+                unsafe=row["ai_unsafe"],
             )
         review = None
         if row["reviewer_id"] is not None:

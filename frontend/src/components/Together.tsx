@@ -5,6 +5,7 @@ import { Check, Copy, Crown, Send, Users } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 import useSWR from "swr";
 
+import { ReportButton } from "@/components/ReportButton";
 import { useToast } from "@/components/toast";
 import { Button, Card, StreakFlame } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
@@ -34,7 +35,7 @@ function MemberRow({ member, rank }: { member: GroupMember; rank: number }) {
         <p className="flex items-center gap-1.5 truncate font-medium">
           {member.username}
           {member.is_owner && <Crown className="size-3.5 shrink-0 text-amberish" />}
-          {member.is_me && <span className="text-xs text-mist">(siz)</span>}
+          {member.is_me ? <span className="text-xs text-mist">(siz)</span> : <ReportButton username={member.username} />}
         </p>
         <div className="mt-1 flex items-center gap-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5">

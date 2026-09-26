@@ -452,3 +452,30 @@ async def test_export_then_erase_the_account(api: Api) -> None:
     assert login.status_code == 422
     # The username is free again for someone new.
     assert await api.register("ali_2008")
+
+
+async def test_report_reaches_the_moderator_queue(api: Api) -> None:
+    reporter = await api.register("ali_2008")
+    await api.register("yomon_nom")
+    filed = await api.client.post(
+        "/api/v1/reports",
+        json={"username": "yomon_nom", "reason": "bad_name", "details": "Haqoratli username"},
+        headers=reporter,
+    )
+    assert filed.status_code == 201, filed.text
+
+    moderator = await api.register("moder_1")
+    assert (await api.client.get("/api/v1/admin/reports", headers=moderator)).status_code == 403
+    await make_moderator(api.container, "moder_1")
+    queue = (await api.client.get("/api/v1/admin/reports", headers=moderator)).json()
+    assert [(r["reported"], r["reason"], r["reports_against"]) for r in queue] == [
+        ("yomon_nom", "bad_name", 1)
+    ]
+
+    resolved = await api.client.post(
+        f"/api/v1/admin/reports/{queue[0]['id']}/resolve",
+        json={"action": "reset_username"},
+        headers=moderator,
+    )
+    assert resolved.status_code == 204
+    assert (await api.client.get("/api/v1/admin/reports", headers=moderator)).json() == []

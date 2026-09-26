@@ -87,6 +87,7 @@ source_modules = [
     "pit.modules.ranking.domain",
     "pit.modules.planning.domain",
     "pit.modules.coaching.domain",
+    "pit.modules.moderation.domain",
 ]
 forbidden_modules = [
     "pit.shared.application",
@@ -110,6 +111,7 @@ containers = [
     "pit.modules.ranking",
     "pit.modules.planning",
     "pit.modules.coaching",
+    "pit.modules.moderation",
 ]
 layers = ["(api)", "(infrastructure)", "application", "domain"]
 
@@ -125,7 +127,7 @@ type = "layers"
 layers = [
     "pit.modules.telegram",
     "pit.modules.coaching",
-    "pit.modules.ranking | pit.modules.wallet | pit.modules.verification | pit.modules.planning",
+    "pit.modules.ranking | pit.modules.wallet | pit.modules.verification | pit.modules.planning | pit.modules.moderation",
     "pit.modules.challenges",
     "pit.modules.identity",
 ]

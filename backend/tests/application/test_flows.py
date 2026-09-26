@@ -287,3 +287,18 @@ async def test_stake_mode_is_refused_while_paid_features_are_off(world: World) -
         JoinChallenge(user_id=user.id, challenge_id=challenge.id, mode=ParticipationMode.FREE)
     )
     assert world.participation(pid).stake == Money.zero()
+
+
+async def test_harmful_content_always_goes_to_a_person(world: World) -> None:
+    user, moderator = world.add_user(), world.add_user(role=Role.MODERATOR)
+    pid = await world.join(user, world.add_challenge())  # free mode: normally AI decides alone
+    world.verifier.will_return(AiDecision.APPROVE, confidence=0.99, unsafe=True)
+    proof_id = await world.prove(user, pid)
+
+    assert world.store.proofs[proof_id].status is ProofStatus.NEEDS_REVIEW
+    assert world.participation(pid).days_completed == 0
+
+    await world.bus.handle(
+        ReviewProof(proof_id=proof_id, reviewer_id=moderator.id, approved=False, note="Nomaqbul")
+    )
+    assert world.store.proofs[proof_id].status is ProofStatus.REJECTED

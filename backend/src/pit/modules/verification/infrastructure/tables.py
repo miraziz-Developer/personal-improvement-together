@@ -35,6 +35,7 @@ proofs = Table(
     Column("ai_reason", Text, nullable=True),
     Column("ai_model", String(80), nullable=True),
     Column("ai_detected_code", String(16), nullable=True),
+    Column("ai_unsafe", Boolean, nullable=False, server_default="false"),
     Column("reviewer_id", Uuid, ForeignKey("users.id"), nullable=True),
     Column("review_approved", Boolean, nullable=True),
     Column("review_note", Text, nullable=True),

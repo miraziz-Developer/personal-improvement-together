@@ -1,14 +1,17 @@
 from typing import Literal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 
 from pit.api import schemas as s
 from pit.api import views
 from pit.api.deps import ContainerDep, UserId
+from pit.api.ratelimit import rate_limit
 from pit.modules.coaching.application.commands import MarkNotificationsRead
 from pit.modules.coaching.infrastructure.tables import notifications
 from pit.modules.identity.infrastructure.tables import users
+from pit.modules.moderation.application.commands import FileReport
+from pit.modules.moderation.domain.report import ReportReason
 from pit.modules.ranking.domain.scoring import MIN_COHORT_SIZE, period_keys
 from pit.shared.application.clock import local_date
 from pit.shared.application.lookup import require
@@ -129,3 +132,22 @@ async def leaderboard(
         size=size,
         hidden=hidden,
     )
+
+
+@router.post(
+    "/reports",
+    response_model=s.IdOut,
+    status_code=201,
+    tags=["moderation"],
+    dependencies=[Depends(rate_limit("report", 10, 24 * 3600, per="user"))],
+)
+async def report_user(body: s.ReportIn, user_id: UserId, container: ContainerDep) -> s.IdOut:
+    report_id = await container.bus.handle(
+        FileReport(
+            reporter_id=user_id,
+            reported_username=body.username,
+            reason=ReportReason(body.reason),
+            details=body.details,
+        )
+    )
+    return s.IdOut(id=report_id)
