@@ -409,3 +409,41 @@ class CheerIn(BaseModel):
 class GroupBoardOut(BaseModel):
     invite_code: str
     members: list[GroupMemberOut]  # best first: most days done, then the longest streak
+
+
+# --- analytics -----------------------------------------------------------------------------
+
+
+class FunnelStep(BaseModel):
+    label: str
+    count: int
+
+
+class DailyPoint(BaseModel):
+    day: date
+    signups: int
+    active: int  # people who sent at least one proof that day
+
+
+class AnalyticsOut(BaseModel):
+    users: int
+    new_7d: int
+    new_30d: int
+    telegram_share: float | None  # None: nobody to measure yet
+    google_share: float | None
+    dau: int
+    wau: int
+    mau: int
+    funnel: list[FunnelStep]
+    retention_d1: float | None  # came back with a proof the day after signing up
+    retention_w1: float | None  # ...and in their second week
+    running: int
+    completion_rate: float | None  # completed / (completed + failed)
+    groups: int
+    in_groups: int
+    proofs_30d: int
+    approval_rate: float | None
+    unchecked_30d: int  # approved without an AI check (the AI was down): watch this
+    unsafe_30d: int
+    in_review: int
+    daily: list[DailyPoint]

@@ -511,3 +511,27 @@ async def test_a_proof_whose_check_was_lost_is_checked_again(api: Api) -> None:
     await api.settle()
     status = (await api.client.get(f"/api/v1/proofs/{proof_id}", headers=auth)).json()
     assert status["status"] == "approved"
+
+
+async def test_analytics_for_moderators(api: Api) -> None:
+    auth = await api.register("ali_2008")
+    reading = str(catalog_id("reading-30"))
+    pid = (
+        await api.client.post(
+            f"/api/v1/challenges/{reading}/join", json={"mode": "free"}, headers=auth
+        )
+    ).json()["id"]
+    await api.client.post(
+        "/api/v1/proofs",
+        data={"participation_id": pid, "task_key": "read"},
+        files={"file": ("page.jpg", jpeg(), "image/jpeg")},
+        headers=auth,
+    )
+    await api.settle()
+    assert (await api.client.get("/api/v1/admin/analytics", headers=auth)).status_code == 403
+
+    await make_moderator(api.container, "ali_2008")
+    data = (await api.client.get("/api/v1/admin/analytics", headers=auth)).json()
+    assert (data["users"], data["dau"], data["proofs_30d"]) == (1, 1, 1)
+    assert [step["count"] for step in data["funnel"]] == [1, 1, 1, 1, 0]
+    assert len(data["daily"]) == 30 and data["daily"][-1]["active"] == 1

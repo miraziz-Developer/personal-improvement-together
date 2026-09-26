@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter
 from sqlalchemy import func, select
 
+from pit.api import analytics
 from pit.api import schemas as s
 from pit.api.deps import ContainerDep, ModeratorId
 from pit.jobs import close_all_days, send_nudges, send_weekly_summaries
@@ -137,3 +138,9 @@ async def resolve_report(
             report_id=report_id, moderator_id=moderator_id, action=ReportAction(body.action)
         )
     )
+
+
+@router.get("/analytics", response_model=s.AnalyticsOut)
+async def product_analytics(moderator_id: ModeratorId, container: ContainerDep) -> s.AnalyticsOut:
+    async with container.uow_factory() as uow:
+        return await analytics.collect(uow.session, container.clock.now())

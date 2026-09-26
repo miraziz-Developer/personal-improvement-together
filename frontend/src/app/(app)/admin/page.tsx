@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Coins, Flag, XCircle } from "lucide-react";
+import { BarChart3, CheckCircle2, Coins, Flag, XCircle } from "lucide-react";
 import { useState } from "react";
 import useSWR from "swr";
 
@@ -155,7 +155,10 @@ export default function AdminPage() {
         title="Moderator paneli"
         subtitle="Shubhali isbotlar. Pulli challenge'lar birinchi — adolatli va tez qaror qiling."
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button href="/admin/analytics" size="sm">
+              <BarChart3 className="size-4" /> Analitika
+            </Button>
             <Button size="sm" variant="secondary" onClick={() => run("/admin/jobs/close-days", "Kunlar yopildi")}>
               Kunlarni yopish
             </Button>
