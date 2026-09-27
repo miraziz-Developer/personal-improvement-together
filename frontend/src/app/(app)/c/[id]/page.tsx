@@ -16,6 +16,7 @@ import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { CATEGORY, money, shortDate, STATUS_LABEL } from "@/lib/format";
 import type { ParticipationDetail } from "@/lib/types";
+import { useI18n } from "@/lib/i18n";
 
 const CHEERS = [
   "Bugungi kun yopildi! Siz o'zingizga bergan va'dada turdingiz. 🔥",
@@ -33,12 +34,13 @@ function celebrate() {
 export default function ParticipationPage() {
   const { id } = useParams<{ id: string }>();
   const toast = useToast();
+  const { t } = useI18n();
   const { refreshMe } = useAuth();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const { data: p, mutate } = useSWR<ParticipationDetail>(`/me/participations/${id}`, {
     refreshInterval: (latest) =>
-      latest?.today.tasks.some((t) => t.proof_status === "pending") ? 2000 : 30_000,
+      latest?.today.tasks.some((task) => task.proof_status === "pending") ? 2000 : 30_000,
   });
   const previous = useRef<string | null | undefined>(undefined);
 
@@ -47,23 +49,23 @@ export default function ParticipationPage() {
     const now = p.today.status;
     if (previous.current !== undefined && previous.current !== "done" && now === "done") {
       celebrate();
-      toast("success", CHEERS[p.current_streak % CHEERS.length], `Streak: ${p.current_streak} kun`);
+      toast("success", t(CHEERS[p.current_streak % CHEERS.length]), t("Streak: {n} kun", { n: p.current_streak }));
       refreshMe();
     }
     if (previous.current !== undefined && p.status === "completed") celebrate();
     previous.current = now;
-  }, [p, toast, refreshMe]);
+  }, [p, toast, refreshMe, t]);
 
   if (!p) return <Skeleton className="h-[480px]" />;
   const meta = CATEGORY[p.category];
   const Icon = meta.icon;
-  const requiredLeft = p.today.tasks.filter((t) => t.required && t.proof_status !== "approved").length;
+  const requiredLeft = p.today.tasks.filter((task) => task.required && task.proof_status !== "approved").length;
 
   async function cancel() {
     setCancelling(true);
     try {
       await api(`/me/participations/${id}/cancel`, { method: "POST" });
-      toast("info", "Challenge bekor qilindi", p?.mode === "stake" ? "Garov hamyoningizga qaytarildi." : undefined);
+      toast("info", t("Challenge bekor qilindi"), p?.mode === "stake" ? t("Garov hamyoningizga qaytarildi.") : undefined);
       setCancelOpen(false);
       mutate();
       refreshMe();
@@ -85,15 +87,15 @@ export default function ParticipationPage() {
                 {p.days_completed}
                 <span className="text-base text-mist">/{p.total_days}</span>
               </p>
-              <p className="text-xs text-mist">kun</p>
+              <p className="text-xs text-mist">{t("kun")}</p>
             </div>
           </ProgressRing>
           <div className="flex-1 text-center sm:text-left">
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <Badge>
-                <Icon className="size-3.5" /> {meta.label}
+                <Icon className="size-3.5" /> {t(meta.label)}
               </Badge>
-              <Badge>{STATUS_LABEL[p.status]}</Badge>
+              <Badge>{t(STATUS_LABEL[p.status])}</Badge>
               <Badge>
                 {shortDate(p.start_date)} — {shortDate(p.end_date)}
               </Badge>
@@ -101,21 +103,21 @@ export default function ParticipationPage() {
             <h1 className="mt-3 font-display text-2xl font-bold sm:text-3xl">{p.title}</h1>
             <div className="mt-4 flex flex-wrap items-center justify-center gap-5 sm:justify-start">
               <div>
-                <p className="text-xs text-mist">Streak</p>
+                <p className="text-xs text-mist">{t("Streak")}</p>
                 <StreakFlame streak={p.current_streak} size="md" />
               </div>
               <div>
-                <p className="text-xs text-mist">Freeze</p>
+                <p className="text-xs text-mist">{t("Freeze")}</p>
                 <p className="flex items-center gap-1 pt-1">
                   {Array.from({ length: Math.max(p.freezes_left, 0) }).map((_, i) => (
                     <Snowflake key={i} className="size-5 text-ice" />
                   ))}
-                  {p.freezes_left === 0 && <span className="text-sm text-mist">qolmadi</span>}
+                  {p.freezes_left === 0 && <span className="text-sm text-mist">{t("qolmadi")}</span>}
                 </p>
               </div>
               {p.mode === "stake" && (
                 <div>
-                  <p className="text-xs text-mist">Garov</p>
+                  <p className="text-xs text-mist">{t("Garov")}</p>
                   <p className="flex items-center gap-1.5 pt-1 font-semibold text-amberish">
                     <Coins className="size-4" /> {money(p.stake)}
                   </p>
@@ -133,15 +135,15 @@ export default function ParticipationPage() {
             <p className="glass flex-1 rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-white/90">
               {p.status !== "active"
                 ? p.status === "completed"
-                  ? "Siz buni uddaladingiz! Bu g'alaba — faqat sizniki. 🏆"
+                  ? t("Siz buni uddaladingiz! Bu g'alaba — faqat sizniki. 🏆")
                   : p.status === "scheduled"
-                    ? `Challenge ${shortDate(p.start_date)} kuni boshlanadi. Tayyorlaning! 💪`
-                    : "Bu safar chiqmadi — lekin bu oxiri emas. Tayyor bo'lsangiz, qaytadan boshlaymiz. 🌱"
+                    ? t("Challenge {date} kuni boshlanadi. Tayyorlaning! 💪", { date: shortDate(p.start_date) })
+                    : t("Bu safar chiqmadi — lekin bu oxiri emas. Tayyor bo'lsangiz, qaytadan boshlaymiz. 🌱")
                 : p.today.is_rest_day
-                  ? "Bugun dam olish kuni. Tiklanish ham mashqning bir qismi. 🌿"
+                  ? t("Bugun dam olish kuni. Tiklanish ham mashqning bir qismi. 🌿")
                   : requiredLeft === 0
-                    ? "Bugungi majburiy vazifalar bajarildi! Qo'shimchalar — bonus ball. ⭐"
-                    : `Bugun ${requiredLeft} ta majburiy vazifa qoldi. Boshladik! 🔥`}
+                    ? t("Bugungi majburiy vazifalar bajarildi! Qo'shimchalar — bonus ball. ⭐")
+                    : t("Bugun {n} ta majburiy vazifa qoldi. Boshladik! 🔥", { n: requiredLeft })}
             </p>
           </div>
 
@@ -149,7 +151,7 @@ export default function ParticipationPage() {
             <Card className="flex items-center gap-4 border-amberish/25 bg-amberish/[0.05]">
               <KeyRound className="size-8 shrink-0 text-amberish" />
               <div className="flex-1">
-                <p className="text-sm text-mist">Bugungi kod — qog'ozga yozib, rasmda ko'rsating</p>
+                <p className="text-sm text-mist">{t("Bugungi kod — qog'ozga yozib, rasmda ko'rsating")}</p>
                 <p className="font-mono text-3xl font-bold tracking-[0.3em] text-amberish">{p.today.daily_code}</p>
               </div>
             </Card>
@@ -165,28 +167,32 @@ export default function ParticipationPage() {
 
           {p.can_cancel && (
             <Button variant="ghost" className="self-start" onClick={() => setCancelOpen(true)}>
-              Boshlanmasdan bekor qilish
+              {t("Boshlanmasdan bekor qilish")}
             </Button>
           )}
         </div>
 
         <div className="flex flex-col gap-6">
           <Card>
-            <h2 className="mb-4 font-display text-lg font-semibold">Kalendar</h2>
+            <h2 className="mb-4 font-display text-lg font-semibold">{t("Kalendar")}</h2>
             <Calendar start={p.start_date} end={p.end_date} days={p.calendar} today={p.today.date} />
           </Card>
           <TogetherCard participationId={p.id} open={p.status === "active" || p.status === "scheduled"} />
         </div>
       </div>
 
-      <Modal open={cancelOpen} onClose={() => setCancelOpen(false)} title="Bekor qilasizmi?">
-        <p className="text-mist">Challenge hali boshlanmagan, shuning uchun {p.mode === "stake" ? "garov to'liq qaytariladi" : "hech narsa yo'qotmaysiz"}.</p>
+      <Modal open={cancelOpen} onClose={() => setCancelOpen(false)} title={t("Bekor qilasizmi?")}>
+        <p className="text-mist">
+          {p.mode === "stake"
+            ? t("Challenge hali boshlanmagan, shuning uchun garov to'liq qaytariladi.")
+            : t("Challenge hali boshlanmagan, shuning uchun hech narsa yo'qotmaysiz.")}
+        </p>
         <div className="mt-6 flex gap-2">
           <Button variant="secondary" className="flex-1" onClick={() => setCancelOpen(false)}>
-            Qolaman
+            {t("Qolaman")}
           </Button>
           <Button variant="danger" className="flex-1" loading={cancelling} onClick={cancel}>
-            Bekor qilish
+            {t("Bekor qilish")}
           </Button>
         </div>
       </Modal>

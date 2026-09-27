@@ -5,17 +5,19 @@ from sqlalchemy import select
 
 from pit.api import schemas as s
 from pit.api import views
-from pit.api.deps import ContainerDep, UserId
+from pit.api.deps import ContainerDep, LocaleDep, UserId
 from pit.api.ratelimit import rate_limit
 from pit.modules.challenges.infrastructure.tables import participations
 from pit.modules.coaching.application.commands import MarkNotificationsRead
 from pit.modules.coaching.infrastructure.tables import notifications
 from pit.modules.identity.application.commands import ChangeLocale
+from pit.modules.identity.domain.user import Locale
 from pit.modules.identity.infrastructure.tables import users
 from pit.modules.moderation.application.commands import FileReport
 from pit.modules.moderation.domain.report import ReportReason
 from pit.modules.push.application.commands import SubscribePush, UnsubscribePush
 from pit.modules.ranking.domain.achievements import Record, badges_for
+from pit.modules.ranking.domain.achievements_ru import BADGES_RU
 from pit.modules.ranking.domain.scoring import MIN_COHORT_SIZE, period_keys
 from pit.shared.application.clock import local_date
 from pit.shared.application.lookup import require
@@ -27,7 +29,7 @@ PERIOD_INDEX = {"week": 0, "season": 1, "all": 2}
 
 
 @router.get("/me", response_model=s.MeOut)
-async def me(user_id: UserId, container: ContainerDep) -> s.MeOut:
+async def me(user_id: UserId, container: ContainerDep, locale: LocaleDep) -> s.MeOut:
     async with container.uow_factory() as uow:
         user = require(await uow.users.get(user_id), "Foydalanuvchi topilmadi")
         wallet = await uow.wallets.get(user_id)
@@ -38,7 +40,7 @@ async def me(user_id: UserId, container: ContainerDep) -> s.MeOut:
             birth_date=user.birth_date,
             birth_year=user.birth_year,
             region_id=user.region_id,
-            region_name=await views.region_name(uow, user.region_id),
+            region_name=await views.region_name(uow, user.region_id, locale),
             phone=user.phone,
             phone_verified=user.phone_verified,
             role=user.role.value,
@@ -91,19 +93,24 @@ async def mark_read(body: s.ReadIn, user_id: UserId, container: ContainerDep) ->
 async def leaderboard(
     user_id: UserId,
     container: ContainerDep,
+    locale: LocaleDep,
     scope: Literal["global", "age", "region"] = "global",
     period: Literal["week", "season", "all"] = "week",
     limit: int = Query(50, le=100),
 ) -> s.LeaderboardOut:
     async with container.uow_factory() as uow:
         user = require(await uow.users.get(user_id), "Foydalanuvchi topilmadi")
-        region = await views.region_name(uow, user.region_id)
+        region = await views.region_name(uow, user.region_id, locale)
     today = local_date(container.clock.now(), user.timezone)
     period_key = period_keys(today)[PERIOD_INDEX[period]]
+    ru = locale is Locale.RU
     scope_key, title = {
-        "global": ("global", "Butun platforma"),
-        "age": (f"age:{user.birth_year}", f"{user.birth_year}-yilda tug'ilganlar"),
-        "region": (f"region:{user.region_id}", region or "Hududingiz"),
+        "global": ("global", "Вся платформа" if ru else "Butun platforma"),
+        "age": (
+            f"age:{user.birth_year}",
+            f"Родившиеся в {user.birth_year}" if ru else f"{user.birth_year}-yilda tug'ilganlar",
+        ),
+        "region": (f"region:{user.region_id}", region or ("Ваш регион" if ru else "Hududingiz")),
     }[scope]
     key = f"lb:{period_key}:{scope_key}"
     board = container.leaderboard
@@ -159,7 +166,9 @@ async def report_user(body: s.ReportIn, user_id: UserId, container: ContainerDep
 
 
 @router.get("/me/badges", response_model=list[s.BadgeOut])
-async def my_badges(user_id: UserId, container: ContainerDep) -> list[s.BadgeOut]:
+async def my_badges(
+    user_id: UserId, container: ContainerDep, locale: LocaleDep
+) -> list[s.BadgeOut]:
     async with container.uow_factory() as uow:
         user = require(await uow.users.get(user_id), "Foydalanuvchi topilmadi")
         points, _, completed, best, _ = await views.user_stats(uow, user_id)
@@ -180,8 +189,15 @@ async def my_badges(user_id: UserId, container: ContainerDep) -> list[s.BadgeOut
         in_group=in_group,
         telegram_linked=user.telegram_chat_id is not None,
     )
+    texts = BADGES_RU if locale is Locale.RU else {}
     return [
-        s.BadgeOut(key=b.key, emoji=b.emoji, title=b.title, hint=b.hint, earned=earned)
+        s.BadgeOut(
+            key=b.key,
+            emoji=b.emoji,
+            title=texts.get(b.key, (b.title, b.hint))[0],
+            hint=texts.get(b.key, (b.title, b.hint))[1],
+            earned=earned,
+        )
         for b, earned in badges_for(record)
     ]
 

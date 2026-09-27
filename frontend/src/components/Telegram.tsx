@@ -8,6 +8,7 @@ import { useToast } from "@/components/toast";
 import { Button, Card } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth, useFeatures } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 
 const PERKS = [
   { icon: Sun, text: "Ertalab — bugungi reja" },
@@ -20,6 +21,7 @@ export function TelegramCard() {
   const { me, refreshMe } = useAuth();
   const { telegramBot } = useFeatures();
   const toast = useToast();
+  const { t, tx } = useI18n();
   const [link, setLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const linked = me?.telegram_linked ?? false;
@@ -51,7 +53,7 @@ export function TelegramCard() {
       await api("/me/telegram", { method: "DELETE" });
       setLink(null);
       await refreshMe();
-      toast("info", "Telegram uzildi", "Eslatmalar endi faqat saytda ko'rinadi.");
+      toast("info", t("Telegram uzildi"), t("Eslatmalar endi faqat saytda ko'rinadi."));
     } catch (error) {
       toast("error", errorMessage(error));
     } finally {
@@ -68,14 +70,14 @@ export function TelegramCard() {
       {linked ? (
         <div className="relative mt-3 flex flex-wrap items-center justify-between gap-3">
           <p className="flex items-center gap-2 text-mint">
-            <BadgeCheck className="size-5" /> Ulangan — murabbiy Telegram'da yozadi
+            <BadgeCheck className="size-5" /> {t("Ulangan — murabbiy Telegram'da yozadi")}
           </p>
           <div className="flex gap-2">
             <Button href={`https://t.me/${telegramBot}`} external variant="secondary" size="sm">
-              Botni ochish <ExternalLink className="size-3.5" />
+              {t("Botni ochish")} <ExternalLink className="size-3.5" />
             </Button>
             <Button variant="ghost" size="sm" loading={loading} onClick={disconnect}>
-              Uzish
+              {t("Uzish")}
             </Button>
           </div>
         </div>
@@ -85,22 +87,24 @@ export function TelegramCard() {
             {PERKS.map(({ icon: Icon, text }) => (
               <li key={text} className="flex items-center gap-2 rounded-2xl bg-white/[0.03] px-3 py-2.5 text-sm text-white/85">
                 <Icon className="size-4 shrink-0 text-sky-400" />
-                {text}
+                {t(text)}
               </li>
             ))}
           </ul>
           {link ? (
             <div className="flex flex-col gap-2">
               <Button href={link} external variant="sky" size="lg">
-                Telegram'da ochish <ExternalLink className="size-4" />
+                {t("Telegram'da ochish")} <ExternalLink className="size-4" />
               </Button>
               <p className="text-center text-sm text-mist">
-                Telegram'da <b className="text-white">Start</b> ni bosing — shu sahifa o'zi yangilanadi. Havola 10 daqiqa amal qiladi.
+                {tx("Telegram'da {start} ni bosing — shu sahifa o'zi yangilanadi. Havola 10 daqiqa amal qiladi.", {
+                  start: <b className="text-white">Start</b>,
+                })}
               </p>
             </div>
           ) : (
             <Button variant="sky" size="lg" loading={loading} onClick={connect}>
-              <Send className="size-4" /> Telegram'ni ulash
+              <Send className="size-4" /> {t("Telegram'ni ulash")}
             </Button>
           )}
         </div>
@@ -113,6 +117,7 @@ export function TelegramCard() {
 export function TelegramNudge() {
   const { me } = useAuth();
   const { telegramBot } = useFeatures();
+  const { t } = useI18n();
   if (!telegramBot || !me || me.telegram_linked) return null;
   return (
     <Link href="/profile" className="glass group flex items-center gap-4 rounded-3xl p-4 transition hover:border-sky-400/40">
@@ -120,8 +125,8 @@ export function TelegramNudge() {
         <Send className="size-5 text-sky-400" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="font-semibold">Eslatmalarni Telegram'da oling</p>
-        <p className="text-sm text-mist">Isbotni ham botning o'zida yuborasiz 📸</p>
+        <p className="font-semibold">{t("Eslatmalarni Telegram'da oling")}</p>
+        <p className="text-sm text-mist">{t("Isbotni ham botning o'zida yuborasiz 📸")}</p>
       </div>
       <span className="text-sky-400 transition group-hover:translate-x-1">→</span>
     </Link>

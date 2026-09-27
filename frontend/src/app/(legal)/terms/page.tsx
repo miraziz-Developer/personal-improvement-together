@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 
+import { Localized } from "../Localized";
+
 export const metadata: Metadata = { title: "Foydalanish shartlari — PIT" };
 
 export default function TermsPage() {
+  return <Localized uz={<TermsUz />} ru={<TermsRu />} />;
+}
+
+function TermsUz() {
   return (
     <>
       <h1>Foydalanish shartlari</h1>
@@ -37,6 +43,7 @@ export default function TermsPage() {
       <ul>
         <li>Username va isbotlarda haqoratli, zo'ravonlik yoki kattalarga oid kontent taqiqlanadi.</li>
         <li>Platformani buzishga yoki avtomatik so'rovlar bilan ortiqcha yuklashga urinish taqiqlanadi.</li>
+        <li>Nomaqbul kontent yoki username ko'rsangiz, yonidagi bayroqcha belgisi orqali shikoyat qiling — moderator ko'rib chiqadi.</li>
         <li>Qoidabuzarlikda akkaunt vaqtincha yoki butunlay bloklanishi mumkin.</li>
       </ul>
 
@@ -51,8 +58,65 @@ export default function TermsPage() {
 
       <h2>7. O'zgarishlar va akkauntni o'chirish</h2>
       <p>
-        Shartlar yangilanganda versiya sanasi o'zgaradi va sizdan qaytadan rozilik so'ralishi mumkin. Akkauntingizni o'chirishni istasangiz,
-        pastdagi manzilga yozing.
+        Shartlar yangilanganda versiya sanasi o'zgaradi va sizdan qaytadan rozilik so'ralishi mumkin. Akkauntingizni istalgan vaqt
+        Profil sahifasida o'zingiz o'chirasiz.
+      </p>
+    </>
+  );
+}
+
+function TermsRu() {
+  return (
+    <>
+      <h1>Условия использования</h1>
+      <p className="text-sm text-mist">Версия: 2026-09-25</p>
+      <p>
+        PIT (Personal Improvement Together) — платформа, которая помогает превращать цели в ежедневные привычки. Регистрируясь, вы
+        соглашаетесь с условиями ниже.
+      </p>
+
+      <h2>1. Кто может пользоваться</h2>
+      <ul>
+        <li>Пользоваться платформой можно с 7 лет.</li>
+        <li>Пользователи младше 18 лет регистрируются с согласия родителя или опекуна.</li>
+        <li>Один человек — один аккаунт. Не передавайте свой пароль другим.</li>
+      </ul>
+
+      <h2>2. Челленджи и доказательства</h2>
+      <ul>
+        <li>День засчитывается, когда все обязательные задачи плана подтверждены доказательством.</li>
+        <li>Отправляйте только фото или текст, которые сделали вы сами и которые показывают ваше действие.</li>
+        <li>Доказательства проверяет ИИ; спорные случаи рассматривает модератор.</li>
+        <li>Чужое фото, поддельное доказательство или повторная отправка одного фото могут привести к ограничению аккаунта.</li>
+      </ul>
+
+      <h2>3. Платный режим (ставка)</h2>
+      <p>
+        Сейчас платные функции отключены — платформа полностью бесплатна. Когда режим ставок заработает, его отдельные условия будут
+        опубликованы заранее, и вы узнаете о них до начала.
+      </p>
+
+      <h2>4. Правила поведения</h2>
+      <ul>
+        <li>В имени пользователя и доказательствах запрещены оскорбления, насилие и контент для взрослых.</li>
+        <li>Запрещено пытаться взломать платформу или перегружать её автоматическими запросами.</li>
+        <li>Увидели недопустимый контент или имя — пожалуйтесь через значок флажка рядом с ним, модератор всё проверит.</li>
+        <li>За нарушения аккаунт может быть заблокирован временно или навсегда.</li>
+      </ul>
+
+      <h2>5. О здоровье</h2>
+      <p>
+        Сообщения коуча и планы ИИ — это общая мотивация, а не медицинский совет. Прежде чем менять физическую нагрузку или питание,
+        особенно при проблемах со здоровьем, посоветуйтесь с врачом.
+      </p>
+
+      <h2>6. Ответственность</h2>
+      <p>Мы стараемся, чтобы платформа работала стабильно, но технические перебои возможны.</p>
+
+      <h2>7. Изменения и удаление аккаунта</h2>
+      <p>
+        При обновлении условий меняется дата версии, и мы можем снова попросить ваше согласие. Удалить аккаунт можно в любой момент
+        самостоятельно на странице «Профиль».
       </p>
     </>
   );

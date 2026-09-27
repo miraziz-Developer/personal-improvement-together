@@ -5,8 +5,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from pit.api import schemas as s
-from pit.api.deps import ContainerDep, UserId
+from pit.api import views
+from pit.api.deps import ContainerDep, LocaleDep, UserId
 from pit.api.ratelimit import rate_limit
+from pit.catalog_ru import catalog_text
 from pit.modules.challenges.application.commands import CreateGroup, JoinGroup
 from pit.modules.challenges.domain.group import normalize_invite_code
 from pit.modules.coaching.application.commands import CheerFriend
@@ -36,7 +38,9 @@ async def create_group(
     response_model=s.GroupPreviewOut,
     dependencies=[Depends(rate_limit("group-preview", 60, 900))],
 )
-async def preview(invite_code: str, container: ContainerDep) -> s.GroupPreviewOut:
+async def preview(
+    invite_code: str, container: ContainerDep, locale: LocaleDep
+) -> s.GroupPreviewOut:
     async with container.uow_factory() as uow:
         group = require(
             await uow.groups.get_by_code(normalize_invite_code(invite_code)),
@@ -44,16 +48,17 @@ async def preview(invite_code: str, container: ContainerDep) -> s.GroupPreviewOu
         )
         challenge = require(await uow.challenges.get(group.challenge_id), "Challenge topilmadi")
         owner = require(await uow.users.get(group.owner_id), "Foydalanuvchi topilmadi")
+        text = catalog_text(challenge.id, locale)
         return s.GroupPreviewOut(
             invite_code=group.invite_code,
-            challenge_title=challenge.title,
-            challenge_description=challenge.description,
+            challenge_title=text.title if text else challenge.title,
+            challenge_description=text.description if text else challenge.description,
             category=challenge.category.value,
             duration_days=challenge.duration_days,
             owner=owner.username,
             members=len(group.member_ids),
             is_full=group.is_full,
-            week=s.schedule_to_week(group.schedule),
+            week=views.localized_week(s.schedule_to_week(group.schedule), text),
         )
 
 

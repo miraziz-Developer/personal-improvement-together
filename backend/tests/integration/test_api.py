@@ -549,3 +549,47 @@ async def test_errors_speak_the_clients_language(api: Api) -> None:
     auth = await api.register()
     await api.client.put("/api/v1/me/locale", json={"locale": "ru"}, headers=auth)
     assert (await api.client.get("/api/v1/me", headers=auth)).json()["locale"] == "ru"
+
+
+async def test_content_speaks_the_clients_language(api: Api) -> None:
+    ru = {"Accept-Language": "ru"}
+    catalog = (await api.client.get("/api/v1/challenges", headers=ru)).json()
+    sport = next(c for c in catalog if c["duration_days"] == 21 and c["category"] == "sport")
+    assert sport["title"] == "21 день спорта"
+    assert sport["week"][0][0]["title"] == "Тренировка"
+    # ?lang= wins over the header (the web client puts it in its cache keys)
+    uz = await api.client.get(f"/api/v1/challenges/{sport['id']}?lang=uz", headers=ru)
+    assert uz.json()["title"] == "21 kunlik sport"
+
+    auth = await api.register()
+    both = {**auth, **ru}
+    joined = await api.client.post(
+        f"/api/v1/challenges/{sport['id']}/join", json={"mode": "free"}, headers=auth
+    )
+    detail = (
+        await api.client.get(f"/api/v1/me/participations/{joined.json()['id']}", headers=both)
+    ).json()
+    assert detail["title"] == "21 день спорта"
+    assert {t["title"] for t in detail["today"]["tasks"]} <= {"Тренировка", "Растяжка"}
+
+    assert (await api.client.get("/api/v1/me", headers=both)).json()["region_name"] == "город Ташкент"
+    badges = (await api.client.get("/api/v1/me/badges", headers=both)).json()
+    assert badges[0]["title"] == "Первый шаг"
+    board = (await api.client.get("/api/v1/leaderboard?scope=global", headers=both)).json()
+    assert board["title"] == "Вся платформа"
+
+    plan = await api.client.post(
+        "/api/v1/plans",
+        json={
+            "goal": "Стать backend-разработчиком",
+            "motivation": "",
+            "current_level": "",
+            "obstacles": "",
+            "availability": [60, 60, 60, 60, 60, 0, 0],
+        },
+        headers=both,
+    )
+    assert plan.status_code == 201, plan.text
+    assert plan.json()["category"] == "code"
+    assert plan.json()["title"].endswith("первый этап")
+    assert plan.json()["week"][0][0]["title"] == "Писать код"

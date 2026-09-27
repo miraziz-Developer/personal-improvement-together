@@ -1,0 +1,49 @@
+"""Russian texts for the template plan (the no-AI mode and the AI safety net)."""
+
+from pit.modules.challenges.domain.challenge import Category
+
+# category -> (main task, optional extra task, what a valid proof shows)
+PROFILES_RU: dict[Category, tuple[str, str, str]] = {
+    Category.SPORT: (
+        "Тренировка",
+        "Растяжка и восстановление",
+        "На фото видно, как пользователь тренируется, спортзал или спортивный инвентарь.",
+    ),
+    Category.CODE: (
+        "Писать код",
+        "Прочитать техническую статью или документацию",
+        "На фото виден редактор кода или терминал на экране (фото экрана, не скриншот).",
+    ),
+    Category.READING: (
+        "Чтение книги",
+        "Краткие выводы из прочитанного",
+        "На фото видна открытая страница книги, в тексте — выводы о прочитанном.",
+    ),
+    Category.STUDY: (
+        "Урок и практика",
+        "Повторение пройденного",
+        "На фото видна тетрадь, учебник или учебное приложение, в тексте — что изучено.",
+    ),
+    Category.HEALTH: (
+        "Полезная привычка",
+        "Итог дня",
+        "Фото или текст ясно показывают выполненную полезную привычку.",
+    ),
+    Category.CUSTOM: (
+        "Главная задача",
+        "Итог дня",
+        "Доказательство ясно показывает работу по цели, сделанную сегодня.",
+    ),
+}
+
+# Word stems that point to a category when the goal is written in Russian.
+KEYWORDS_RU: dict[Category, tuple[str, ...]] = {
+    Category.READING: ("книг", "читат", "чтени", "роман"),
+    Category.CODE: ("код", "програм", "разработ", "бэкенд", "фронтенд"),
+    Category.SPORT: ("спорт", "бег", "трениров", "фитнес", "похуд", "плаван", "бокс", "зал"),
+    Category.STUDY: ("англ", "язык", "экзамен", "учить", "изуч", "матем", "физик"),
+    Category.HEALTH: ("сон", "спать", "вод", "медитац", "здоров", "питани", "вставать"),
+}
+
+TITLE_RU = "{goal} — первый этап"
+DESCRIPTION_RU = "Цель: {goal}. Причина: {motivation}. Текущий уровень: {level}."

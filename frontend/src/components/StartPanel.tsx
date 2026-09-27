@@ -9,6 +9,7 @@ import { Button, Card } from "@/components/ui";
 import { useAuth, useFeatures } from "@/lib/auth";
 import { money } from "@/lib/format";
 import type { Mode } from "@/lib/types";
+import { useI18n } from "@/lib/i18n";
 
 const QUICK = [20_000, 50_000, 100_000, 200_000];
 
@@ -27,6 +28,7 @@ export function StartPanel({
 }) {
   const { me } = useAuth();
   const { stakesEnabled } = useFeatures();
+  const { t, tx } = useI18n();
   const [mode, setMode] = useState<Mode>("free");
   const [amount, setAmount] = useState(50_000);
   const available = me?.wallet.available ?? 0;
@@ -38,12 +40,12 @@ export function StartPanel({
         <div className="flex items-start gap-3 rounded-2xl bg-mint/[0.07] p-4">
           <Gift className="mt-0.5 size-5 shrink-0 text-mint" />
           <div>
-            <p className="font-semibold">Hozircha hammasi bepul 🎁</p>
-            <p className="mt-1 text-sm text-mist">Ball, streak, reyting va murabbiy — barchasi siz uchun ochiq.</p>
+            <p className="font-semibold">{t("Hozircha hammasi bepul 🎁")}</p>
+            <p className="mt-1 text-sm text-mist">{t("Ball, streak, reyting va murabbiy — barchasi siz uchun ochiq.")}</p>
           </div>
         </div>
         <Button size="lg" className="mt-5 w-full" loading={loading} onClick={() => onStart("free", 0)}>
-          Boshlash 🚀
+          {t("Boshlash")} 🚀
         </Button>
       </Card>
     );
@@ -51,7 +53,7 @@ export function StartPanel({
 
   return (
     <Card>
-      <h3 className="font-display text-lg font-semibold">Qanday boshlaymiz?</h3>
+      <h3 className="font-display text-lg font-semibold">{t("Qanday boshlaymiz?")}</h3>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {(
           [
@@ -69,8 +71,8 @@ export function StartPanel({
             )}
           >
             <Icon className={clsx("size-5", mode === value ? "text-flame-400" : "text-mist")} />
-            <p className="mt-2 font-semibold">{title}</p>
-            <p className="mt-1 text-sm text-mist">{value === "stake" && !stakeAllowed ? "Bu challenge uchun mavjud emas" : body}</p>
+            <p className="mt-2 font-semibold">{t(title)}</p>
+            <p className="mt-1 text-sm text-mist">{value === "stake" && !stakeAllowed ? t("Bu challenge uchun mavjud emas") : t(body)}</p>
           </button>
         ))}
       </div>
@@ -94,14 +96,21 @@ export function StartPanel({
           <input type="range" min={minStake} max={Math.min(maxStake, 500_000)} step={5_000} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
           <p className="font-display text-2xl font-bold">{money(amount)}</p>
           <p className="text-sm leading-relaxed text-mist">
-            Challenge oxirigacha bajarilsa, garov to'liq qaytadi. Bajarilmasa — platformada qoladi. Pul hech qachon faqat AI qarori bilan kuymaydi:
-            shubhali holatlarni inson tekshiradi.
+            {t(
+              "Challenge oxirigacha bajarilsa, garov to'liq qaytadi. Bajarilmasa — platformada qoladi. Pul hech qachon faqat AI qarori bilan kuymaydi: shubhali holatlarni inson tekshiradi.",
+            )}
           </p>
           {!me?.phone_verified && (
             <p className="flex items-start gap-2 rounded-2xl bg-amberish/10 p-3 text-sm text-amberish">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
               <span>
-                Avval telefon raqamingizni <Link href="/profile" className="font-semibold underline">tasdiqlang</Link>.
+                {tx("Avval telefon raqamingizni {link}.", {
+                  link: (
+                    <Link href="/profile" className="font-semibold underline">
+                      {t("tasdiqlang")}
+                    </Link>
+                  ),
+                })}
               </span>
             </p>
           )}
@@ -109,7 +118,11 @@ export function StartPanel({
             <p className="flex items-start gap-2 rounded-2xl bg-white/5 p-3 text-sm text-mist">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
               <span>
-                Hamyonda {money(available)} bor. <Link href="/wallet" className="font-semibold text-flame-400 underline">Hisobni to'ldiring</Link>.
+                {t("Hamyonda {sum} bor.", { sum: money(available) })}{" "}
+                <Link href="/wallet" className="font-semibold text-flame-400 underline">
+                  {t("Hisobni to'ldiring")}
+                </Link>
+                .
               </span>
             </p>
           )}
@@ -117,7 +130,7 @@ export function StartPanel({
       )}
 
       <Button size="lg" className="mt-6 w-full" loading={loading} disabled={invalid} onClick={() => onStart(mode, mode === "stake" ? amount : 0)}>
-        {mode === "stake" ? `${money(amount)} bilan boshlash` : "Boshlash"} 🚀
+        {mode === "stake" ? t("{sum} bilan boshlash", { sum: money(amount) }) : t("Boshlash")} 🚀
       </Button>
     </Card>
   );

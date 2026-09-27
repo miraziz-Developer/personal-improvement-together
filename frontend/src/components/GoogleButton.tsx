@@ -8,6 +8,7 @@ import { OrDivider } from "@/components/AuthFields";
 import { useToast } from "@/components/toast";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth, useFeatures } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 
 export const GOOGLE_SIGNUP_KEY = "pit.google-signup";
 
@@ -44,6 +45,7 @@ export function GoogleButton({ next = "/dashboard" }: { next?: string }) {
   const toast = useToast();
   const slot = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
+  const { locale } = useI18n();
 
   useEffect(() => {
     const google = window.google;
@@ -66,15 +68,16 @@ export function GoogleButton({ next = "/dashboard" }: { next?: string }) {
         }
       },
     });
+    slot.current.replaceChildren(); // switching language draws the button again
     google.accounts.id.renderButton(slot.current, {
       theme: "filled_black",
       size: "large",
       shape: "pill",
       text: "continue_with",
-      locale: "uz",
+      locale,
       width: Math.min(slot.current.offsetWidth, 400),
     });
-  }, [loaded, googleClientId, signIn, router, toast, next]);
+  }, [loaded, googleClientId, signIn, router, toast, next, locale]);
 
   if (!googleClientId) return null;
   return (

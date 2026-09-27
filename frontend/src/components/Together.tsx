@@ -10,6 +10,7 @@ import { useToast } from "@/components/toast";
 import { Button, Card, StreakFlame } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import type { GroupBoard, GroupMember } from "@/lib/types";
+import { useI18n } from "@/lib/i18n";
 
 const noSubscription = () => () => {};
 const readOrigin = () => window.location.origin;
@@ -24,13 +25,14 @@ const TODAY: Record<string, { icon: string; label: string }> = {
 
 function CheerButton({ participationId, username }: { participationId: string; username: string }) {
   const toast = useToast();
+  const { t } = useI18n();
   const [sent, setSent] = useState(false);
 
   async function cheer() {
     try {
       await api(`/me/participations/${participationId}/group/cheer`, { method: "POST", json: { username, emoji: "👏" } });
       setSent(true);
-      toast("success", `👏 ${username} olqishingizni oldi!`);
+      toast("success", t("👏 {name} olqishingizni oldi!", { name: username }));
     } catch (error) {
       toast("error", errorMessage(error));
     }
@@ -40,7 +42,7 @@ function CheerButton({ participationId, username }: { participationId: string; u
     <button
       onClick={cheer}
       disabled={sent}
-      aria-label={`${username}ni olqishlash`}
+      aria-label={t("{name}ni olqishlash", { name: username })}
       className="rounded-xl bg-white/5 px-2 py-1 text-sm transition hover:bg-flame-500/20 disabled:opacity-40"
     >
       👏
@@ -59,6 +61,7 @@ function MemberRow({
   participationId: string;
   open: boolean;
 }) {
+  const { t } = useI18n();
   const today = member.today_status ? TODAY[member.today_status] : { icon: "🌿", label: "dam olish" };
   const progress = member.total_days ? member.days_completed / member.total_days : 0;
   return (
@@ -71,7 +74,7 @@ function MemberRow({
         <p className="flex items-center gap-1.5 truncate font-medium">
           {member.username}
           {member.is_owner && <Crown className="size-3.5 shrink-0 text-amberish" />}
-          {member.is_me ? <span className="text-xs text-mist">(siz)</span> : <ReportButton username={member.username} />}
+          {member.is_me ? <span className="text-xs text-mist">{t("(siz)")}</span> : <ReportButton username={member.username} />}
         </p>
         <div className="mt-1 flex items-center gap-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5">
@@ -82,7 +85,7 @@ function MemberRow({
           </span>
         </div>
       </div>
-      <span title={today.label} className="text-lg">
+      <span title={t(today.label)} className="text-lg">
         {today.icon}
       </span>
       {open && !member.is_me && <CheerButton participationId={participationId} username={member.username} />}
@@ -94,6 +97,7 @@ function MemberRow({
 /** "Together": invite friends to the same plan and see how everyone is doing today. */
 export function TogetherCard({ participationId, open }: { participationId: string; open: boolean }) {
   const toast = useToast();
+  const { t } = useI18n();
   const { data: board, mutate } = useSWR<GroupBoard | null>(`/me/participations/${participationId}/group`, {
     refreshInterval: 30_000,
   });
@@ -121,21 +125,22 @@ export function TogetherCard({ participationId, open }: { participationId: strin
       <Card className="relative overflow-hidden">
         <div className="bg-flame absolute -top-16 -right-16 size-40 rounded-full opacity-15 blur-3xl" />
         <h2 className="relative flex items-center gap-2 font-display text-lg font-semibold">
-          <Users className="size-5 text-flame-400" /> Birga kuchliroq
+          <Users className="size-5 text-flame-400" /> {t("Birga kuchliroq")}
         </h2>
         <p className="relative mt-2 text-sm leading-relaxed text-mist">
-          Do'stlaringizni taklif qiling: bir xil reja, umumiy reyting. Kim bugun bajarganini ko'rib turasiz — va orqada qolish
-          uyat bo'ladi 😉
+          {t(
+            "Do'stlaringizni taklif qiling: bir xil reja, umumiy reyting. Kim bugun bajarganini ko'rib turasiz — va orqada qolish uyat bo'ladi 😉",
+          )}
         </p>
         <Button className="relative mt-4 w-full" loading={creating} onClick={createGroup}>
-          <Users className="size-4" /> Do'stlarni taklif qilish
+          <Users className="size-4" /> {t("Do'stlarni taklif qilish")}
         </Button>
       </Card>
     );
   }
 
   const link = `${origin}/join/${board.invite_code}`;
-  const shareText = "Men bilan birga challenge'ni boshla! Har kuni bir-birimizni ko'rib turamiz 🔥";
+  const shareText = t("Men bilan birga challenge'ni boshla! Har kuni bir-birimizni ko'rib turamiz 🔥");
   const telegramShare = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}`;
 
   async function copy() {
@@ -144,7 +149,7 @@ export function TogetherCard({ participationId, open }: { participationId: strin
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast("error", "Nusxalab bo'lmadi — havolani qo'lda belgilang.");
+      toast("error", t("Nusxalab bo'lmadi — havolani qo'lda belgilang."));
     }
   }
 
@@ -152,9 +157,9 @@ export function TogetherCard({ participationId, open }: { participationId: strin
     <Card>
       <div className="flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
-          <Users className="size-5 text-flame-400" /> Guruh
+          <Users className="size-5 text-flame-400" /> {t("Guruh")}
         </h2>
-        <span className="text-sm text-mist">{board.members.length} kishi</span>
+        <span className="text-sm text-mist">{t("{n} kishi", { n: board.members.length })}</span>
       </div>
 
       <ul className="mt-4 flex flex-col gap-1.5">
@@ -165,15 +170,15 @@ export function TogetherCard({ participationId, open }: { participationId: strin
 
       {open && (
         <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
-          <p className="text-xs text-mist">Taklif havolasi</p>
+          <p className="text-xs text-mist">{t("Taklif havolasi")}</p>
           <div className="mt-2 flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-xl bg-ink-900/70 px-3 py-2 text-sm">{link}</code>
-            <Button variant="secondary" size="sm" onClick={copy} aria-label="Nusxalash">
+            <Button variant="secondary" size="sm" onClick={copy} aria-label={t("Nusxalash")}>
               {copied ? <Check className="size-4 text-mint" /> : <Copy className="size-4" />}
             </Button>
           </div>
           <Button href={telegramShare} external variant="sky" size="sm" className="mt-2 w-full">
-            <Send className="size-4" /> Telegram'da ulashish
+            <Send className="size-4" /> {t("Telegram'da ulashish")}
           </Button>
         </div>
       )}

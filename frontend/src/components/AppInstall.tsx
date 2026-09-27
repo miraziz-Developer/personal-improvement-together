@@ -7,6 +7,7 @@ import { useToast } from "@/components/toast";
 import { Button, Card } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { useFeatures } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -27,6 +28,7 @@ function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
 export function AppInstall() {
   const { pushPublicKey } = useFeatures();
   const toast = useToast();
+  const { t, tx } = useI18n();
   const supported = useSyncExternalStore(noSubscription, pushSupported, () => false);
   const ios = useSyncExternalStore(noSubscription, isIos, () => false);
   const installed = useSyncExternalStore(noSubscription, isInstalled, () => false);
@@ -56,7 +58,7 @@ export function AppInstall() {
     setBusy(true);
     try {
       if ((await Notification.requestPermission()) !== "granted") {
-        toast("info", "Ruxsat berilmadi", "Brauzer sozlamalarida bu sayt uchun bildirishnomalarni yoqing.");
+        toast("info", t("Ruxsat berilmadi"), t("Brauzer sozlamalarida bu sayt uchun bildirishnomalarni yoqing."));
         return;
       }
       const registration = await navigator.serviceWorker.ready;
@@ -66,7 +68,7 @@ export function AppInstall() {
       });
       await api("/me/push", { method: "POST", json: subscription.toJSON() });
       setSubscribed(true);
-      toast("success", "Bildirishnomalar yoqildi 🔔", "Murabbiy xabarlari endi telefoningizga keladi.");
+      toast("success", t("Bildirishnomalar yoqildi 🔔"), t("Murabbiy xabarlari endi telefoningizga keladi."));
     } catch (error) {
       toast("error", errorMessage(error));
     } finally {
@@ -104,32 +106,34 @@ export function AppInstall() {
   return (
     <Card className="mt-6">
       <h3 className="flex items-center gap-2 font-semibold">
-        <Smartphone className="size-4" /> Ilova va bildirishnomalar
+        <Smartphone className="size-4" /> {t("Ilova va bildirishnomalar")}
       </h3>
       <div className="mt-4 flex flex-col gap-3">
         {installPrompt && (
           <Button variant="secondary" onClick={install}>
-            <Download className="size-4" /> Telefonga ilova sifatida o'rnatish
+            <Download className="size-4" /> {t("Telefonga ilova sifatida o'rnatish")}
           </Button>
         )}
         {ios && !installed && (
           <p className="rounded-2xl bg-white/[0.03] p-3 text-sm text-mist">
-            iPhone'da: Safari'da <b className="text-white">Ulashish → Bosh ekranga qo'shish</b>. Shundan keyin bildirishnomalarni ham yoqasiz.
+            {tx("iPhone'da: Safari'da {steps}. Shundan keyin bildirishnomalarni ham yoqasiz.", {
+              steps: <b className="text-white">{t("Ulashish → Bosh ekranga qo'shish")}</b>,
+            })}
           </p>
         )}
         {canPush &&
           (subscribed ? (
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="flex items-center gap-2 text-sm text-mint">
-                <Bell className="size-4" /> Bu qurilmada bildirishnomalar yoqilgan
+                <Bell className="size-4" /> {t("Bu qurilmada bildirishnomalar yoqilgan")}
               </p>
               <Button variant="ghost" size="sm" loading={busy} onClick={disable}>
-                <BellOff className="size-4" /> O'chirish
+                <BellOff className="size-4" /> {t("O'chirish")}
               </Button>
             </div>
           ) : (
             <Button loading={busy || subscribed === null} onClick={enable}>
-              <Bell className="size-4" /> Bildirishnomalarni yoqish
+              <Bell className="size-4" /> {t("Bildirishnomalarni yoqish")}
             </Button>
           ))}
       </div>

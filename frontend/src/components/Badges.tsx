@@ -6,17 +6,20 @@ import useSWR from "swr";
 
 import { Card } from "@/components/ui";
 import type { Badge } from "@/lib/types";
+import { useI18n } from "@/lib/i18n";
 
 /** Earned badges shine; locked ones show what it takes — a goal, not a wall. */
 export function Badges() {
-  const { data } = useSWR<Badge[]>("/me/badges");
+  const { locale, t } = useI18n();
+  // The badge texts come from the server in the asked language, so the language is part of the key.
+  const { data } = useSWR<Badge[]>(`/me/badges?lang=${locale}`);
   if (!data) return null;
   const earned = data.filter((badge) => badge.earned).length;
 
   return (
     <Card className="mt-6">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Nishonlar</h3>
+        <h3 className="font-semibold">{t("Nishonlar")}</h3>
         <span className="text-sm text-mist">
           {earned}/{data.length}
         </span>

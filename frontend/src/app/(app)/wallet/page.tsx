@@ -10,6 +10,7 @@ import { api, errorMessage } from "@/lib/api";
 import { useAuth, useFeatures } from "@/lib/auth";
 import { money, timeAgo } from "@/lib/format";
 import type { Wallet } from "@/lib/types";
+import { useI18n } from "@/lib/i18n";
 
 const KINDS: Record<string, { label: string; sign: string; icon: React.ElementType; tone: string }> = {
   deposit: { label: "Hisob to'ldirildi", sign: "+", icon: ArrowDownLeft, tone: "text-mint" },
@@ -21,6 +22,7 @@ const KINDS: Record<string, { label: string; sign: string; icon: React.ElementTy
 
 export default function WalletPage() {
   const toast = useToast();
+  const { t } = useI18n();
   const { refreshMe } = useAuth();
   const { stakesEnabled } = useFeatures();
   const { data, mutate } = useSWR<Wallet>(stakesEnabled ? "/wallet" : null);
@@ -30,7 +32,7 @@ export default function WalletPage() {
     setLoading(amount);
     try {
       await api("/wallet/dev-deposit", { method: "POST", json: { amount } });
-      toast("success", `${money(amount)} qo'shildi`);
+      toast("success", t("{sum} qo'shildi", { sum: money(amount) }));
       mutate();
       refreshMe();
     } catch (error) {
@@ -43,14 +45,18 @@ export default function WalletPage() {
   if (!stakesEnabled) {
     return (
       <Card>
-        <EmptyState icon="🎁" title="Hozircha hammasi bepul" body="Garov rejimi va hamyon keyinroq ochiladi. Hozir esa odatlaringizga e'tibor bering!" />
+        <EmptyState
+          icon="🎁"
+          title={t("Hozircha hammasi bepul")}
+          body={t("Garov rejimi va hamyon keyinroq ochiladi. Hozir esa odatlaringizga e'tibor bering!")}
+        />
       </Card>
     );
   }
 
   return (
     <div>
-      <PageHeader title="Hamyon" subtitle="Garov — o'zingizga bergan va'daning kafolati." />
+      <PageHeader title={t("Hamyon")} subtitle={t("Garov — o'zingizga bergan va'daning kafolati.")} />
       {!data ? (
         <Skeleton className="h-64" />
       ) : (
@@ -58,15 +64,15 @@ export default function WalletPage() {
           <div className="flex flex-col gap-4">
             <div className="bg-flame glow-flame relative overflow-hidden rounded-3xl p-6">
               <WalletIcon className="absolute -right-4 -bottom-4 size-32 text-white/15" />
-              <p className="text-sm text-white/80">Mavjud balans</p>
+              <p className="text-sm text-white/80">{t("Mavjud balans")}</p>
               <p className="mt-2 font-display text-4xl font-bold">{money(data.available)}</p>
               <p className="mt-4 flex items-center gap-2 text-sm text-white/85">
-                <Lock className="size-4" /> Muzlatilgan: {money(data.locked)}
+                <Lock className="size-4" /> {t("Muzlatilgan: {sum}", { sum: money(data.locked) })}
               </p>
             </div>
             <Card>
-              <h3 className="font-semibold">Hisobni to'ldirish</h3>
-              <p className="mt-1 text-sm text-mist">Test rejimi: pul darhol qo'shiladi. Ishga tushganda Payme / Click orqali bo'ladi.</p>
+              <h3 className="font-semibold">{t("Hisobni to'ldirish")}</h3>
+              <p className="mt-1 text-sm text-mist">{t("Test rejimi: pul darhol qo'shiladi. Ishga tushganda Payme / Click orqali bo'ladi.")}</p>
               <div className="mt-4 grid grid-cols-3 gap-2">
                 {[50_000, 100_000, 200_000].map((amount) => (
                   <Button key={amount} variant="secondary" size="sm" loading={loading === amount} onClick={() => deposit(amount)}>
@@ -77,26 +83,26 @@ export default function WalletPage() {
             </Card>
           </div>
           <Card>
-            <h3 className="mb-3 font-semibold">Tarix</h3>
+            <h3 className="mb-3 font-semibold">{t("Tarix")}</h3>
             {data.transactions.length === 0 ? (
-              <EmptyState icon="🧾" title="Hali operatsiya yo'q" body="Garovli challenge boshlaganingizda bu yerda ko'rinadi." />
+              <EmptyState icon="🧾" title={t("Hali operatsiya yo'q")} body={t("Garovli challenge boshlaganingizda bu yerda ko'rinadi.")} />
             ) : (
               <div className="flex flex-col gap-1">
-                {data.transactions.map((t) => {
-                  const kind = KINDS[t.kind] ?? KINDS.deposit;
+                {data.transactions.map((tx) => {
+                  const kind = KINDS[tx.kind] ?? KINDS.deposit;
                   const Icon = kind.icon;
                   return (
-                    <div key={t.id} className="flex items-center gap-3 rounded-2xl px-3 py-3 hover:bg-white/[0.03]">
+                    <div key={tx.id} className="flex items-center gap-3 rounded-2xl px-3 py-3 hover:bg-white/[0.03]">
                       <div className="grid size-10 place-items-center rounded-xl bg-white/5">
                         <Icon className={`size-5 ${kind.tone}`} />
                       </div>
                       <div className="flex-1">
-                        <p className="font-medium">{kind.label}</p>
-                        <p className="text-xs text-mist">{timeAgo(t.created_at)}</p>
+                        <p className="font-medium">{t(kind.label)}</p>
+                        <p className="text-xs text-mist">{timeAgo(tx.created_at)}</p>
                       </div>
                       <p className={`font-semibold tabular-nums ${kind.tone}`}>
                         {kind.sign}
-                        {money(t.amount)}
+                        {money(tx.amount)}
                       </p>
                     </div>
                   );

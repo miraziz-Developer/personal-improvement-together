@@ -9,6 +9,12 @@ from typing import Any
 from pit.modules.challenges.domain.challenge import ALLOWED_DURATIONS, Category
 from pit.modules.challenges.domain.schedule import Schedule, TaskSpec
 from pit.modules.planning.domain.plan import OnboardingAnswers, PlanProposal
+from pit.modules.planning.infrastructure.generators_ru import (
+    DESCRIPTION_RU,
+    KEYWORDS_RU,
+    PROFILES_RU,
+    TITLE_RU,
+)
 from pit.shared.domain.errors import DomainError
 from pit.shared.infrastructure.llm import LlmPool
 
@@ -68,7 +74,7 @@ KEYWORDS: tuple[tuple[Category, tuple[str, ...]], ...] = (
 def guess_category(text: str) -> Category:
     lowered = text.lower()
     for category, words in KEYWORDS:
-        if any(word in lowered for word in words):
+        if any(word in lowered for word in (*words, *KEYWORDS_RU.get(category, ()))):
             return category
     return Category.CUSTOM
 
@@ -111,6 +117,9 @@ class TemplatePlanGenerator:
     async def propose(self, answers: OnboardingAnswers) -> PlanProposal:
         category = guess_category(f"{answers.goal} {answers.motivation}")
         main_title, main_minutes, extra_title, criteria = PROFILES[category]
+        ru = answers.language == "ru"
+        if ru:
+            main_title, extra_title, criteria = PROFILES_RU[category]
         week: list[tuple[TaskSpec, ...]] = []
         for weekday in range(7):
             budget = answers.availability.budget(weekday)
@@ -126,12 +135,15 @@ class TemplatePlanGenerator:
             raise DomainError("Bo'sh vaqt juda kam: kamida bir kunga 20 daqiqa ajrating")
         schedule = Schedule(week=tuple(week))
         goal = answers.goal.strip()
+        motivation, level = answers.motivation or "—", answers.current_level or "—"
+        facts = {"goal": goal, "motivation": motivation, "level": level}
         return PlanProposal(
-            title=f"{goal[:80]} — birinchi bosqich",
+            title=(TITLE_RU if ru else "{goal} — birinchi bosqich").format(goal=goal[:80]),
             description=(
-                f"Maqsad: {goal}. Sabab: {answers.motivation or '—'}. "
-                f"Hozirgi daraja: {answers.current_level or '—'}."
-            ),
+                DESCRIPTION_RU
+                if ru
+                else "Maqsad: {goal}. Sabab: {motivation}. Hozirgi daraja: {level}."
+            ).format(**facts),
             category=category,
             duration_days=21 if category is Category.HEALTH else 30,
             difficulty=_difficulty(schedule.required_minutes_per_week),
@@ -148,7 +160,10 @@ Qoidalar:
 - Vazifa nomi aniq va o'lchanadigan bo'lsin ("20 bet o'qish", "1 ta endpoint yozish").
 - key: kichik lotin harflari, raqam, '-' yoki '_' (masalan "lesson", "practice").
 - verification_prompt: rasm/matn isbotida nima ko'rinishi kerakligi, 1-2 gap.
-- Hamma matnlar o'zbek tilida (lotin)."""
+- Hamma matnlar {language}."""
+
+# How the prompt names the language the plan must be written in.
+PLAN_LANGUAGE = {"uz": "o'zbek tilida (lotin)", "ru": "rus tilida (kirill)"}
 
 PLAN_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -225,7 +240,12 @@ class LlmPlanGenerator:
         proposal, _ = await self._pool.complete(
             temperature=0.4,
             messages=[
-                {"role": "system", "content": PLAN_PROMPT},
+                {
+                    "role": "system",
+                    "content": PLAN_PROMPT.format(
+                        language=PLAN_LANGUAGE.get(answers.language, PLAN_LANGUAGE["uz"])
+                    ),
+                },
                 {"role": "user", "content": user_text},
             ],
             response_format={

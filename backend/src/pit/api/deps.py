@@ -2,11 +2,12 @@ from typing import Annotated
 from uuid import UUID
 
 import jwt
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from pit.api.security import read_token
 from pit.container import Container
+from pit.modules.identity.domain.user import Locale
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -50,3 +51,14 @@ async def current_moderator(container: ContainerDep, user_id: UserId) -> UUID:
 
 
 ModeratorId = Annotated[UUID, Depends(current_moderator)]
+
+
+def request_locale(
+    request: Request, lang: Annotated[str | None, Query(max_length=5)] = None
+) -> Locale:
+    """?lang= wins (the web client puts it in its cache keys), then Accept-Language."""
+    wanted = lang or request.headers.get("accept-language") or ""
+    return Locale.RU if wanted.split(",")[0].strip().lower().startswith("ru") else Locale.UZ
+
+
+LocaleDep = Annotated[Locale, Depends(request_locale)]

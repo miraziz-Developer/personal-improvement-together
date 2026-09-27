@@ -11,6 +11,7 @@ import { Badge, Button, Card, EmptyState, Skeleton, StreakFlame } from "@/compon
 import { useAuth } from "@/lib/auth";
 import { CATEGORY, DAY_STATUS, greeting, STATUS_LABEL } from "@/lib/format";
 import type { Participation } from "@/lib/types";
+import { useI18n } from "@/lib/i18n";
 
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
@@ -25,6 +26,7 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
 }
 
 function ParticipationCard({ p, index }: { p: Participation; index: number }) {
+  const { t } = useI18n();
   const meta = CATEGORY[p.category];
   const Icon = meta.icon;
   const progress = p.total_days ? p.days_completed / p.total_days : 0;
@@ -42,8 +44,8 @@ function ParticipationCard({ p, index }: { p: Participation; index: number }) {
               <StreakFlame streak={p.current_streak} size="sm" />
             </div>
             <p className="mt-0.5 text-sm text-mist">
-              {STATUS_LABEL[p.status]} · {p.days_completed}/{p.total_days} kun
-              {p.mode === "stake" && " · 💰 garov"}
+              {t(STATUS_LABEL[p.status])} · {t("{done}/{total} kun", { done: p.days_completed, total: p.total_days })}
+              {p.mode === "stake" && ` · ${t("💰 garov")}`}
             </p>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/5">
               <motion.div className="bg-flame h-full rounded-full" initial={{ width: 0 }} animate={{ width: `${progress * 100}%` }} transition={{ duration: 1 }} />
@@ -55,14 +57,14 @@ function ParticipationCard({ p, index }: { p: Participation; index: number }) {
             {p.today_status ? (
               <span className="flex items-center gap-2 text-sm">
                 <span className={`size-2.5 rounded-full ${DAY_STATUS[p.today_status].dot}`} />
-                Bugun: {todayDone ? "bajarildi — barakalla! 🎉" : DAY_STATUS[p.today_status].label.toLowerCase()}
+                {todayDone ? t("Bugun: bajarildi — barakalla! 🎉") : t("Bugun: {status}", { status: t(DAY_STATUS[p.today_status].label).toLowerCase() })}
               </span>
             ) : (
-              <span className="text-sm text-mist">Bugun dam olish kuni 🌿</span>
+              <span className="text-sm text-mist">{t("Bugun dam olish kuni 🌿")}</span>
             )}
             {!todayDone && p.today_status && (
               <span className="flex items-center gap-1 text-sm font-semibold text-flame-400 group-hover:gap-2">
-                Boshlash <ArrowRight className="size-4 transition-all" />
+                {t("Boshlash")} <ArrowRight className="size-4 transition-all" />
               </span>
             )}
           </div>
@@ -74,6 +76,7 @@ function ParticipationCard({ p, index }: { p: Participation; index: number }) {
 
 export default function Dashboard() {
   const { me } = useAuth();
+  const { t } = useI18n();
   const { data: list } = useSWR<Participation[]>("/me/participations", { refreshInterval: 30_000 });
   const active = list?.filter((p) => p.status === "active" || p.status === "scheduled") ?? [];
   const finished = list?.filter((p) => p.status !== "active" && p.status !== "scheduled") ?? [];
@@ -85,26 +88,26 @@ export default function Dashboard() {
         <h1 className="font-display text-2xl font-bold sm:text-3xl">{me ? greeting(me.username) : <Skeleton className="h-9 w-64" />}</h1>
         <p className="mt-2 text-mist">
           {pendingToday > 0
-            ? `Bugun ${pendingToday} ta challenge sizni kutyapti. Kichik qadam — katta natija.`
+            ? t("Bugun {n} ta challenge sizni kutyapti. Kichik qadam — katta natija.", { n: pendingToday })
             : active.length
-              ? "Bugungi rejalar bajarildi. Siz bilan faxrlanamiz! 🔥"
-              : "Keling, birinchi maqsadingizni belgilaymiz."}
+              ? t("Bugungi rejalar bajarildi. Siz bilan faxrlanamiz! 🔥")
+              : t("Keling, birinchi maqsadingizni belgilaymiz.")}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat icon={<Star className="size-4 text-amberish" />} label="Ballar" value={me?.points ?? "—"} />
-        <Stat icon={<Sparkles className="size-4 text-flame-400" />} label="Eng uzun streak" value={<StreakFlame streak={me?.best_streak ?? 0} />} />
-        <Stat icon={<Target className="size-4 text-ice" />} label="Faol" value={me?.active_challenges ?? "—"} />
-        <Stat icon={<Trophy className="size-4 text-mint" />} label="Yakunlangan" value={me?.completed_challenges ?? "—"} />
+        <Stat icon={<Star className="size-4 text-amberish" />} label={t("Ballar")} value={me?.points ?? "—"} />
+        <Stat icon={<Sparkles className="size-4 text-flame-400" />} label={t("Eng uzun streak")} value={<StreakFlame streak={me?.best_streak ?? 0} />} />
+        <Stat icon={<Target className="size-4 text-ice" />} label={t("Faol")} value={me?.active_challenges ?? "—"} />
+        <Stat icon={<Trophy className="size-4 text-mint" />} label={t("Yakunlangan")} value={me?.completed_challenges ?? "—"} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg font-semibold">Challenge'larim</h2>
+            <h2 className="font-display text-lg font-semibold">{t("Challenge'larim")}</h2>
             <Button href="/onboarding" size="sm" variant="secondary">
-              + Yangi
+              {t("+ Yangi")}
             </Button>
           </div>
           {!list && [0, 1].map((i) => <Skeleton key={i} className="h-36" />)}
@@ -112,13 +115,13 @@ export default function Dashboard() {
             <Card>
               <EmptyState
                 icon="🎯"
-                title="Hali challenge yo'q"
-                body="Maqsadingizni ayting — AI 30 soniyada shaxsiy reja tuzadi. Yoki tayyor challenge'lardan birini tanlang."
+                title={t("Hali challenge yo'q")}
+                body={t("Maqsadingizni ayting — AI 30 soniyada shaxsiy reja tuzadi. Yoki tayyor challenge'lardan birini tanlang.")}
                 action={
                   <div className="flex flex-wrap justify-center gap-2">
-                    <Button href="/onboarding">Menga reja tuz ✨</Button>
+                    <Button href="/onboarding">{t("Menga reja tuz ✨")}</Button>
                     <Button href="/challenges" variant="secondary">
-                      Katalog
+                      {t("Katalog")}
                     </Button>
                   </div>
                 }
@@ -131,13 +134,13 @@ export default function Dashboard() {
           {finished.length > 0 && (
             <div className="mt-2">
               <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-mist">
-                <CheckCircle2 className="size-4" /> Tarix
+                <CheckCircle2 className="size-4" /> {t("Tarix")}
               </h3>
               <div className="flex flex-col gap-2">
                 {finished.map((p) => (
                   <Link key={p.id} href={`/c/${p.id}`} className="flex items-center justify-between rounded-2xl bg-white/[0.03] px-4 py-3 text-sm hover:bg-white/[0.06]">
                     <span className="truncate">{p.title}</span>
-                    <Badge>{STATUS_LABEL[p.status]}</Badge>
+                    <Badge>{t(STATUS_LABEL[p.status])}</Badge>
                   </Link>
                 ))}
               </div>

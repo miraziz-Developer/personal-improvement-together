@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { Button, Card, EmptyState, PageHeader, Skeleton } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { shortDate } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 
 type Analytics = {
   users: number;
@@ -50,13 +51,14 @@ function ActivityChart({ daily }: { daily: Analytics["daily"] }) {
   const [asTable, setAsTable] = useState(false);
   const max = Math.max(1, ...daily.map((d) => d.active));
   const point = hover === null ? null : daily[hover];
+  const { t } = useI18n();
 
   return (
     <Card>
       <div className="flex items-center justify-between gap-2">
-        <h2 className="font-semibold">Faol foydalanuvchilar — oxirgi 30 kun</h2>
+        <h2 className="font-semibold">{t("Faol foydalanuvchilar — oxirgi 30 kun")}</h2>
         <button onClick={() => setAsTable((v) => !v)} className="text-sm text-mist hover:text-white">
-          {asTable ? "Grafik" : "Jadval"}
+          {asTable ? t("Grafik") : t("Jadval")}
         </button>
       </div>
       {asTable ? (
@@ -64,9 +66,9 @@ function ActivityChart({ daily }: { daily: Analytics["daily"] }) {
           <table className="w-full text-sm">
             <thead className="text-left text-mist">
               <tr>
-                <th className="py-1 font-medium">Sana</th>
-                <th className="py-1 text-right font-medium">Faol</th>
-                <th className="py-1 text-right font-medium">Yangi</th>
+                <th className="py-1 font-medium">{t("Sana")}</th>
+                <th className="py-1 text-right font-medium">{t("Faol")}</th>
+                <th className="py-1 text-right font-medium">{t("Yangi")}</th>
               </tr>
             </thead>
             <tbody className="tabular-nums">
@@ -88,7 +90,7 @@ function ActivityChart({ daily }: { daily: Analytics["daily"] }) {
               <div
                 key={d.day}
                 role="img"
-                aria-label={`${shortDate(d.day)}: ${d.active} faol, ${d.signups} yangi`}
+                aria-label={`${shortDate(d.day)}: ${t("{active} faol · {new} yangi", { active: d.active, new: d.signups })}`}
                 onMouseEnter={() => setHover(index)}
                 className="flex h-full flex-1 cursor-default items-end"
               >
@@ -107,7 +109,7 @@ function ActivityChart({ daily }: { daily: Analytics["daily"] }) {
             <div className="pointer-events-none absolute top-0 right-0 rounded-xl border border-white/10 bg-ink-900/95 px-3 py-2 text-xs shadow-lg">
               <p className="font-semibold">{shortDate(point.day)}</p>
               <p className="text-white/85 tabular-nums">
-                {point.active} faol · {point.signups} yangi
+                {t("{active} faol · {new} yangi", { active: point.active, new: point.signups })}
               </p>
             </div>
           )}
@@ -119,10 +121,11 @@ function ActivityChart({ daily }: { daily: Analytics["daily"] }) {
 
 /** Where people drop off. Each bar is relative to the first step; the % is from the step before. */
 function Funnel({ steps }: { steps: Analytics["funnel"] }) {
+  const { t } = useI18n();
   const top = Math.max(1, steps[0]?.count ?? 1);
   return (
     <Card>
-      <h2 className="font-semibold">Voronka</h2>
+      <h2 className="font-semibold">{t("Voronka")}</h2>
       <ol className="mt-4 flex flex-col gap-3">
         {steps.map((step, index) => {
           const previous = index ? steps[index - 1].count : step.count;
@@ -130,7 +133,7 @@ function Funnel({ steps }: { steps: Analytics["funnel"] }) {
           return (
             <li key={step.label}>
               <div className="flex items-baseline justify-between text-sm">
-                <span>{step.label}</span>
+                <span>{t(step.label)}</span>
                 <span className="text-mist tabular-nums">
                   {step.count}
                   {index > 0 && <span className="ml-2 text-xs">({kept}%)</span>}
@@ -149,16 +152,17 @@ function Funnel({ steps }: { steps: Analytics["funnel"] }) {
 
 export default function AnalyticsPage() {
   const { data, error } = useSWR<Analytics>("/admin/analytics", { refreshInterval: 60_000 });
-  if (error) return <EmptyState icon="🔒" title="Ruxsat yo'q" body={errorMessage(error)} />;
+  const { t, tx } = useI18n();
+  if (error) return <EmptyState icon="🔒" title={t("Ruxsat yo'q")} body={errorMessage(error)} />;
 
   return (
     <div>
       <PageHeader
-        title="Analitika"
-        subtitle="Odamlar keladimi, qaytadimi, oxirigacha yetadimi."
+        title={t("Analitika")}
+        subtitle={t("Odamlar keladimi, qaytadimi, oxirigacha yetadimi.")}
         action={
           <Button href="/admin" size="sm" variant="secondary">
-            <ArrowLeft className="size-4" /> Moderator paneli
+            <ArrowLeft className="size-4" /> {t("Moderator paneli")}
           </Button>
         }
       />
@@ -170,20 +174,23 @@ export default function AnalyticsPage() {
             <Card className="flex items-start gap-3 border-amberish/30 bg-amberish/[0.06]">
               <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amberish" />
               <p className="text-sm">
-                <b>Ogohlantirish:</b> oxirgi 30 kunda {data.unchecked_30d} ta isbot AI ishlamagani uchun tekshiruvsiz o'tdi. AI kalitlari va
-                limitlarini tekshiring (<code>pit.cli ai-check</code>).
+                {tx("{warning} oxirgi 30 kunda {n} ta isbot AI ishlamagani uchun tekshiruvsiz o'tdi. AI kalitlari va limitlarini tekshiring ({command}).", {
+                  warning: <b>{t("Ogohlantirish:")}</b>,
+                  n: data.unchecked_30d,
+                  command: <code>pit.cli ai-check</code>,
+                })}
               </p>
             </Card>
           )}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Tile label="Foydalanuvchilar" value={data.users} sub={`+${data.new_7d} bu hafta · +${data.new_30d} 30 kunda`} />
-            <Tile label="Faol (kun / hafta / oy)" value={`${data.dau} / ${data.wau} / ${data.mau}`} sub="kamida bitta isbot yuborganlar" />
-            <Tile label="Qaytish" value={`${percent(data.retention_d1)} · ${percent(data.retention_w1)}`} sub="ertasiga · 2-haftada" />
-            <Tile label="Yakunlash" value={percent(data.completion_rate)} sub={`${data.running} ta challenge davom etmoqda`} />
-            <Tile label="Guruhlar" value={data.groups} sub={`${data.in_groups} ta qatnashuv guruhda`} />
-            <Tile label="Telegram · Google" value={`${percent(data.telegram_share)} · ${percent(data.google_share)}`} sub="ulangan foydalanuvchilar" />
-            <Tile label="Isbotlar (30 kun)" value={data.proofs_30d} sub={`${percent(data.approval_rate)} tasdiqlangan`} />
-            <Tile label="Moderator navbati" value={data.in_review} sub={`${data.unsafe_30d} ta nomaqbul shubhasi (30 kun)`} />
+            <Tile label={t("Foydalanuvchilar")} value={data.users} sub={t("+{week} bu hafta · +{month} 30 kunda", { week: data.new_7d, month: data.new_30d })} />
+            <Tile label={t("Faol (kun / hafta / oy)")} value={`${data.dau} / ${data.wau} / ${data.mau}`} sub={t("kamida bitta isbot yuborganlar")} />
+            <Tile label={t("Qaytish")} value={`${percent(data.retention_d1)} · ${percent(data.retention_w1)}`} sub={t("ertasiga · 2-haftada")} />
+            <Tile label={t("Yakunlash")} value={percent(data.completion_rate)} sub={t("{n} ta challenge davom etmoqda", { n: data.running })} />
+            <Tile label={t("Guruhlar")} value={data.groups} sub={t("{n} ta qatnashuv guruhda", { n: data.in_groups })} />
+            <Tile label="Telegram · Google" value={`${percent(data.telegram_share)} · ${percent(data.google_share)}`} sub={t("ulangan foydalanuvchilar")} />
+            <Tile label={t("Isbotlar (30 kun)")} value={data.proofs_30d} sub={t("{share} tasdiqlangan", { share: percent(data.approval_rate) })} />
+            <Tile label={t("Moderator navbati")} value={data.in_review} sub={t("{n} ta nomaqbul shubhasi (30 kun)", { n: data.unsafe_30d })} />
           </div>
           <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
             <ActivityChart daily={data.daily} />

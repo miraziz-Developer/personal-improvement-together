@@ -9,6 +9,7 @@ import { Badge, Button, Textarea } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { PROOF_STATUS } from "@/lib/format";
 import type { TodayTask } from "@/lib/types";
+import { useI18n } from "@/lib/i18n";
 
 const STATUS_ICON = { pending: Loader2, approved: CheckCircle2, rejected: XCircle, needs_review: Clock };
 
@@ -22,6 +23,7 @@ export function ProofTask({
   onSubmitted: () => void;
 }) {
   const toast = useToast();
+  const { t } = useI18n();
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export function ProofTask({
 
   async function submit() {
     if (!file && !note.trim()) {
-      toast("info", "Rasm yoki qisqa matn qo'shing");
+      toast("info", t("Rasm yoki qisqa matn qo'shing"));
       return;
     }
     setSending(true);
@@ -53,7 +55,7 @@ export function ProofTask({
       if (note.trim()) form.append("text_note", note.trim());
       if (file) form.append("file", file);
       await api("/proofs", { method: "POST", body: form });
-      toast("success", "Isbot yuborildi 📨", "Tekshiruvdan so'ng natijani ko'rasiz.");
+      toast("success", t("Isbot yuborildi 📨"), t("Tekshiruvdan so'ng natijani ko'rasiz."));
       setFile(null);
       setPreview(null);
       setNote("");
@@ -75,16 +77,16 @@ export function ProofTask({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold">{task.title}</p>
-            <Badge>{task.minutes} daq</Badge>
-            {!task.required && <Badge className="text-mist">qo'shimcha</Badge>}
+            <Badge>{t("{m} daq", { m: task.minutes })}</Badge>
+            {!task.required && <Badge className="text-mist">{t("qo'shimcha")}</Badge>}
           </div>
-          {status && <p className={clsx("mt-1 text-sm font-medium", PROOF_STATUS[status].tone)}>{PROOF_STATUS[status].label}</p>}
-          {status === "rejected" && task.reason && <p className="mt-1 text-sm text-mist">Sabab: {task.reason}. Qayta urinib ko'ring — hali vaqt bor 💪</p>}
+          {status && <p className={clsx("mt-1 text-sm font-medium", PROOF_STATUS[status].tone)}>{t(PROOF_STATUS[status].label)}</p>}
+          {status === "rejected" && task.reason && <p className="mt-1 text-sm text-mist">{t("Sabab: {reason}. Qayta urinib ko'ring — hali vaqt bor 💪", { reason: task.reason })}</p>}
         </div>
         {canSubmit && !open && (
           <Button size="sm" variant={status === "rejected" ? "secondary" : "primary"} onClick={() => setOpen(true)}>
             {status === "rejected" ? <RotateCcw className="size-4" /> : <Camera className="size-4" />}
-            {status === "rejected" ? "Qayta" : "Isbot"}
+            {status === "rejected" ? t("Qayta") : t("Isbot")}
           </Button>
         )}
       </div>
@@ -98,23 +100,23 @@ export function ProofTask({
           >
             {preview ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={preview} alt="Tanlangan rasm" className="max-h-64 w-full object-cover" />
+              <img src={preview} alt={t("Tanlangan rasm")} className="max-h-64 w-full object-cover" />
             ) : (
               <span className="flex flex-col items-center gap-2 text-sm">
-                <Camera className="size-7" /> Rasm olish yoki tanlash
+                <Camera className="size-7" /> {t("Rasm olish yoki tanlash")}
               </span>
             )}
           </button>
           <label className="flex items-center gap-2 text-sm text-mist">
-            <FileText className="size-4" /> Qisqa izoh (ixtiyoriy)
+            <FileText className="size-4" /> {t("Qisqa izoh (ixtiyoriy)")}
           </label>
-          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Bugun nima qildingiz?" className="min-h-20" />
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("Bugun nima qildingiz?")} className="min-h-20" />
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => setOpen(false)}>
-              Bekor
+              {t("Bekor")}
             </Button>
             <Button className="flex-1" loading={sending} onClick={submit}>
-              Yuborish
+              {t("Yuborish")}
             </Button>
           </div>
         </div>

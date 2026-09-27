@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from pit.api import schemas as s
 from pit.api import views
-from pit.api.deps import ContainerDep, UserId
+from pit.api.deps import ContainerDep, LocaleDep, UserId
 from pit.api.ratelimit import rate_limit
 from pit.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 from pit.modules.challenges.application.commands import (
@@ -35,7 +35,7 @@ async def _owned(uow: SqlAlchemyUnitOfWork, participation_id: UUID, user_id: UUI
 
 
 @router.get("/challenges", response_model=list[s.ChallengeOut])
-async def catalog(container: ContainerDep) -> list[s.ChallengeOut]:
+async def catalog(container: ContainerDep, locale: LocaleDep) -> list[s.ChallengeOut]:
     async with container.uow_factory() as uow:
         ids = await uow.session.execute(
             select(challenges.c.id)
@@ -49,16 +49,18 @@ async def catalog(container: ContainerDep) -> list[s.ChallengeOut]:
         result = []
         for challenge_id in ids.scalars():
             challenge = require(await uow.challenges.get(challenge_id), "Challenge topilmadi")
-            result.append(views.challenge_out(challenge, counts.get(challenge_id, 0)))
+            result.append(views.challenge_out(challenge, counts.get(challenge_id, 0), locale))
         return result
 
 
 @router.get("/challenges/{challenge_id}", response_model=s.ChallengeOut)
-async def challenge_detail(challenge_id: UUID, container: ContainerDep) -> s.ChallengeOut:
+async def challenge_detail(
+    challenge_id: UUID, container: ContainerDep, locale: LocaleDep
+) -> s.ChallengeOut:
     async with container.uow_factory() as uow:
         challenge = require(await uow.challenges.get(challenge_id), "Challenge topilmadi")
         counts = await views.participant_counts(uow)
-        return views.challenge_out(challenge, counts.get(challenge_id, 0))
+        return views.challenge_out(challenge, counts.get(challenge_id, 0), locale)
 
 
 @router.post("/challenges/{challenge_id}/join", response_model=s.IdOut, status_code=201)
@@ -79,7 +81,9 @@ async def join(
 
 
 @router.get("/me/participations", response_model=list[s.ParticipationOut])
-async def my_participations(user_id: UserId, container: ContainerDep) -> list[s.ParticipationOut]:
+async def my_participations(
+    user_id: UserId, container: ContainerDep, locale: LocaleDep
+) -> list[s.ParticipationOut]:
     async with container.uow_factory() as uow:
         user = require(await uow.users.get(user_id), "Foydalanuvchi topilmadi")
         today = local_date(container.clock.now(), user.timezone)
@@ -92,20 +96,20 @@ async def my_participations(user_id: UserId, container: ContainerDep) -> list[s.
         for participation_id in ids.scalars():
             p = require(await uow.participations.get(participation_id), "Challenge topilmadi")
             challenge = require(await uow.challenges.get(p.challenge_id), "Challenge topilmadi")
-            result.append(views.participation_out(p, challenge, today))
+            result.append(views.participation_out(p, challenge, today, locale))
         return result
 
 
 @router.get("/me/participations/{participation_id}", response_model=s.ParticipationDetailOut)
 async def participation_detail(
-    participation_id: UUID, user_id: UserId, container: ContainerDep
+    participation_id: UUID, user_id: UserId, container: ContainerDep, locale: LocaleDep
 ) -> s.ParticipationDetailOut:
     async with container.uow_factory() as uow:
         user = require(await uow.users.get(user_id), "Foydalanuvchi topilmadi")
         p = await _owned(uow, participation_id, user_id)
         today = local_date(container.clock.now(), user.timezone)
         secret = container.settings.daily_code_secret.get_secret_value().encode()
-        return await views.participation_detail(uow, p, today, secret)
+        return await views.participation_detail(uow, p, today, secret, locale)
 
 
 @router.post("/me/participations/{participation_id}/cancel", status_code=204)

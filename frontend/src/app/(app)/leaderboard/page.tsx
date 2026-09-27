@@ -8,6 +8,7 @@ import useSWR from "swr";
 
 import { Card, EmptyState, PageHeader, Segmented, Skeleton } from "@/components/ui";
 import type { Leaderboard } from "@/lib/types";
+import { useI18n } from "@/lib/i18n";
 
 type Scope = "global" | "age" | "region";
 type Period = "week" | "season" | "all";
@@ -15,32 +16,33 @@ type Period = "week" | "season" | "all";
 const MEDALS = ["🥇", "🥈", "🥉"];
 
 export default function LeaderboardPage() {
+  const { locale, t } = useI18n();
   const [scope, setScope] = useState<Scope>("global");
   const [period, setPeriod] = useState<Period>("week");
-  const { data } = useSWR<Leaderboard>(`/leaderboard?scope=${scope}&period=${period}`, { refreshInterval: 30_000 });
+  const { data } = useSWR<Leaderboard>(`/leaderboard?scope=${scope}&period=${period}&lang=${locale}`, { refreshInterval: 30_000 });
   const podium = data?.entries.slice(0, 3) ?? [];
   const rest = data?.entries.slice(3) ?? [];
 
   return (
     <div>
-      <PageHeader title="Reyting" subtitle="Har bir bajarilgan kun — ball. Uzluksiz streak — ko'proq ball." />
+      <PageHeader title={t("Reyting")} subtitle={t("Har bir bajarilgan kun — ball. Uzluksiz streak — ko'proq ball.")} />
       <div className="mb-6 flex flex-wrap gap-3">
         <Segmented<Scope>
           value={scope}
           onChange={setScope}
           options={[
-            { value: "global", label: "Umumiy" },
-            { value: "age", label: "Tengdoshlar" },
-            { value: "region", label: "Hudud" },
+            { value: "global", label: t("Umumiy") },
+            { value: "age", label: t("Tengdoshlar") },
+            { value: "region", label: t("Hudud") },
           ]}
         />
         <Segmented<Period>
           value={period}
           onChange={setPeriod}
           options={[
-            { value: "week", label: "Hafta" },
-            { value: "season", label: "Oy" },
-            { value: "all", label: "Hammasi" },
+            { value: "week", label: t("Hafta") },
+            { value: "season", label: t("Oy") },
+            { value: "all", label: t("Hammasi") },
           ]}
         />
       </div>
@@ -50,19 +52,19 @@ export default function LeaderboardPage() {
         <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
           <div className="flex flex-col gap-4">
             <p className="text-sm text-mist">
-              {data.title} · {data.size} ishtirokchi
+              {data.title} · {t("{n} ishtirokchi", { n: data.size })}
             </p>
             {data.hidden ? (
               <Card>
                 <EmptyState
                   icon={<Users className="size-7 text-flame-400" />}
-                  title="Guruh hali kichik"
-                  body="Maxfiylik uchun 10 kishidan kam guruhlar ko'rsatilmaydi. Do'stlaringizni taklif qiling — birga qiziqroq!"
+                  title={t("Guruh hali kichik")}
+                  body={t("Maxfiylik uchun 10 kishidan kam guruhlar ko'rsatilmaydi. Do'stlaringizni taklif qiling — birga qiziqroq!")}
                 />
               </Card>
             ) : data.entries.length === 0 ? (
               <Card>
-                <EmptyState icon="🏁" title="Hali hech kim yo'q" body="Birinchi bo'ling! Bugungi vazifani bajaring — ismingiz shu yerda chiqadi." />
+                <EmptyState icon="🏁" title={t("Hali hech kim yo'q")} body={t("Birinchi bo'ling! Bugungi vazifani bajaring — ismingiz shu yerda chiqadi.")} />
               </Card>
             ) : (
               <>
@@ -95,20 +97,20 @@ export default function LeaderboardPage() {
                     <div key={e.user_id} className={clsx("flex items-center gap-4 rounded-2xl px-4 py-3", e.is_me && "bg-flame-500/10")}>
                       <span className="w-8 font-display font-bold text-mist">{e.rank}</span>
                       <span className="flex-1 truncate font-medium">
-                        {e.username} {e.is_me && <span className="text-flame-400">(siz)</span>}
+                        {e.username} {e.is_me && <span className="text-flame-400">{t("(siz)")}</span>}
                       </span>
                       <span className="font-semibold tabular-nums">{e.points}</span>
                     </div>
                   ))}
-                  {rest.length === 0 && <p className="p-3 text-center text-sm text-mist">Kuchli uchlik! Siz ham shu yerda bo'lishingiz mumkin.</p>}
+                  {rest.length === 0 && <p className="p-3 text-center text-sm text-mist">{t("Kuchli uchlik! Siz ham shu yerda bo'lishingiz mumkin.")}</p>}
                 </Card>
               </>
             )}
           </div>
           <Card className="h-fit text-center">
-            <p className="text-sm text-mist">Sizning o'rningiz</p>
+            <p className="text-sm text-mist">{t("Sizning o'rningiz")}</p>
             <p className="mt-2 font-display text-5xl font-bold text-flame">{data.me ? `#${data.me.rank}` : "—"}</p>
-            <p className="mt-2 text-mist">{data.me ? `${data.me.points} ball` : "Hali ball yo'q — bugun boshlang!"}</p>
+            <p className="mt-2 text-mist">{data.me ? t("{n} ball", { n: data.me.points }) : t("Hali ball yo'q — bugun boshlang!")}</p>
           </Card>
         </div>
       )}

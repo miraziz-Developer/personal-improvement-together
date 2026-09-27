@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 
 from pit.api import schemas as s
+from pit.catalog_ru import CatalogText, catalog_text
 from pit.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 from pit.modules.challenges.domain.challenge import Challenge
 from pit.modules.challenges.domain.participation import (
@@ -15,6 +16,7 @@ from pit.modules.challenges.domain.participation import (
 )
 from pit.modules.challenges.infrastructure.tables import participations
 from pit.modules.coaching.infrastructure.tables import notifications
+from pit.modules.identity.domain.user import Locale
 from pit.modules.identity.infrastructure.tables import regions
 from pit.modules.ranking.infrastructure.tables import score_entries
 from pit.modules.verification.domain.daily_code import daily_code
@@ -29,12 +31,24 @@ async def participant_counts(uow: SqlAlchemyUnitOfWork) -> dict[UUID, int]:
     return {challenge_id: count for challenge_id, count in rows.tuples()}
 
 
-def challenge_out(challenge: Challenge, participants: int) -> s.ChallengeOut:
+def localized_week(week: s.Week, text: CatalogText | None) -> s.Week:
+    if text is None:
+        return week
+    return [
+        [task.model_copy(update={"title": text.tasks.get(task.key, task.title)}) for task in day]
+        for day in week
+    ]
+
+
+def challenge_out(
+    challenge: Challenge, participants: int, locale: Locale = Locale.UZ
+) -> s.ChallengeOut:
     schedule = challenge.default_schedule
+    text = catalog_text(challenge.id, locale)
     return s.ChallengeOut(
         id=challenge.id,
-        title=challenge.title,
-        description=challenge.description,
+        title=text.title if text else challenge.title,
+        description=text.description if text else challenge.description,
         category=challenge.category.value,
         duration_days=challenge.duration_days,
         difficulty=challenge.difficulty,
@@ -45,15 +59,18 @@ def challenge_out(challenge: Challenge, participants: int) -> s.ChallengeOut:
         days_per_week=schedule.active_days_per_week,
         minutes_per_week=schedule.required_minutes_per_week,
         participants=participants,
-        week=s.schedule_to_week(schedule),
+        week=localized_week(s.schedule_to_week(schedule), text),
     )
 
 
-def participation_out(p: Participation, challenge: Challenge, today: date) -> s.ParticipationOut:
+def participation_out(
+    p: Participation, challenge: Challenge, today: date, locale: Locale = Locale.UZ
+) -> s.ParticipationOut:
+    text = catalog_text(challenge.id, locale)
     return s.ParticipationOut(
         id=p.id,
         challenge_id=challenge.id,
-        title=challenge.title,
+        title=text.title if text else challenge.title,
         category=challenge.category.value,
         status=p.status.value,
         mode=p.mode.value,
@@ -69,14 +86,20 @@ def participation_out(p: Participation, challenge: Challenge, today: date) -> s.
     )
 
 
-def today_out(p: Participation, proofs: list[Proof], today: date, secret: bytes) -> s.TodayOut:
+def today_out(
+    p: Participation,
+    proofs: list[Proof],
+    today: date,
+    secret: bytes,
+    text: CatalogText | None = None,
+) -> s.TodayOut:
     latest: dict[str, Proof] = {}
     for proof in sorted(proofs, key=lambda x: x.submitted_at):
         latest[proof.task_key] = proof
     tasks = [
         s.TaskTodayOut(
             key=t.key,
-            title=t.title,
+            title=text.tasks.get(t.key, t.title) if text else t.title,
             minutes=t.minutes,
             required=t.required,
             proof_status=latest[t.key].status.value if t.key in latest else None,
@@ -99,22 +122,30 @@ def today_out(p: Participation, proofs: list[Proof], today: date, secret: bytes)
 
 
 async def participation_detail(
-    uow: SqlAlchemyUnitOfWork, p: Participation, today: date, secret: bytes
+    uow: SqlAlchemyUnitOfWork,
+    p: Participation,
+    today: date,
+    secret: bytes,
+    locale: Locale = Locale.UZ,
 ) -> s.ParticipationDetailOut:
     challenge = require(await uow.challenges.get(p.challenge_id), "Challenge topilmadi")
     proofs = await uow.proofs.list_for_day(p.id, today)
-    summary = participation_out(p, challenge, today)
+    summary = participation_out(p, challenge, today, locale)
+    text = catalog_text(challenge.id, locale)
     return s.ParticipationDetailOut(
         **summary.model_dump(),
         calendar=[s.DayOut(date=d, status=st.value) for d, st in sorted(p.days.items())],
-        today=today_out(p, proofs, today, secret),
-        week=s.schedule_to_week(p.current_schedule),
+        today=today_out(p, proofs, today, secret, text),
+        week=localized_week(s.schedule_to_week(p.current_schedule), text),
         can_cancel=p.status is ParticipationStatus.SCHEDULED and today < p.start_date,
     )
 
 
-async def region_name(uow: SqlAlchemyUnitOfWork, region_id: UUID) -> str:
-    row = await uow.session.execute(select(regions.c.name_uz).where(regions.c.id == region_id))
+async def region_name(
+    uow: SqlAlchemyUnitOfWork, region_id: UUID, locale: Locale = Locale.UZ
+) -> str:
+    column = regions.c.name_ru if locale is Locale.RU else regions.c.name_uz
+    row = await uow.session.execute(select(column).where(regions.c.id == region_id))
     return str(row.scalar_one_or_none() or "")
 
 

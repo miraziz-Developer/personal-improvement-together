@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from pit.api import schemas as s
-from pit.api.deps import ContainerDep, UserId
+from pit.api.deps import ContainerDep, LocaleDep, UserId
 from pit.api.ratelimit import rate_limit
 from pit.modules.planning.application.commands import DraftPlan, EditPlan, StartPlan
 from pit.modules.planning.domain.plan import Availability, OnboardingAnswers, Plan
@@ -44,13 +44,16 @@ async def _load(plan_id: UUID, user_id: UUID, container: ContainerDep) -> s.Plan
     status_code=201,
     dependencies=[Depends(rate_limit("plans", 10, 3600, per="user"))],  # AI calls cost money
 )
-async def draft(body: s.AnswersIn, user_id: UserId, container: ContainerDep) -> s.PlanOut:
+async def draft(
+    body: s.AnswersIn, user_id: UserId, container: ContainerDep, locale: LocaleDep
+) -> s.PlanOut:
     answers = OnboardingAnswers(
         goal=body.goal,
         motivation=body.motivation,
         current_level=body.current_level,
         obstacles=body.obstacles,
         availability=Availability(minutes_by_weekday=tuple(body.availability)),
+        language=locale.value,
     )
     plan_id = await container.bus.handle(DraftPlan(user_id=user_id, answers=answers))
     return await _load(plan_id, user_id, container)

@@ -54,6 +54,7 @@ class OnboardingAnswers:
     current_level: str  # "Python asoslarini bilaman"
     obstacles: str  # "Ish, charchoq"
     availability: Availability
+    language: str = "uz"  # the plan is written in it: "uz" | "ru"
 
     def __post_init__(self) -> None:
         if not self.goal.strip():

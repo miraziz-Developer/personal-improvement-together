@@ -12,11 +12,13 @@ import { useToast } from "@/components/toast";
 import { Badge, Button, Card, Input, Label, PageHeader, Skeleton, StreakFlame } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth, useFeatures } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 
 export default function ProfilePage() {
   const { me, refreshMe, signOut } = useAuth();
   const { stakesEnabled, telegramBot, smsEnabled } = useFeatures();
   const toast = useToast();
+  const { t, tx } = useI18n();
   const [phone, setPhone] = useState("+998");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
@@ -27,7 +29,7 @@ export default function ProfilePage() {
     try {
       await api("/auth/phone/request", { method: "POST", json: { phone } });
       setSent(true);
-      toast("info", "Kod yuborildi", "SMS'dagi 6 xonali kodni kiriting.");
+      toast("info", t("Kod yuborildi"), t("SMS'dagi 6 xonali kodni kiriting."));
     } catch (error) {
       toast("error", errorMessage(error));
     } finally {
@@ -39,7 +41,7 @@ export default function ProfilePage() {
     setLoading(true);
     try {
       await api("/auth/phone/confirm", { method: "POST", json: { code } });
-      toast("success", "Telefon tasdiqlandi ✅");
+      toast("success", t("Telefon tasdiqlandi ✅"));
       refreshMe();
     } catch (error) {
       toast("error", errorMessage(error));
@@ -52,7 +54,7 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Profil" />
+      <PageHeader title={t("Profil")} />
       <Card className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
         <div className="bg-flame glow-flame grid size-20 place-items-center rounded-3xl font-display text-3xl font-bold uppercase">{me.username[0]}</div>
         <div className="flex-1">
@@ -61,13 +63,13 @@ export default function ProfilePage() {
             <Badge>
               <MapPin className="size-3.5" /> {me.region_name}
             </Badge>
-            <Badge>{me.birth_year}-yil</Badge>
-            {me.role !== "user" && <Badge className="text-iris">Moderator</Badge>}
+            <Badge>{t("{year}-yil", { year: me.birth_year })}</Badge>
+            {me.role !== "user" && <Badge className="text-iris">{t("Moderator")}</Badge>}
           </div>
         </div>
         <div className="text-center">
           <StreakFlame streak={me.best_streak} size="lg" />
-          <p className="text-xs text-mist">eng uzun streak</p>
+          <p className="text-xs text-mist">{t("eng uzun streak")}</p>
         </div>
       </Card>
 
@@ -75,52 +77,52 @@ export default function ProfilePage() {
 
       <Card className="mt-6">
         <h3 className="flex items-center gap-2 font-semibold">
-          <Phone className="size-4" /> Telefon raqam
+          <Phone className="size-4" /> {t("Telefon raqam")}
         </h3>
         {me.phone_verified ? (
           <p className="mt-3 flex items-center gap-2 text-mint">
-            <BadgeCheck className="size-5" /> {me.phone} tasdiqlangan
+            <BadgeCheck className="size-5" /> {t("{phone} tasdiqlangan", { phone: me.phone ?? "" })}
           </p>
         ) : (
           <div className="mt-4 flex flex-col gap-3">
             <p className="text-sm text-mist">
-              {stakesEnabled ? "Garovli challenge'lar va parolni tiklash uchun kerak." : "Parolni tiklash va akkaunt xavfsizligi uchun kerak."} Bolalar
-              ota-ona raqamidan foydalanishi mumkin.
+              {stakesEnabled ? t("Garovli challenge'lar va parolni tiklash uchun kerak.") : t("Parolni tiklash va akkaunt xavfsizligi uchun kerak.")}{" "}
+              {t("Bolalar ota-ona raqamidan foydalanishi mumkin.")}
             </p>
             {telegramBot && me.telegram_linked && (
               <>
                 <Button href={`https://t.me/${telegramBot}?start=phone`} external variant="sky">
-                  <Send className="size-4" /> Telegram orqali tasdiqlash
+                  <Send className="size-4" /> {t("Telegram orqali tasdiqlash")}
                 </Button>
                 <p className="text-center text-xs text-mist">
-                  Botda «📱 Raqamni yuborish» tugmasini bosing — kod yozish shart emas. Qaytganingizda sahifa o'zi yangilanadi.
+                  {t("Botda «📱 Raqamni yuborish» tugmasini bosing — kod yozish shart emas. Qaytganingizda sahifa o'zi yangilanadi.")}
                 </p>
               </>
             )}
             {telegramBot && !me.telegram_linked && (
               <p className="rounded-2xl bg-sky-500/10 p-3 text-sm text-sky-200">
-                📲 Avval pastdagi <b>Telegram bot</b>ni ulang — raqamingizni u orqali bir bosishda, bepul tasdiqlaysiz.
+                {tx("📲 Avval pastdagi {bot}ni ulang — raqamingizni u orqali bir bosishda, bepul tasdiqlaysiz.", { bot: <b>{t("Telegram bot")}</b> })}
               </p>
             )}
             {smsEnabled && (
               <div className="flex flex-col gap-3">
                 {telegramBot && <OrDivider />}
                 <label>
-                  <Label>SMS orqali: raqam</Label>
+                  <Label>{t("SMS orqali: raqam")}</Label>
                   <div className="flex gap-2">
                     <Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" />
                     <Button variant="secondary" loading={loading && !sent} onClick={request}>
-                      Kod olish
+                      {t("Kod olish")}
                     </Button>
                   </div>
                 </label>
                 {sent && (
                   <label>
-                    <Label>SMS kod</Label>
+                    <Label>{t("SMS kod")}</Label>
                     <div className="flex gap-2">
                       <Input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" maxLength={6} placeholder="••••••" />
                       <Button loading={loading} onClick={confirm}>
-                        Tasdiqlash
+                        {t("Tasdiqlash")}
                       </Button>
                     </div>
                   </label>
@@ -138,7 +140,7 @@ export default function ProfilePage() {
       <DataRights />
 
       <Button variant="ghost" className="mt-6" onClick={signOut}>
-        <LogOut className="size-4" /> Chiqish
+        <LogOut className="size-4" /> {t("Chiqish")}
       </Button>
     </div>
   );
