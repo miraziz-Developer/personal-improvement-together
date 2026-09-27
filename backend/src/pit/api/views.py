@@ -14,6 +14,7 @@ from pit.modules.challenges.domain.participation import (
     Participation,
     ParticipationStatus,
 )
+from pit.modules.challenges.domain.roadmap import Roadmap
 from pit.modules.challenges.infrastructure.tables import participations
 from pit.modules.coaching.infrastructure.tables import notifications
 from pit.modules.identity.domain.user import Locale
@@ -40,6 +41,10 @@ def localized_week(week: s.Week, text: CatalogText | None) -> s.Week:
     ]
 
 
+def roadmap_of(challenge: Challenge, text: CatalogText | None) -> Roadmap | None:
+    return text.roadmap if text and text.roadmap else challenge.roadmap
+
+
 def challenge_out(
     challenge: Challenge, participants: int, locale: Locale = Locale.UZ
 ) -> s.ChallengeOut:
@@ -60,6 +65,7 @@ def challenge_out(
         minutes_per_week=schedule.required_minutes_per_week,
         participants=participants,
         week=localized_week(s.schedule_to_week(schedule), text),
+        roadmap=s.RoadmapOut.of(roadmap_of(challenge, text)),
     )
 
 
@@ -92,6 +98,7 @@ def today_out(
     today: date,
     secret: bytes,
     text: CatalogText | None = None,
+    roadmap: Roadmap | None = None,
 ) -> s.TodayOut:
     latest: dict[str, Proof] = {}
     for proof in sorted(proofs, key=lambda x: x.submitted_at):
@@ -102,6 +109,7 @@ def today_out(
             title=text.tasks.get(t.key, t.title) if text else t.title,
             minutes=t.minutes,
             required=t.required,
+            at=t.at.strftime("%H:%M") if t.at else None,
             proof_status=latest[t.key].status.value if t.key in latest else None,
             reason=(
                 latest[t.key].ai_verdict.reason  # type: ignore[union-attr]
@@ -118,6 +126,7 @@ def today_out(
         status=p.days[today].value if today in p.days else None,
         tasks=tasks,
         daily_code=daily_code(secret, p.id, today) if show_code else None,
+        focus=s.FocusOut.of(roadmap.focus(p.start_date, p.days, today) if roadmap else None),
     )
 
 
@@ -135,9 +144,10 @@ async def participation_detail(
     return s.ParticipationDetailOut(
         **summary.model_dump(),
         calendar=[s.DayOut(date=d, status=st.value) for d, st in sorted(p.days.items())],
-        today=today_out(p, proofs, today, secret, text),
+        today=today_out(p, proofs, today, secret, text, roadmap_of(challenge, text)),
         week=localized_week(s.schedule_to_week(p.current_schedule), text),
         can_cancel=p.status is ParticipationStatus.SCHEDULED and today < p.start_date,
+        roadmap=s.RoadmapOut.of(roadmap_of(challenge, text)),
     )
 
 

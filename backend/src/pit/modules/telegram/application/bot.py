@@ -16,6 +16,7 @@ from pit.modules.challenges.domain.challenge import Challenge, ProofType
 from pit.modules.challenges.domain.participation import Participation, ParticipationStatus
 from pit.modules.challenges.domain.schedule import TaskSpec
 from pit.modules.coaching.application.commands import CheerFriend
+from pit.modules.coaching.application.ports import ChallengeTexts, OwnTexts
 from pit.modules.identity.application.commands import (
     LinkTelegram,
     UnlinkTelegram,
@@ -138,7 +139,9 @@ class TelegramBot:
         clock: Clock,
         code_secret: bytes,
         web_url: str,
+        texts: ChallengeTexts | None = None,
     ) -> None:
+        self._texts: ChallengeTexts = texts or OwnTexts()
         self._bus = bus
         self._uow = uow_factory
         self._api = api
@@ -337,7 +340,7 @@ class TelegramBot:
             await self._say(
                 chat_id,
                 tr(lang, "which_task"),
-                [*([self._proof_button(o)] for o in open_tasks), cancel_row(lang)],
+                [*([self._proof_button(o, lang)] for o in open_tasks), cancel_row(lang)],
             )
 
     async def _ask_phone(self, chat_id: int, lang: str) -> None:
@@ -392,7 +395,7 @@ class TelegramBot:
             await self._say(
                 chat_id,
                 tr(lang, "photo_which"),
-                [*([self._proof_button(o)] for o in candidates), cancel_row(lang)],
+                [*([self._proof_button(o, lang)] for o in candidates), cancel_row(lang)],
             )
 
     async def _text(self, user: User, chat_id: int, text: str) -> None:
@@ -433,7 +436,8 @@ class TelegramBot:
             )
         )
         await self._conversation.clear(chat_id)
-        await self._say(chat_id, tr(user.locale.value, "accepted", title=html(target.task.title)))
+        lang = user.locale.value
+        await self._say(chat_id, tr(lang, "accepted", title=html(self._task_name(target, lang))))
 
     async def _today(self, user: User, chat_id: int) -> None:
         lang = user.locale.value
@@ -446,7 +450,7 @@ class TelegramBot:
                 proofs = await uow.proofs.list_for_day(p.id, today)
                 block, open_tasks = self._board(p, challenge, proofs, today, lang)
                 blocks.append(block)
-                buttons.extend([self._proof_button(o)] for o in open_tasks)
+                buttons.extend([self._proof_button(o, lang)] for o in open_tasks)
         if not blocks:
             await self._say(
                 chat_id,
@@ -468,7 +472,7 @@ class TelegramBot:
                     tr(
                         lang,
                         "status_block",
-                        title=html(challenge.title),
+                        title=html(self._texts.title(challenge, lang)),
                         streak=p.current_streak,
                         best=p.best_streak,
                         done=p.days_completed,
@@ -491,13 +495,19 @@ class TelegramBot:
         today: date,
         lang: str = "uz",
     ) -> tuple[str, list[_Open]]:
-        title = f"🎯 <b>{html(challenge.title)}</b>"
+        title = f"🎯 <b>{html(self._texts.title(challenge, lang))}</b>"
         if p.status is ParticipationStatus.SCHEDULED:
             return f"{title}\n{tr(lang, 'starts_on', date=human_date(p.start_date, lang))}", []
         lines = [f"{title} · 🔥 {p.current_streak}"]
         if today not in p.days:
             lines.append(tr(lang, "rest_day"))
             return "\n".join(lines), []
+        roadmap = self._texts.roadmap(challenge, lang)
+        focus = roadmap.focus(p.start_date, p.days, today) if roadmap else None
+        if focus is not None:
+            lines.append(
+                tr(lang, "focus_line", week=focus.week, text=html(focus.lesson or focus.theme))
+            )
         latest: dict[str, Proof] = {}
         for proof in sorted(proofs, key=lambda x: x.submitted_at):
             latest[proof.task_key] = proof
@@ -510,7 +520,8 @@ class TelegramBot:
                     lang,
                     "task_line",
                     icon=icon,
-                    title=html(task.title),
+                    at=f"{task.at.strftime('%H:%M')} · " if task.at else "",
+                    title=html(self._texts.task_title(challenge, task, lang)),
                     minutes=task.minutes,
                     optional="" if task.required else tr(lang, "optional"),
                     note=tr(lang, note_key) if note_key else "",
@@ -583,7 +594,7 @@ class TelegramBot:
         photo = target.challenge.accepts(ProofType.PHOTO)
         text = target.challenge.accepts(ProofType.TEXT)
         lang = user.locale.value
-        title = html(target.task.title)
+        title = html(self._task_name(target, lang))
         key = "ask_photo_or_text" if photo and text else "ask_photo" if photo else "ask_text"
         ask = tr(lang, key, title=title)
         if photo and target.participation.is_stake:
@@ -591,10 +602,12 @@ class TelegramBot:
             ask += tr(lang, "code_in_photo", code=code)
         return ask
 
-    @staticmethod
-    def _proof_button(target: _Open) -> Button:
+    def _task_name(self, target: _Open, lang: str) -> str:
+        return self._texts.task_title(target.challenge, target.task, lang)
+
+    def _proof_button(self, target: _Open, lang: str) -> Button:
         data = f"{PROOF_CALLBACK}:{target.participation.id.hex}:{target.index}"
-        return Button(f"📸 {target.task.title[:40]}", callback=data)
+        return Button(f"📸 {self._task_name(target, lang)[:40]}", callback=data)
 
     def _today_for(self, user: User) -> date:
         return local_date(self._clock.now(), user.timezone)

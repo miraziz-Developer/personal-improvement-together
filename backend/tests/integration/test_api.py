@@ -15,6 +15,7 @@ from sqlalchemy import text
 
 from pit.api.app import create_app
 from pit.catalog import catalog_id
+from pit.catalog_roadmaps_ru import ROADMAPS_RU
 from pit.cli import make_moderator, seed
 from pit.config import Settings
 from pit.container import Container, InlineVerificationQueue, build_container
@@ -572,7 +573,9 @@ async def test_content_speaks_the_clients_language(api: Api) -> None:
     assert detail["title"] == "21 день спорта"
     assert {t["title"] for t in detail["today"]["tasks"]} <= {"Тренировка", "Растяжка"}
 
-    assert (await api.client.get("/api/v1/me", headers=both)).json()["region_name"] == "город Ташкент"
+    assert (await api.client.get("/api/v1/me", headers=both)).json()[
+        "region_name"
+    ] == "город Ташкент"
     badges = (await api.client.get("/api/v1/me/badges", headers=both)).json()
     assert badges[0]["title"] == "Первый шаг"
     board = (await api.client.get("/api/v1/leaderboard?scope=global", headers=both)).json()
@@ -593,3 +596,34 @@ async def test_content_speaks_the_clients_language(api: Api) -> None:
     assert plan.json()["category"] == "code"
     assert plan.json()["title"].endswith("первый этап")
     assert plan.json()["week"][0][0]["title"] == "Писать код"
+
+
+async def test_a_roadmap_moves_the_user_forward_day_by_day(api: Api) -> None:
+    catalog = (await api.client.get("/api/v1/challenges")).json()
+    english = next(c for c in catalog if c["category"] == "study")
+    assert len(english["roadmap"]["weeks"]) == 5
+    assert english["roadmap"]["weeks"][0]["lessons"][0] == "O'zim haqimda gapirish"
+    ru = (await api.client.get(f"/api/v1/challenges/{english['id']}?lang=ru")).json()
+    assert ru["roadmap"]["weeks"][0]["lessons"][0] == ROADMAPS_RU["english-30"].weeks[0].lessons[0]
+
+    auth = await api.register()
+    week = [[{"key": "lesson", "title": "Dars", "minutes": 30, "at": "07:15"}] for _ in range(7)]
+    joined = await api.client.post(
+        f"/api/v1/challenges/{english['id']}/join",
+        json={"mode": "free", "week": week},
+        headers=auth,
+    )
+    assert joined.status_code == 201, joined.text
+    detail = (
+        await api.client.get(f"/api/v1/me/participations/{joined.json()['id']}", headers=auth)
+    ).json()
+    assert detail["today"]["focus"]["lesson"] == "O'zim haqimda gapirish"
+    assert detail["today"]["focus"]["week"] == 1
+    assert detail["today"]["tasks"][0]["at"] == "07:15"
+    assert detail["week"][0][0]["at"] == "07:15"
+
+    bad = [[{"key": "lesson", "title": "Dars", "minutes": 30, "at": "25:00"}] for _ in range(7)]
+    refused = await api.client.post(
+        f"/api/v1/challenges/{english['id']}/join", json={"mode": "free", "week": bad}, headers=auth
+    )
+    assert refused.status_code == 422

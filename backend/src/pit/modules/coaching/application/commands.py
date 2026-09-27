@@ -13,6 +13,11 @@ class SendDailyNudges(Command):
 
 
 @dataclass(frozen=True, kw_only=True)
+class SendTaskReminders(Command):
+    """Scheduled every few minutes: "it's time" for tasks the user gave a clock time."""
+
+
+@dataclass(frozen=True, kw_only=True)
 class MarkNotificationsRead(Command):
     user_id: UUID
     notification_ids: tuple[UUID, ...]

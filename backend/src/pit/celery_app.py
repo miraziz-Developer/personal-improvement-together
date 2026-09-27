@@ -13,6 +13,7 @@ def make_celery(settings: Settings) -> Celery:
         beat_schedule={
             "close-days": {"task": "pit.close_days", "schedule": crontab(minute=15, hour=0)},
             "requeue-proofs": {"task": "pit.requeue_proofs", "schedule": crontab(minute="*/10")},
+            "task-reminders": {"task": "pit.task_reminders", "schedule": crontab(minute="*/5")},
             "morning-nudges": {
                 "task": "pit.daily_nudges",
                 "schedule": crontab(minute=0, hour=8),

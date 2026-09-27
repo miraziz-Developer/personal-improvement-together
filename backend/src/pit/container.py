@@ -16,6 +16,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from pit.bootstrap import Dependencies, bootstrap
+from pit.catalog_ru import CatalogTexts
 from pit.config import Settings
 from pit.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 from pit.modules.identity.application.ports import GoogleVerifier, OtpStore, SmsSender
@@ -283,6 +284,7 @@ def build_container(
             google=google,
             files=storage,
             push=_push_sender(settings),
+            challenge_texts=CatalogTexts(),
         )
     )
     gateway = None
@@ -296,6 +298,7 @@ def build_container(
             clock=clock,
             code_secret=code_secret,
             web_url=settings.web_url,
+            texts=CatalogTexts(),
         )
         gateway = TelegramGateway(
             bot, telegram_api, redis, rate_limits=settings.rate_limits_enabled

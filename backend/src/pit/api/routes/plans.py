@@ -27,6 +27,7 @@ def plan_out(plan: Plan) -> s.PlanOut:
         week=s.schedule_to_week(p.schedule),
         budgets=[plan.answers.availability.budget(d) for d in range(7)],
         participation_id=plan.participation_id,
+        roadmap=s.RoadmapOut.of(p.roadmap),
     )
 
 

@@ -76,6 +76,9 @@ export function ProofTask({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
+            {task.at && (
+              <span className="rounded-lg bg-white/10 px-1.5 py-0.5 text-xs font-semibold tabular-nums">{task.at}</span>
+            )}
             <p className="font-semibold">{task.title}</p>
             <Badge>{t("{m} daq", { m: task.minutes })}</Badge>
             {!task.required && <Badge className="text-mist">{t("qo'shimcha")}</Badge>}

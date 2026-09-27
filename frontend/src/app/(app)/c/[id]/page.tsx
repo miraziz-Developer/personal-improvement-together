@@ -9,6 +9,7 @@ import useSWR from "swr";
 import { Calendar } from "@/components/Calendar";
 import { CoachAvatar } from "@/components/coach";
 import { ProofTask } from "@/components/ProofTask";
+import { FocusCard, RoadmapView } from "@/components/Roadmap";
 import { TogetherCard } from "@/components/Together";
 import { useToast } from "@/components/toast";
 import { Badge, Button, Card, Modal, ProgressRing, Skeleton, StreakFlame } from "@/components/ui";
@@ -147,6 +148,8 @@ export default function ParticipationPage() {
             </p>
           </div>
 
+          {p.status === "active" && !p.today.is_rest_day && p.today.focus && <FocusCard focus={p.today.focus} />}
+
           {p.today.daily_code && (
             <Card className="flex items-center gap-4 border-amberish/25 bg-amberish/[0.05]">
               <KeyRound className="size-8 shrink-0 text-amberish" />
@@ -178,6 +181,7 @@ export default function ParticipationPage() {
             <Calendar start={p.start_date} end={p.end_date} days={p.calendar} today={p.today.date} />
           </Card>
           <TogetherCard participationId={p.id} open={p.status === "active" || p.status === "scheduled"} />
+          {p.roadmap && <RoadmapView roadmap={p.roadmap} current={p.today.focus?.week} />}
         </div>
       </div>
 

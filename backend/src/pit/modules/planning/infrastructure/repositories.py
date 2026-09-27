@@ -3,6 +3,8 @@ from typing import Any
 
 from pit.modules.challenges.domain.challenge import Category
 from pit.modules.challenges.infrastructure.serialization import (
+    roadmap_from_json,
+    roadmap_to_json,
     schedule_from_json,
     schedule_to_json,
 )
@@ -32,6 +34,7 @@ class SqlPlanRepository(SqlRepository[Plan]):
                 "current_level": a.current_level,
                 "obstacles": a.obstacles,
                 "availability": list(a.availability.minutes_by_weekday),
+                "language": a.language,
             },
             "proposal": {
                 "title": p.title,
@@ -41,6 +44,7 @@ class SqlPlanRepository(SqlRepository[Plan]):
                 "difficulty": p.difficulty,
                 "verification_prompt": p.verification_prompt,
                 "schedule": schedule_to_json(p.schedule),
+                "roadmap": roadmap_to_json(p.roadmap),
             },
             "challenge_id": item.challenge_id,
             "participation_id": item.participation_id,
@@ -58,6 +62,7 @@ class SqlPlanRepository(SqlRepository[Plan]):
                 current_level=a["current_level"],
                 obstacles=a["obstacles"],
                 availability=Availability(minutes_by_weekday=tuple(a["availability"])),
+                language=a.get("language", "uz"),
             ),
             proposal=PlanProposal(
                 title=p["title"],
@@ -67,6 +72,7 @@ class SqlPlanRepository(SqlRepository[Plan]):
                 difficulty=p["difficulty"],
                 verification_prompt=p["verification_prompt"],
                 schedule=schedule_from_json(p["schedule"]),
+                roadmap=roadmap_from_json(p.get("roadmap")),
             ),
             challenge_id=row["challenge_id"],
             participation_id=row["participation_id"],

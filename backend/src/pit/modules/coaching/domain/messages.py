@@ -117,15 +117,28 @@ LIBRARY: dict[Moment, tuple[tuple[str, str], ...]] = {
     Moment.MORNING: (
         (
             "Xayrli tong, {name}! ☀️",
-            "Bugun {tasks} ta vazifa, jami {minutes} daqiqa. Streak: {streak}. Boshladikmi?",
+            "Bugun {tasks} ta vazifa, jami {minutes} daqiqa. {focus_line}Streak: {streak}. "
+            "Boshladikmi?",
         ),
         (
             "Yangi kun — yangi imkoniyat",
-            "Bugungi reja: {tasks} ta vazifa ({minutes} daqiqa). Kichik qadam ham — qadam.",
+            "Bugungi reja: {tasks} ta vazifa ({minutes} daqiqa). {focus_line}"
+            "Kichik qadam ham — qadam.",
         ),
         (
             "Harakatda — barakat 🌅",
-            "{name}, bugun {minutes} daqiqa o'zingiz uchun. Bu dunyodagi eng yaxshi sarmoya.",
+            "{name}, bugun {minutes} daqiqa o'zingiz uchun. {focus_line}"
+            "Bu dunyodagi eng yaxshi sarmoya.",
+        ),
+    ),
+    Moment.TASK_DUE: (
+        (
+            "⏰ {task} vaqti",
+            "{name}, soat {at} — «{task}», {minutes} daqiqa. {focus_line}Boshladik!",
+        ),
+        (
+            "Vaqt keldi: {task}",
+            "Rejadagi vaqt — {at}. {focus_line}Kichik qadam aynan hozir qo'yiladi 💪",
         ),
     ),
     Moment.REST_DAY: (
@@ -231,6 +244,7 @@ def _index(seed: str, size: int) -> int:
 PHRASES = {
     "group_line": "Guruhda {rank}-o'rin. ",
     "money_line": "Garovingiz ({stake}) to'liq qaytarildi.",
+    "focus_line": "Bugungi mavzu: {focus}. ",
 }
 
 _BY_LOCALE = {
@@ -241,8 +255,9 @@ _BY_LOCALE = {
 
 def _derived(phrases: dict[str, str], facts: dict[str, object]) -> dict[str, object]:
     """Sub-sentences that exist only sometimes, in the reader's language."""
-    rank, stake = facts.get("rank"), facts.get("stake")
+    rank, stake, focus = facts.get("rank"), facts.get("stake"), facts.get("focus")
     return {
+        "focus_line": phrases["focus_line"].format(focus=focus) if focus else "",
         "group_line": phrases["group_line"].format(rank=rank) if rank else "",
         "money_line": phrases["money_line"].format(stake=stake) if stake else "",
     }

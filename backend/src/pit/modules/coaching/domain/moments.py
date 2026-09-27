@@ -21,3 +21,4 @@ class Moment(StrEnum):
     WEEKLY_OK = "weekly_ok"
     WEEKLY_TOUGH = "weekly_tough"
     CHEER = "cheer"
+    TASK_DUE = "task_due"

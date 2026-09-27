@@ -1,9 +1,11 @@
 """The coach reacts to what happens in the user's challenge and says something useful."""
 
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from typing import Protocol
 from uuid import NAMESPACE_URL, UUID, uuid5
+from zoneinfo import ZoneInfo
 
+from pit.modules.challenges.domain.challenge import Challenge
 from pit.modules.challenges.domain.events import (
     DayCompleted,
     DayFrozen,
@@ -22,14 +24,18 @@ from pit.modules.coaching.application.commands import (
     CheerFriend,
     MarkNotificationsRead,
     SendDailyNudges,
+    SendTaskReminders,
     SendWeeklySummaries,
 )
+from pit.modules.coaching.application.ports import ChallengeTexts, OwnTexts
 from pit.modules.coaching.domain.messages import STREAK_MILESTONES, Moment, compose
 from pit.modules.coaching.domain.notification import Notification
 from pit.modules.coaching.domain.repositories import NotificationRepository
 from pit.modules.identity.domain.events import AccountErased
 from pit.modules.identity.domain.repositories import UserRepository
 from pit.modules.verification.domain.events import ProofRejected, ProofSentToReview
+from pit.modules.verification.domain.repositories import ProofRepository
+from pit.modules.verification.domain.verdict import ProofStatus
 from pit.shared.application.clock import Clock, local_date
 from pit.shared.application.lookup import require
 from pit.shared.application.unit_of_work import Transaction
@@ -50,6 +56,22 @@ class CoachingUoW(Transaction, Protocol):
 
     @property
     def notifications(self) -> NotificationRepository: ...
+
+    @property
+    def proofs(self) -> ProofRepository: ...
+
+
+REMINDER_WINDOW = timedelta(minutes=30)  # a reminder later than this would only nag
+_OWN_TEXTS = OwnTexts()
+
+
+def _focus_text(
+    texts: ChallengeTexts, challenge: Challenge, p: Participation, day: date, locale: str
+) -> str | None:
+    """Today's lesson, or the week's theme when no lesson is written for today."""
+    roadmap = texts.roadmap(challenge, locale)
+    focus = roadmap.focus(p.start_date, p.days, day) if roadmap else None
+    return (focus.lesson or focus.theme) if focus else None
 
 
 async def _notify(
@@ -263,7 +285,9 @@ async def on_friend_joined(event: GroupMemberJoined, uow: CoachingUoW, *, clock:
         await uow.commit()
 
 
-async def send_daily_nudges(cmd: SendDailyNudges, uow: CoachingUoW, *, clock: Clock) -> int:
+async def send_daily_nudges(
+    cmd: SendDailyNudges, uow: CoachingUoW, *, clock: Clock, texts: ChallengeTexts = _OWN_TEXTS
+) -> int:
     sent = 0
     async with uow:
         for participation_id in await uow.participations.list_open_ids():
@@ -278,6 +302,9 @@ async def send_daily_nudges(cmd: SendDailyNudges, uow: CoachingUoW, *, clock: Cl
                 key = f"rest:{participation_id}:{today.isoformat()}"
                 await _notify(uow, clock, key=key, moment=Moment.REST_DAY, **common)
             elif cmd.kind == "morning":
+                challenge = require(
+                    await uow.challenges.get(participation.challenge_id), "Challenge topilmadi"
+                )
                 await _notify(
                     uow,
                     clock,
@@ -287,6 +314,7 @@ async def send_daily_nudges(cmd: SendDailyNudges, uow: CoachingUoW, *, clock: Cl
                     tasks=len(tasks),
                     minutes=sum(t.minutes for t in tasks),
                     streak=participation.current_streak,
+                    focus=_focus_text(texts, challenge, participation, today, user.locale.value),
                     **common,
                 )
             elif participation.days.get(today) is DayStatus.PENDING:
@@ -303,6 +331,58 @@ async def send_daily_nudges(cmd: SendDailyNudges, uow: CoachingUoW, *, clock: Cl
             else:
                 continue
             sent += 1
+        await uow.commit()
+    return sent
+
+
+async def send_task_reminders(
+    cmd: SendTaskReminders, uow: CoachingUoW, *, clock: Clock, texts: ChallengeTexts = _OWN_TEXTS
+) -> int:
+    """For each task with a clock time that has just come and has no proof yet."""
+    sent = 0
+    async with uow:
+        for participation_id in await uow.participations.list_open_ids():
+            participation = await uow.participations.get(participation_id)
+            if participation is None or participation.status is not ParticipationStatus.ACTIVE:
+                continue
+            user = require(await uow.users.get(participation.user_id), "Foydalanuvchi topilmadi")
+            now = clock.now().astimezone(ZoneInfo(user.timezone))
+            today = now.date()
+            if participation.days.get(today) is not DayStatus.PENDING:
+                continue
+            due = [
+                t
+                for t in participation.tasks_on(today)
+                if t.at is not None
+                and timedelta(0)
+                <= now.replace(tzinfo=None) - datetime.combine(today, t.at)
+                < REMINDER_WINDOW
+            ]
+            if not due:
+                continue
+            proofs = await uow.proofs.list_for_day(participation_id, today)
+            handled = {p.task_key for p in proofs if p.status is not ProofStatus.REJECTED}
+            challenge = require(
+                await uow.challenges.get(participation.challenge_id), "Challenge topilmadi"
+            )
+            locale = user.locale.value
+            for task in due:
+                if task.key in handled:
+                    continue
+                await _notify(
+                    uow,
+                    clock,
+                    key=f"due:{participation_id}:{today.isoformat()}:{task.key}",
+                    user_id=user.id,
+                    participation_id=participation_id,
+                    moment=Moment.TASK_DUE,
+                    name=user.username,
+                    task=texts.task_title(challenge, task, locale),
+                    at=task.at.strftime("%H:%M") if task.at else "",
+                    minutes=task.minutes,
+                    focus=_focus_text(texts, challenge, participation, today, locale),
+                )
+                sent += 1
         await uow.commit()
     return sent
 

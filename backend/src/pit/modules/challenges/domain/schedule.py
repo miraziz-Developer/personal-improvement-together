@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, time
 
 from pit.shared.domain.errors import DomainError, InvariantViolation
 
@@ -24,6 +24,7 @@ class TaskSpec:
     title: str
     minutes: int
     required: bool = True  # required tasks decide the day; optional ones only earn points
+    at: time | None = None  # when to do it (local time); the coach reminds at that moment
 
     def __post_init__(self) -> None:
         if not TASK_KEY_RE.fullmatch(self.key):

@@ -9,6 +9,7 @@ import useSWR from "swr";
 import { StartPanel } from "@/components/StartPanel";
 import { useToast } from "@/components/toast";
 import { Badge, Button, Card, Skeleton } from "@/components/ui";
+import { RoadmapView } from "@/components/Roadmap";
 import { WeekEditor } from "@/components/WeekEditor";
 import { api, errorMessage } from "@/lib/api";
 import { CATEGORY, minutes } from "@/lib/format";
@@ -104,6 +105,7 @@ export default function PlanPage() {
         )}
       </div>
       <WeekEditor week={week} budgets={plan.budgets} onChange={setWeek} />
+      {plan.roadmap && <RoadmapView roadmap={plan.roadmap} />}
 
       {plan.status === "draft" ? (
         <StartPanel stakeAllowed loading={starting} onStart={start} />

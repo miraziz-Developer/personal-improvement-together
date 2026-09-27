@@ -14,6 +14,7 @@ from pit.modules.challenges.domain.challenge import (
     ProofType,
     StakePolicy,
 )
+from pit.modules.challenges.domain.roadmap import Roadmap
 from pit.modules.challenges.domain.schedule import WEEKDAY_NAMES, Schedule
 from pit.modules.planning.domain.events import PlanDrafted, PlanStarted
 from pit.shared.domain.aggregate import AggregateRoot
@@ -75,6 +76,7 @@ class PlanProposal:
     difficulty: int
     verification_prompt: str
     schedule: Schedule
+    roadmap: Roadmap | None = None  # week themes and day lessons; the AI writes them
 
 
 class PlanStatus(StrEnum):
@@ -130,6 +132,7 @@ class Plan(AggregateRoot):
             verification_prompt=p.verification_prompt,
             stake_policy=StakePolicy(allowed=True),
             default_schedule=p.schedule,
+            roadmap=p.roadmap,
         )
 
     def mark_started(self, *, challenge_id: UUID, participation_id: UUID) -> None:

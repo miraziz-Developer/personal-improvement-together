@@ -40,9 +40,12 @@ async def seed(container: Container) -> int:
     added = 0
     async with container.uow_factory() as uow:
         for challenge in build_catalog():
-            if await uow.challenges.get(challenge.id) is None:
+            existing = await uow.challenges.get(challenge.id)
+            if existing is None:
                 uow.challenges.add(challenge)
                 added += 1
+            else:
+                existing.revise_from(challenge)  # the catalog evolves; joined runs keep theirs
         await uow.commit()
     return added
 
@@ -107,6 +110,14 @@ async def ai_check(settings: Settings) -> None:
         try:
             plan = await LlmPlanGenerator(LlmPool([endpoint]), TemplatePlanGenerator()).ask(answers)
             print(f"✅ {endpoint.label} plan: {plan.title} ({plan.duration_days} kun)")
+            if plan.roadmap:
+                first = plan.roadmap.weeks[0]
+                timed = sum(1 for day in plan.schedule.week for t in day if t.at)
+                print(f"   roadmap: {len(plan.roadmap.weeks)} hafta, 1-hafta «{first.theme}»: ")
+                print("   " + " → ".join(first.lessons[:4]))
+                print(f"   vaqtli vazifalar: {timed}")
+            else:
+                print("   ⚠️ roadmap yo'q")
         except AiUnavailable as error:
             print(f"❌ {endpoint.label} plan: {type(error.__cause__).__name__}")
 

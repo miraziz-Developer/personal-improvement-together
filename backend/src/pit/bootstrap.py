@@ -1,7 +1,7 @@
 """Composition root: the only place that knows every module and wires them together."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from typing import Any
 
@@ -32,8 +32,10 @@ from pit.modules.coaching.application.commands import (
     CheerFriend,
     MarkNotificationsRead,
     SendDailyNudges,
+    SendTaskReminders,
     SendWeeklySummaries,
 )
+from pit.modules.coaching.application.ports import ChallengeTexts, OwnTexts
 from pit.modules.coaching.domain.notification import NotificationCreated
 from pit.modules.identity.application import handlers as identity
 from pit.modules.identity.application.commands import (
@@ -111,6 +113,7 @@ class Dependencies:
     google: GoogleVerifier | None = None  # None = "Sign in with Google" is off
     files: StoredFiles | None = None  # proof photos; needed to erase accounts
     push: WebPushSender | None = None  # None = browser notifications are off
+    challenge_texts: ChallengeTexts = field(default_factory=OwnTexts)  # catalog translations
 
 
 def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
@@ -147,7 +150,12 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         ChangeLocale: identity.change_locale,
         RegisterWithGoogle: partial(identity.register_with_google, clock=clock),
         # coaching
-        SendDailyNudges: partial(coaching.send_daily_nudges, clock=clock),
+        SendDailyNudges: partial(
+            coaching.send_daily_nudges, clock=clock, texts=deps.challenge_texts
+        ),
+        SendTaskReminders: partial(
+            coaching.send_task_reminders, clock=clock, texts=deps.challenge_texts
+        ),
         MarkNotificationsRead: partial(coaching.mark_read, clock=clock),
         SendWeeklySummaries: partial(coaching.send_weekly_summaries, clock=clock),
         CheerFriend: partial(coaching.cheer_friend, clock=clock),

@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from pit.modules.challenges.domain.challenge import Category, Challenge, ProofType, StakePolicy
+from pit.modules.challenges.domain.roadmap import Roadmap
 from pit.modules.challenges.domain.schedule import Schedule, TaskSpec
 from pit.modules.planning.domain.plan import Availability, OnboardingAnswers
 
@@ -24,6 +25,7 @@ def make_challenge(
     proof_types: frozenset[ProofType] = frozenset({ProofType.PHOTO, ProofType.TEXT}),
     stake_allowed: bool = True,
     schedule: Schedule = DAILY_HOUR,
+    roadmap: Roadmap | None = None,
 ) -> Challenge:
     return Challenge.create_template(
         challenge_id=uuid4(),
@@ -36,4 +38,5 @@ def make_challenge(
         verification_prompt="Rasmda sport zali jihozlari va foydalanuvchi ko'rinishi kerak",
         stake_policy=StakePolicy(allowed=stake_allowed),
         default_schedule=schedule,
+        roadmap=roadmap,
     )

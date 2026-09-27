@@ -21,6 +21,8 @@ from pit.modules.challenges.domain.participation import (
     ParticipationStatus,
 )
 from pit.modules.challenges.infrastructure.serialization import (
+    roadmap_from_json,
+    roadmap_to_json,
     schedule_from_json,
     schedule_to_json,
 )
@@ -53,6 +55,7 @@ class SqlChallengeRepository(SqlRepository[Challenge]):
             "min_stake": item.stake_policy.min_stake.amount,
             "max_stake": item.stake_policy.max_stake.amount,
             "default_schedule": schedule_to_json(item.default_schedule),
+            "roadmap": roadmap_to_json(item.roadmap),
             "is_template": item.is_template,
             "approval_status": item.approval_status.value,
             "created_by": item.created_by,
@@ -77,6 +80,7 @@ class SqlChallengeRepository(SqlRepository[Challenge]):
             is_template=row["is_template"],
             approval_status=ApprovalStatus(row["approval_status"]),
             created_by=row["created_by"],
+            roadmap=roadmap_from_json(row["roadmap"]),
         )
 
 

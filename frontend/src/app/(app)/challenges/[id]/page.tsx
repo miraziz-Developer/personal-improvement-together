@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import useSWR from "swr";
 
+import { RoadmapView } from "@/components/Roadmap";
 import { StartPanel } from "@/components/StartPanel";
 import { useToast } from "@/components/toast";
 import { Badge, Card, Skeleton } from "@/components/ui";
@@ -87,7 +88,10 @@ export default function ChallengeDetail() {
             ))}
           </div>
         </Card>
-        <StartPanel stakeAllowed={c.stake_allowed} minStake={c.min_stake} maxStake={c.max_stake} loading={loading} onStart={join} />
+        <div className="flex flex-col gap-6">
+          <StartPanel stakeAllowed={c.stake_allowed} minStake={c.min_stake} maxStake={c.max_stake} loading={loading} onStart={join} />
+          {c.roadmap && <RoadmapView roadmap={c.roadmap} />}
+        </div>
       </div>
     </div>
   );

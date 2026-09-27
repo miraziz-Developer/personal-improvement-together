@@ -12,7 +12,13 @@ from uuid import UUID
 from pit.celery_app import make_celery
 from pit.config import get_settings
 from pit.container import Container, build_container
-from pit.jobs import close_all_days, requeue_stale_proofs, send_nudges, send_weekly_summaries
+from pit.jobs import (
+    close_all_days,
+    requeue_stale_proofs,
+    send_nudges,
+    send_task_reminders,
+    send_weekly_summaries,
+)
 from pit.modules.verification.application.commands import VerifyProof
 from pit.observability import init_sentry
 
@@ -46,6 +52,12 @@ def close_days() -> int:
 @app.task(name="pit.daily_nudges")
 def daily_nudges(kind: Literal["morning", "evening"]) -> int:
     sent: int = _run(lambda c: send_nudges(c, kind))
+    return sent
+
+
+@app.task(name="pit.task_reminders")
+def task_reminders() -> int:
+    sent: int = _run(send_task_reminders)
     return sent
 
 

@@ -3,16 +3,21 @@ and the safety net when the AI fails. Either way the result is fitted to the use
 
 import json
 import logging
+import math
 import re
+from dataclasses import replace
+from datetime import time
 from typing import Any
 
 from pit.modules.challenges.domain.challenge import ALLOWED_DURATIONS, Category
+from pit.modules.challenges.domain.roadmap import MAX_TEXT, MAX_WEEKS, Milestone, Roadmap
 from pit.modules.challenges.domain.schedule import Schedule, TaskSpec
 from pit.modules.planning.domain.plan import OnboardingAnswers, PlanProposal
 from pit.modules.planning.infrastructure.generators_ru import (
     DESCRIPTION_RU,
     KEYWORDS_RU,
     PROFILES_RU,
+    STAGES_RU,
     TITLE_RU,
 )
 from pit.shared.domain.errors import DomainError
@@ -92,12 +97,7 @@ def fit_to_availability(schedule: Schedule, answers: OnboardingAnswers) -> Sched
             required = [t for t in tasks if t.required] or [tasks[0]]
             scale = budget / sum(t.minutes for t in required)
             tasks = tuple(
-                TaskSpec(
-                    key=t.key,
-                    title=t.title,
-                    minutes=max(5, int(t.minutes * min(scale, 1) // 5 * 5)),
-                    required=True,
-                )
+                replace(t, minutes=max(5, int(t.minutes * min(scale, 1) // 5 * 5)), required=True)
                 for t in required
             )
         week.append(tuple(tasks))
@@ -149,7 +149,31 @@ class TemplatePlanGenerator:
             difficulty=_difficulty(schedule.required_minutes_per_week),
             verification_prompt=criteria,
             schedule=schedule,
+            roadmap=template_roadmap(goal, 21 if category is Category.HEALTH else 30, ru=ru),
         )
+
+
+# Without the AI there are no real lessons to write, but the weeks can still climb.
+STAGES_UZ = (
+    ("Poydevor", "Har kuni rejaga amal qilish odatga aylanadi"),
+    ("Chuqurlashtirish", "Vazifalarni ishonch bilan, kamroq kuch sarflab bajarasiz"),
+    ("Qiyinlashtirish", "O'zingizni avvalgidan kattaroq vazifada sinab ko'rasiz"),
+    ("Mustahkamlash", "Natijani mustahkamlaysiz va keyingi bosqichni rejalashtirasiz"),
+)
+
+
+def template_roadmap(goal: str, duration_days: int, *, ru: bool) -> Roadmap:
+    stages = STAGES_RU if ru else STAGES_UZ
+    weeks = math.ceil(duration_days / 7)
+    return Roadmap(
+        outcome=goal[:MAX_TEXT],
+        weeks=tuple(
+            Milestone(
+                theme=stages[min(i, len(stages) - 1)][0], goal=stages[min(i, len(stages) - 1)][1]
+            )
+            for i in range(weeks)
+        ),
+    )
 
 
 PLAN_PROMPT = """Siz shaxsiy rivojlanish murabbiyisiz. Foydalanuvchi javoblari asosida
@@ -160,6 +184,15 @@ Qoidalar:
 - Vazifa nomi aniq va o'lchanadigan bo'lsin ("20 bet o'qish", "1 ta endpoint yozish").
 - key: kichik lotin harflari, raqam, '-' yoki '_' (masalan "lesson", "practice").
 - verification_prompt: rasm/matn isbotida nima ko'rinishi kerakligi, 1-2 gap.
+- at: vazifa boshlanadigan vaqt "HH:MM" (masalan sport ertalab, o'qish kechqurun); bilmasangiz "".
+- roadmap — reja qotib qolmasin, har kuni oldinga siljisin:
+  - weeks: davomiylik / 7 (yuqoriga yaxlitlab) ta hafta, har biri — mavzu (theme, qisqa),
+    hafta oxirida nimaga erishiladi (goal).
+  - lessons: shu haftaning har bir ish kuni uchun bittadan aniq, o'lchanadigan kunlik mavzu,
+    ish kunlari tartibida; har kuni oldingisidan davom etadi va takrorlanmaydi
+    (masalan "Python: o'zgaruvchilar va turlar", keyingi kun "Python: if/else va sikllar").
+    Darsga "Kun 1:" yoki "1-dars" kabi raqam qo'shmang — tartibni ilova o'zi ko'rsatadi.
+  - outcome: oxirgi kuni foydalanuvchi nimani qila oladi, 1 gap.
 - Hamma matnlar {language}."""
 
 # How the prompt names the language the plan must be written in.
@@ -174,6 +207,27 @@ PLAN_SCHEMA: dict[str, Any] = {
         "duration_days": {"type": "integer", "enum": sorted(ALLOWED_DURATIONS)},
         "difficulty": {"type": "integer"},
         "verification_prompt": {"type": "string"},
+        "roadmap": {
+            "type": "object",
+            "properties": {
+                "outcome": {"type": "string"},
+                "weeks": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "theme": {"type": "string"},
+                            "goal": {"type": "string"},
+                            "lessons": {"type": "array", "items": {"type": "string"}},
+                        },
+                        "required": ["theme", "goal", "lessons"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            "required": ["outcome", "weeks"],
+            "additionalProperties": False,
+        },
         "week": {
             "type": "array",
             "items": {
@@ -185,14 +239,16 @@ PLAN_SCHEMA: dict[str, Any] = {
                         "title": {"type": "string"},
                         "minutes": {"type": "integer"},
                         "required": {"type": "boolean"},
+                        "at": {"type": "string"},
                     },
-                    "required": ["key", "title", "minutes", "required"],
+                    "required": ["key", "title", "minutes", "required", "at"],
                     "additionalProperties": False,
                 },
             },
         },
     },
     "required": [
+        "roadmap",
         "title",
         "description",
         "category",
@@ -203,6 +259,34 @@ PLAN_SCHEMA: dict[str, Any] = {
     ],
     "additionalProperties": False,
 }
+
+
+def _clean_time(value: str) -> time | None:
+    try:
+        return time.fromisoformat(value.strip()[:5]) if value.strip() else None
+    except ValueError:
+        return None
+
+
+def _short(text: object) -> str:
+    return str(text).strip()[:MAX_TEXT]
+
+
+def _clean_roadmap(data: Any) -> Roadmap | None:
+    """The AI's roadmap, trimmed to the limits; an unusable one is dropped, not the plan."""
+    try:
+        weeks = tuple(
+            Milestone(
+                theme=_short(w["theme"]),
+                goal=_short(w["goal"]),
+                lessons=tuple(_short(x) for x in w["lessons"] if str(x).strip())[:7],
+            )
+            for w in data["weeks"][:MAX_WEEKS]
+        )
+        return Roadmap(outcome=_short(data["outcome"]), weeks=weeks)
+    except (KeyError, TypeError, DomainError):
+        logger.warning("AI roadmap was unusable; the plan goes without one")
+        return None
 
 
 def _clean_key(key: str, index: int) -> str:
@@ -266,6 +350,7 @@ class LlmPlanGenerator:
                     title=str(t["title"])[:120] or "Vazifa",
                     minutes=max(5, min(int(t["minutes"]), 720)),
                     required=bool(t["required"]) or i == 0,
+                    at=_clean_time(str(t.get("at", ""))),
                 )
                 for i, t in enumerate(tasks[:3])
             )
@@ -281,4 +366,5 @@ class LlmPlanGenerator:
             difficulty=min(max(int(data["difficulty"]), 1), 5),
             verification_prompt=str(data["verification_prompt"])[:1000],
             schedule=schedule,
+            roadmap=_clean_roadmap(data.get("roadmap")),
         )

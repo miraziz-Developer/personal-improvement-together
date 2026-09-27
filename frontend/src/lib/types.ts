@@ -10,8 +10,28 @@ export interface Task {
   title: string;
   minutes: number;
   required: boolean;
+  at?: string | null; // local "HH:MM"; the coach reminds at that time
 }
 export type Week = Task[][];
+
+export interface Milestone {
+  theme: string;
+  goal: string;
+  lessons: string[];
+}
+
+export interface Roadmap {
+  outcome: string;
+  weeks: Milestone[];
+}
+
+export interface Focus {
+  week: number;
+  weeks: number;
+  theme: string;
+  goal: string;
+  lesson: string | null;
+}
 
 export interface Region {
   id: string;
@@ -54,6 +74,7 @@ export interface Challenge {
   minutes_per_week: number;
   participants: number;
   week: Week;
+  roadmap: Roadmap | null;
 }
 
 export interface Participation {
@@ -87,9 +108,11 @@ export interface ParticipationDetail extends Participation {
     status: DayStatus | null;
     tasks: TodayTask[];
     daily_code: string | null;
+    focus: Focus | null;
   };
   week: Week;
   can_cancel: boolean;
+  roadmap: Roadmap | null;
 }
 
 export interface Proof {
@@ -113,6 +136,7 @@ export interface Plan {
   week: Week;
   budgets: number[];
   participation_id: string | null;
+  roadmap: Roadmap | null;
 }
 
 export interface Notification {

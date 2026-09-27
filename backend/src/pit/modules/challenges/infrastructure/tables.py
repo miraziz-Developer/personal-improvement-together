@@ -34,6 +34,7 @@ challenges = Table(
     Column("min_stake", BigInteger, nullable=False),
     Column("max_stake", BigInteger, nullable=False),
     Column("default_schedule", JSONB, nullable=False),
+    Column("roadmap", JSONB, nullable=True),
     Column("is_template", Boolean, nullable=False),
     Column("approval_status", String(16), nullable=False),
     Column("created_by", Uuid, ForeignKey("users.id"), nullable=True),

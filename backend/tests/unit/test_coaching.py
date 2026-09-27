@@ -22,6 +22,9 @@ ALL_FACTS = {
     "planned": 7,
     "group_line": "Guruhda 2-o'rin. ",
     "emoji": "👏",
+    "focus_line": "Bugungi mavzu: Funksiyalar. ",
+    "task": "Kod yozish",
+    "at": "07:00",
 }
 
 

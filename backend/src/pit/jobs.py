@@ -11,7 +11,11 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 
 from pit.modules.challenges.application.commands import CloseDays
-from pit.modules.coaching.application.commands import SendDailyNudges, SendWeeklySummaries
+from pit.modules.coaching.application.commands import (
+    SendDailyNudges,
+    SendTaskReminders,
+    SendWeeklySummaries,
+)
 from pit.modules.verification.domain.verdict import ProofStatus
 from pit.modules.verification.infrastructure.tables import proofs
 
@@ -20,7 +24,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 TASHKENT = ZoneInfo("Asia/Tashkent")
-DEV_TICK_SECONDS = 600
+DEV_TICK_SECONDS = 300  # task reminders need a few-minute beat
 STALE_PROOF_MINUTES = 3
 
 
@@ -40,6 +44,11 @@ async def close_all_days(container: Container) -> int:
 
 async def send_nudges(container: Container, kind: Literal["morning", "evening"]) -> int:
     sent: int = await container.bus.handle(SendDailyNudges(kind=kind))
+    return sent
+
+
+async def send_task_reminders(container: Container) -> int:
+    sent: int = await container.bus.handle(SendTaskReminders())
     return sent
 
 
@@ -65,8 +74,9 @@ async def send_weekly_summaries(container: Container) -> int:
 
 
 class DevScheduler:
-    """Local stand-in for Celery beat: closes days every 10 minutes and sends the coach's
-    morning/evening messages during the 08:00 and 20:00 hours (ids make repeats harmless)."""
+    """Local stand-in for Celery beat: every 5 minutes closes days and sends due task
+    reminders; morning/evening messages during the 08:00 and 20:00 hours (ids make repeats
+    harmless)."""
 
     def __init__(self, container: Container) -> None:
         self._container = container
@@ -84,6 +94,7 @@ class DevScheduler:
             try:
                 await requeue_stale_proofs(self._container)
                 await close_all_days(self._container)
+                await send_task_reminders(self._container)
                 hour = datetime.now(TASHKENT).hour
                 if hour == 8:
                     await send_nudges(self._container, "morning")

@@ -8,6 +8,8 @@ import re
 from collections.abc import Callable
 
 ERRORS_RU: dict[str, str] = {
+    "Faqat katalog challenge'i yangilanadi": "Обновлять можно только челленджи каталога",
+    "Haftada 7 tadan ortiq dars bo'lmaydi": "В неделе не больше 7 уроков",
     "AI ishonch darajasi 0 va 1 oralig'ida bo'lishi kerak": "Уверенность ИИ должна быть от 0 до 1",
     "AI uchun tekshiruv mezoni yozilishi kerak": "Нужно описать критерий проверки для ИИ",
     "Akkaunt allaqachon o'chirilgan": "Аккаунт уже удалён",
@@ -163,9 +165,16 @@ _TEMPLATES_RU: list[tuple[str, str]] = [
         "{0}: в плане {1} мин., а 80% вашего свободного времени — {2} мин.",
     ),
     ("{}: vazifa kalitlari takrorlanmasin", "{0}: ключи задач не должны повторяться"),
+    ("{}: 1-{} belgi bo'lishi kerak", "{0}: от 1 до {1} символов"),
+    ("Yo'l xaritasi 1-{} haftadan iborat bo'lsin", "Дорожная карта — от 1 до {0} недель"),
 ]
 
-_WEEKDAYS_RU = {
+# Names that appear inside templated messages (weekdays, roadmap parts).
+_NAMES_RU = {
+    "Hafta mavzusi": "Тема недели",
+    "Hafta maqsadi": "Цель недели",
+    "Dars": "Урок",
+    "Yakuniy natija": "Итоговый результат",
     "Dushanba": "Понедельник",
     "Seshanba": "Вторник",
     "Chorshanba": "Среда",
@@ -190,7 +199,7 @@ def _russian(message: str) -> str | None:
     for pattern, template in _PATTERNS_RU:
         match = pattern.match(message)
         if match:
-            values = [_WEEKDAYS_RU.get(value, value) for value in match.groups()]
+            values = [_NAMES_RU.get(value, value) for value in match.groups()]
             return template.format(*values)
     return None
 

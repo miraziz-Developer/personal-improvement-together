@@ -1,12 +1,13 @@
 """HTTP contract (request/response models). Kept separate from the domain on purpose."""
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 from pit.modules.challenges.domain.challenge import ParticipationMode
+from pit.modules.challenges.domain.roadmap import Focus, Roadmap
 from pit.modules.challenges.domain.schedule import Schedule, TaskSpec
 
 # --- shared ------------------------------------------------------------------------------
@@ -17,6 +18,7 @@ class TaskIO(BaseModel):
     title: str
     minutes: int
     required: bool = True
+    at: str | None = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")  # local "HH:MM"
 
 
 Week = list[list[TaskIO]]  # 7 lists, index 0 = Monday
@@ -26,7 +28,13 @@ def week_to_schedule(week: Week) -> Schedule:
     return Schedule(
         week=tuple(
             tuple(
-                TaskSpec(key=t.key, title=t.title, minutes=t.minutes, required=t.required)
+                TaskSpec(
+                    key=t.key,
+                    title=t.title,
+                    minutes=t.minutes,
+                    required=t.required,
+                    at=time.fromisoformat(t.at) if t.at else None,
+                )
                 for t in day
             )
             for day in week
@@ -34,11 +42,61 @@ def week_to_schedule(week: Week) -> Schedule:
     )
 
 
+def task_io(task: TaskSpec) -> TaskIO:
+    return TaskIO(
+        key=task.key,
+        title=task.title,
+        minutes=task.minutes,
+        required=task.required,
+        at=task.at.strftime("%H:%M") if task.at else None,
+    )
+
+
 def schedule_to_week(schedule: Schedule) -> Week:
-    return [
-        [TaskIO(key=t.key, title=t.title, minutes=t.minutes, required=t.required) for t in day]
-        for day in schedule.week
-    ]
+    return [[task_io(t) for t in day] for day in schedule.week]
+
+
+class MilestoneOut(BaseModel):
+    theme: str
+    goal: str
+    lessons: list[str]
+
+
+class RoadmapOut(BaseModel):
+    outcome: str
+    weeks: list[MilestoneOut]
+
+    @classmethod
+    def of(cls, roadmap: Roadmap | None) -> "RoadmapOut | None":
+        if roadmap is None:
+            return None
+        return cls(
+            outcome=roadmap.outcome,
+            weeks=[
+                MilestoneOut(theme=w.theme, goal=w.goal, lessons=list(w.lessons))
+                for w in roadmap.weeks
+            ],
+        )
+
+
+class FocusOut(BaseModel):
+    week: int
+    weeks: int
+    theme: str
+    goal: str
+    lesson: str | None
+
+    @classmethod
+    def of(cls, focus: Focus | None) -> "FocusOut | None":
+        if focus is None:
+            return None
+        return cls(
+            week=focus.week,
+            weeks=focus.weeks,
+            theme=focus.theme,
+            goal=focus.goal,
+            lesson=focus.lesson,
+        )
 
 
 class IdOut(BaseModel):
@@ -173,6 +231,7 @@ class ChallengeOut(BaseModel):
     minutes_per_week: int
     participants: int
     week: Week
+    roadmap: RoadmapOut | None = None
 
 
 class JoinIn(BaseModel):
@@ -198,6 +257,7 @@ class TodayOut(BaseModel):
     status: str | None
     tasks: list[TaskTodayOut]
     daily_code: str | None
+    focus: FocusOut | None = None  # today's place on the roadmap
 
 
 class ParticipationOut(BaseModel):
@@ -223,6 +283,7 @@ class ParticipationDetailOut(ParticipationOut):
     today: TodayOut
     week: Week
     can_cancel: bool
+    roadmap: RoadmapOut | None = None
 
 
 class ScheduleIn(BaseModel):
@@ -261,6 +322,7 @@ class PlanOut(BaseModel):
     week: Week
     budgets: list[int]
     participation_id: UUID | None
+    roadmap: RoadmapOut | None = None
 
 
 class StartIn(BaseModel):

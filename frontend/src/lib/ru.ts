@@ -472,4 +472,11 @@ export const RU: Record<string, string> = {
   "{share} tasdiqlangan": "{share} подтверждено",
   "Moderator navbati": "Очередь модератора",
   "{n} ta nomaqbul shubhasi (30 kun)": "Подозрений на недопустимое: {n} (30 дней)",
+  "Boshlanish vaqti": "Время начала",
+  "Shu vaqtni hamma kunlarga qo'yish": "Поставить это время на все дни",
+  "{week}-hafta / {weeks}": "Неделя {week} из {weeks}",
+  "Bugun — hafta mavzusini mustahkamlash": "Сегодня — закрепляем тему недели",
+  "Hafta maqsadi: {goal}": "Цель недели: {goal}",
+  "Yo'l xaritasi": "Дорожная карта",
+  "Natija:": "Результат:",
 };

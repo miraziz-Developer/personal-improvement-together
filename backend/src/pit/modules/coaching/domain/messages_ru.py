@@ -101,18 +101,28 @@ LIBRARY_RU: dict[Moment, tuple[tuple[str, str], ...]] = {
             "ничего не отнимает.",
         ),
     ),
+    Moment.TASK_DUE: (
+        (
+            "⏰ Время: {task}",
+            "{name}, {at} — «{task}», {minutes} мин. {focus_line}Начинаем!",
+        ),
+        (
+            "Пора: {task}",
+            "По плану — {at}. {focus_line}Маленький шаг делается именно сейчас 💪",
+        ),
+    ),
     Moment.MORNING: (
         (
             "Доброе утро, {name}! ☀️",
-            "Сегодня {tasks} задач, всего {minutes} мин. Серия: {streak}. Начнём?",
+            "Сегодня {tasks} задач, всего {minutes} мин. {focus_line}Серия: {streak}. Начнём?",
         ),
         (
             "Новый день — новая возможность",
-            "План на сегодня: {tasks} задач ({minutes} мин). Маленький шаг — тоже шаг.",
+            "План на сегодня: {tasks} задач ({minutes} мин). {focus_line}Маленький шаг — тоже шаг.",
         ),
         (
             "Движение — это жизнь 🌅",
-            "{name}, сегодня {minutes} минут для себя. Лучшая инвестиция в мире.",
+            "{name}, сегодня {minutes} минут для себя. {focus_line}Лучшая инвестиция в мире.",
         ),
     ),
     Moment.REST_DAY: (
@@ -214,4 +224,5 @@ QUOTES_RU: tuple[tuple[str, str], ...] = (
 PHRASES_RU = {
     "group_line": "В группе {rank}-е место. ",
     "money_line": "Ваша ставка ({stake}) полностью возвращена.",
+    "focus_line": "Тема дня: {focus}. ",
 }

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TypedDict, Unpack
+from typing import NotRequired, TypedDict, Unpack
 from uuid import UUID
 
+from pit.modules.challenges.domain.roadmap import Roadmap
 from pit.modules.challenges.domain.schedule import Schedule
 from pit.shared.domain.aggregate import AggregateRoot
 from pit.shared.domain.errors import DomainError, InvalidStateTransition, InvariantViolation
@@ -71,6 +72,7 @@ class ChallengeSpec(TypedDict):
     verification_prompt: str
     stake_policy: StakePolicy
     default_schedule: Schedule
+    roadmap: NotRequired[Roadmap | None]
 
 
 @dataclass(eq=False, kw_only=True)
@@ -89,6 +91,7 @@ class Challenge(AggregateRoot):
     is_template: bool
     approval_status: ApprovalStatus
     created_by: UUID | None = None
+    roadmap: Roadmap | None = None  # what each week and working day is about
 
     def __post_init__(self) -> None:
         if not self.title.strip():
@@ -147,6 +150,15 @@ class Challenge(AggregateRoot):
         if self.approval_status is not ApprovalStatus.PENDING:
             raise InvalidStateTransition("Faqat ko'rib chiqilayotgan challenge rad etiladi")
         self.approval_status = ApprovalStatus.REJECTED
+
+    def revise_from(self, template: Challenge) -> None:
+        """Catalog upkeep: take the new texts, schedule and roadmap. Participations keep the
+        schedule they joined with; the roadmap (what each day is about) follows at once."""
+        if not self.is_template:
+            raise InvalidStateTransition("Faqat katalog challenge'i yangilanadi")
+        self.title, self.description = template.title, template.description
+        self.default_schedule = template.default_schedule
+        self.roadmap = template.roadmap
 
     def accepts(self, proof_type: ProofType) -> bool:
         return proof_type in self.proof_types
