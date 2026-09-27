@@ -11,6 +11,7 @@ from pit.api.routes import (
     admin,
     auth,
     challenges,
+    life_plans,
     media,
     plans,
     privacy,
@@ -108,7 +109,19 @@ def create_app(container: Container | None = None) -> FastAPI:
         message = f"Ma'lumot noto'g'ri: {field}".rstrip(": ")
         return _error(422, "validation_error", say(request, message))
 
-    modules = (auth, challenges, plans, social, wallet, admin, media, telegram, together, privacy)
+    modules = (
+        auth,
+        challenges,
+        plans,
+        life_plans,
+        social,
+        wallet,
+        admin,
+        media,
+        telegram,
+        together,
+        privacy,
+    )
     for module in modules:
         app.include_router(module.router, prefix="/api/v1")
 

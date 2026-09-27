@@ -24,6 +24,7 @@ export function FocusCard({ focus }: { focus: Focus }) {
           </p>
           <p className="mt-1 font-display text-lg font-semibold">{focus.lesson ?? t("Bugun — hafta mavzusini mustahkamlash")}</p>
           <p className="mt-1 text-sm text-mist">{t("Hafta maqsadi: {goal}", { goal: focus.goal })}</p>
+          {focus.month_goal && <p className="mt-1 text-sm text-mist">{t("{n}-oy marrasi: {goal}", { n: focus.month, goal: focus.month_goal })}</p>}
         </div>
       </div>
     </Card>
@@ -75,6 +76,16 @@ export function RoadmapView({ roadmap, current }: { roadmap: Roadmap; current?: 
           );
         })}
       </ol>
+      {roadmap.months.length > 0 && (
+        <ol className="mt-4 grid gap-2 sm:grid-cols-3">
+          {roadmap.months.map((goal, index) => (
+            <li key={index} className="rounded-2xl border border-white/5 bg-white/[0.02] p-3 text-sm">
+              <p className="text-xs font-semibold tracking-wide text-flame-300 uppercase">{t("{n}-oy", { n: index + 1 })}</p>
+              <p className="mt-1">{goal}</p>
+            </li>
+          ))}
+        </ol>
+      )}
       <p className="mt-4 flex items-start gap-2 rounded-2xl bg-white/[0.03] p-3 text-sm">
         <Flag className="mt-0.5 size-4 shrink-0 text-flame-400" />
         <span>

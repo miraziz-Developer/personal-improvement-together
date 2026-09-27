@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft, ArrowRight, Compass, Sparkles, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarClock, Compass, Sparkles, Wand2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -84,6 +84,16 @@ export default function Onboarding() {
             </span>
           </button>
         </div>
+        <button onClick={() => router.push("/routine/new")} className="glass group mt-4 flex w-full items-center gap-5 rounded-3xl p-6 text-left transition hover:border-iris/40">
+          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-iris/20 text-iris">
+            <CalendarClock className="size-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-xl font-semibold">{t("Kun tartibi: bir nechta maqsad")}</h2>
+            <p className="mt-1 text-mist">{t("Masalan dasturchi + sport: AI hammasini bitta soatma-soat kunga, oylik marralar bilan joylaydi.")}</p>
+          </div>
+          <ArrowRight className="size-5 shrink-0 text-iris transition group-hover:translate-x-1" />
+        </button>
       </div>
     );
   }

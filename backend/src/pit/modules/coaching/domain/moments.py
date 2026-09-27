@@ -22,3 +22,5 @@ class Moment(StrEnum):
     WEEKLY_TOUGH = "weekly_tough"
     CHEER = "cheer"
     TASK_DUE = "task_due"
+    MORNING_ROUTINE = "morning_routine"
+    MONTH_STARTED = "month_started"

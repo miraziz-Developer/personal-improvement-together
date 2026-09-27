@@ -64,8 +64,16 @@ from pit.modules.identity.domain.events import AccountErased
 from pit.modules.moderation.application import handlers as moderation
 from pit.modules.moderation.application.commands import FileReport, ResolveReport
 from pit.modules.planning.application import handlers as planning
-from pit.modules.planning.application.commands import DraftPlan, EditPlan, StartPlan
-from pit.modules.planning.application.ports import PlanGenerator
+from pit.modules.planning.application.commands import (
+    DraftLifePlan,
+    DraftPlan,
+    EditLifePlanGoal,
+    EditPlan,
+    StartLifePlan,
+    StartPlan,
+)
+from pit.modules.planning.application.ports import LifePlanGenerator, PlanGenerator
+from pit.modules.planning.infrastructure.generators import TemplateLifePlanGenerator
 from pit.modules.push.application import handlers as push
 from pit.modules.push.application.commands import SubscribePush, UnsubscribePush
 from pit.modules.push.application.ports import WebPushSender
@@ -114,6 +122,7 @@ class Dependencies:
     files: StoredFiles | None = None  # proof photos; needed to erase accounts
     push: WebPushSender | None = None  # None = browser notifications are off
     challenge_texts: ChallengeTexts = field(default_factory=OwnTexts)  # catalog translations
+    life_plan_generator: LifePlanGenerator = field(default_factory=TemplateLifePlanGenerator)
 
 
 def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
@@ -162,6 +171,14 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         # planning — the "make me a plan" path
         DraftPlan: partial(planning.draft_plan, generator=deps.plan_generator),
         EditPlan: planning.edit_plan,
+        DraftLifePlan: partial(planning.draft_life_plan, generator=deps.life_plan_generator),
+        EditLifePlanGoal: planning.edit_life_plan_goal,
+        StartLifePlan: partial(
+            planning.start_life_plan,
+            clock=clock,
+            escrow=escrow,
+            stakes_enabled=deps.stakes_enabled,
+        ),
         StartPlan: partial(
             planning.start_plan, clock=clock, escrow=escrow, stakes_enabled=deps.stakes_enabled
         ),
@@ -220,6 +237,7 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
             push.forget_subscriptions,
             partial(verification.forget_proofs, files=deps.files),
             coaching.forget_notifications,
+            planning.forget_plans,
             partial(ranking.drop_from_leaderboards, index=deps.leaderboard),
             partial(challenges.withdraw_participations, clock=clock),
         ],

@@ -627,3 +627,59 @@ async def test_a_roadmap_moves_the_user_forward_day_by_day(api: Api) -> None:
         f"/api/v1/challenges/{english['id']}/join", json={"mode": "free", "week": bad}, headers=auth
     )
     assert refused.status_code == 422
+
+
+async def test_life_plan_from_goals_to_the_days_timeline(api: Api) -> None:
+    auth = await api.register()
+    body = {
+        "goals": [{"goal": "Python backend dasturchi bo'lish"}, {"goal": "Har kuni sport"}],
+        "wake": "06:00",
+        "sleep": "23:00",
+        "busy": [{"label": "Ish", "weekdays": [0, 1, 2, 3, 4], "start": "09:00", "end": "18:00"}],
+        "duration_days": 90,
+    }
+    created = await api.client.post("/api/v1/life-plans", json=body, headers=auth)
+    assert created.status_code == 201, created.text
+    plan = created.json()
+    assert [g["category"] for g in plan["goals"]] == ["code", "sport"]
+    assert len(plan["goals"][0]["roadmap"]["months"]) == 3
+    assert all(t["at"] for g in plan["goals"] for day in g["week"] for t in day)
+
+    # moving the coding task onto the workout's time is refused
+    code_week, sport_week = plan["goals"][0]["week"], plan["goals"][1]["week"]
+    clash = [
+        [dict(t, at=sport_week[i][0]["at"]) for t in day] if day and sport_week[i] else day
+        for i, day in enumerate(code_week)
+    ]
+    refused = await api.client.put(
+        f"/api/v1/life-plans/{plan['id']}/goals/g1", json={"week": clash}, headers=auth
+    )
+    assert refused.status_code == 422 and "ustma-ust" in refused.json()["message"]
+
+    started = await api.client.post(f"/api/v1/life-plans/{plan['id']}/start", headers=auth)
+    assert started.status_code == 200, started.text
+    assert all(g["participation_id"] for g in started.json()["goals"])
+    assert (await api.client.get("/api/v1/me/life-plan", headers=auth)).json()["id"] == plan["id"]
+
+    routine = (await api.client.get("/api/v1/me/routine", headers=auth)).json()
+    kinds = [item["kind"] for item in routine["items"]]
+    assert routine["has_life_plan"] and kinds[0] == "wake" and kinds[-1] == "sleep"
+    starts = [item["start"] for item in routine["items"]]
+    assert starts == sorted(starts)
+    assert {m["month"] for m in routine["months"]} == {1}
+
+
+async def test_a_life_plan_needs_sensible_input(api: Api) -> None:
+    auth = await api.register()
+    too_many = {
+        "goals": [{"goal": f"Maqsad {i}"} for i in range(4)],
+        "wake": "06:00",
+        "sleep": "23:00",
+        "duration_days": 30,
+    }
+    response = await api.client.post("/api/v1/life-plans", json=too_many, headers=auth)
+    assert response.status_code == 422
+    short_day = {**too_many, "goals": [{"goal": "Sport"}], "sleep": "09:00"}
+    ru = {**auth, "Accept-Language": "ru"}
+    response = await api.client.post("/api/v1/life-plans", json=short_day, headers=ru)
+    assert response.status_code == 422 and "6 часов" in response.json()["message"]

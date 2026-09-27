@@ -101,6 +101,23 @@ LIBRARY_RU: dict[Moment, tuple[tuple[str, str], ...]] = {
             "ничего не отнимает.",
         ),
     ),
+    Moment.MORNING_ROUTINE: (
+        (
+            "Доброе утро, {name}! ☀️",
+            "Сегодня {tasks} задач по {goals} целям, всего {minutes} мин. "
+            "Первая: {first}. {focus_line}Распорядок готов!",
+        ),
+        (
+            "Распорядок на сегодня 🗓",
+            "{tasks} задач, {minutes} мин. Начало — {first}. {focus_line}Шаг за шагом, {name}!",
+        ),
+    ),
+    Moment.MONTH_STARTED: (
+        (
+            "🏁 Начался {month}-й месяц",
+            "«{title}»: веха прошлого месяца — {done_goal}. Веха этого месяца: {goal}. Продолжаем!",
+        ),
+    ),
     Moment.TASK_DUE: (
         (
             "⏰ Время: {task}",

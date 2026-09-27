@@ -8,6 +8,14 @@ import re
 from collections.abc import Callable
 
 ERRORS_RU: dict[str, str] = {
+    "Band vaqt uchun kamida bitta hafta kuni tanlang": "Выберите хотя бы один день недели для занятого времени",
+    "Bu maqsad rejada yo'q": "Такой цели нет в плане",
+    "Hamma maqsadlar birga boshlanadi": "Все цели начинаются вместе",
+    "Har bir maqsad uchun reja bo'lishi kerak": "Для каждой цели нужен план",
+    "Har bir maqsadni yozing": "Напишите каждую цель",
+    "Kun tartibingizda bu maqsad uchun bo'sh vaqt qolmadi": "В вашем распорядке не осталось свободного времени для этой цели",
+    "Muddat 30, 60 yoki 90 kun bo'lsin": "Срок — 30, 60 или 90 дней",
+    "Uyg'onish va uxlash vaqti orasida kamida 6 soat bo'lsin (uxlash yarim tungacha)": "Между подъёмом и сном должно быть не меньше 6 часов (отбой — до полуночи)",
     "Faqat katalog challenge'i yangilanadi": "Обновлять можно только челленджи каталога",
     "Haftada 7 tadan ortiq dars bo'lmaydi": "В неделе не больше 7 уроков",
     "AI ishonch darajasi 0 va 1 oralig'ida bo'lishi kerak": "Уверенность ИИ должна быть от 0 до 1",
@@ -167,6 +175,17 @@ _TEMPLATES_RU: list[tuple[str, str]] = [
     ("{}: vazifa kalitlari takrorlanmasin", "{0}: ключи задач не должны повторяться"),
     ("{}: 1-{} belgi bo'lishi kerak", "{0}: от 1 до {1} символов"),
     ("Yo'l xaritasi 1-{} haftadan iborat bo'lsin", "Дорожная карта — от 1 до {0} недель"),
+    ("1 dan {} tagacha maqsad kiriting", "Введите от 1 до {0} целей"),
+    (
+        "{}: tugash vaqti boshlanishidan keyin bo'lsin",
+        "{0}: время окончания должно быть позже начала",
+    ),
+    ("{}: «{}» uchun vaqt belgilang", "{0}: укажите время для «{1}»"),
+    ("{}: «{}» uyg'oq vaqtingizdan tashqarida", "{0}: «{1}» выходит за время бодрствования"),
+    ("{}: «{}» va «{}» vaqti ustma-ust tushdi", "{0}: «{1}» и «{2}» пересекаются по времени"),
+    ("Band vaqt nomi 1-{} belgi bo'lsin", "Название занятого времени — от 1 до {0} символов"),
+    ("Band vaqtlar {} tadan oshmasin", "Занятых промежутков — не больше {0}"),
+    ("Oylik marralar {} tadan oshmasin", "Месячных вех — не больше {0}"),
 ]
 
 # Names that appear inside templated messages (weekdays, roadmap parts).
@@ -175,6 +194,7 @@ _NAMES_RU = {
     "Hafta maqsadi": "Цель недели",
     "Dars": "Урок",
     "Yakuniy natija": "Итоговый результат",
+    "Oylik marra": "Месячная веха",
     "Dushanba": "Понедельник",
     "Seshanba": "Вторник",
     "Chorshanba": "Среда",

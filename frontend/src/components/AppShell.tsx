@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Bell, Compass, Flame, Home, LogOut, Plus, Shield, Trophy, User, Wallet } from "lucide-react";
+import { Bell, CalendarClock, Compass, Flame, Home, LogOut, Plus, Shield, Trophy, User, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -13,6 +13,7 @@ import { useI18n } from "@/lib/i18n";
 
 const NAV = [
   { href: "/dashboard", label: "Bosh sahifa", short: "Bosh", icon: Home },
+  { href: "/routine", label: "Kun tartibi", short: "Kun", icon: CalendarClock },
   { href: "/challenges", label: "Challenge'lar", short: "Challenge", icon: Compass },
   { href: "/leaderboard", label: "Reyting", short: "Reyting", icon: Trophy },
   { href: "/wallet", label: "Hamyon", short: "Hamyon", icon: Wallet },

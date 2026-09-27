@@ -45,6 +45,7 @@ def roadmap_to_json(roadmap: Roadmap | None) -> dict[str, Any] | None:
         return None
     return {
         "outcome": roadmap.outcome,
+        "months": list(roadmap.months),
         "weeks": [
             {"theme": w.theme, "goal": w.goal, "lessons": list(w.lessons)} for w in roadmap.weeks
         ],
@@ -60,4 +61,5 @@ def roadmap_from_json(data: dict[str, Any] | None) -> Roadmap | None:
             Milestone(theme=w["theme"], goal=w["goal"], lessons=tuple(w.get("lessons", ())))
             for w in data["weeks"]
         ),
+        months=tuple(data.get("months", ())),
     )

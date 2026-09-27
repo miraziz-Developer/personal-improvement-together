@@ -25,6 +25,11 @@ ALL_FACTS = {
     "focus_line": "Bugungi mavzu: Funksiyalar. ",
     "task": "Kod yozish",
     "at": "07:00",
+    "goals": 2,
+    "first": "06:30 — Yugurish",
+    "month": 2,
+    "done_goal": "Odat shakllandi",
+    "goal": "Natija ko'rinadi",
 }
 
 

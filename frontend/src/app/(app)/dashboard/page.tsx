@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { ArrowRight, CheckCircle2, Sparkles, Star, Target, Trophy } from "lucide-react";
+import { ArrowRight, CalendarClock, CheckCircle2, Sparkles, Star, Target, Trophy } from "lucide-react";
 import Link from "next/link";
 import useSWR from "swr";
 
@@ -10,7 +10,7 @@ import { TelegramNudge } from "@/components/Telegram";
 import { Badge, Button, Card, EmptyState, Skeleton, StreakFlame } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
 import { CATEGORY, DAY_STATUS, greeting, STATUS_LABEL } from "@/lib/format";
-import type { Participation } from "@/lib/types";
+import type { Participation, Routine } from "@/lib/types";
 import { useI18n } from "@/lib/i18n";
 
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
@@ -71,6 +71,33 @@ function ParticipationCard({ p, index }: { p: Participation; index: number }) {
         )}
       </Link>
     </motion.div>
+  );
+}
+
+/** The next few timed tasks of today, across all goals. */
+function NextUp() {
+  const { t } = useI18n();
+  const { data } = useSWR<Routine>("/me/routine", { refreshInterval: 60_000 });
+  const now = new Date().toTimeString().slice(0, 5);
+  const upcoming = data?.items.filter((i) => i.kind === "task" && (i.end ?? i.start) >= now && i.task?.proof_status !== "approved").slice(0, 3) ?? [];
+  if (!data || upcoming.length === 0) return null;
+  return (
+    <Link href="/routine" className="glass group block rounded-3xl p-5 transition hover:border-iris/40">
+      <p className="flex items-center gap-2 font-semibold">
+        <CalendarClock className="size-4 text-iris" /> {t("Keyingi vazifalar")}
+      </p>
+      <ul className="mt-3 flex flex-col gap-2">
+        {upcoming.map((item) => (
+          <li key={`${item.participation_id}-${item.task?.key}`} className="flex items-center gap-3 text-sm">
+            <span className="w-11 shrink-0 font-semibold text-iris tabular-nums">{item.start}</span>
+            <span className="min-w-0 flex-1 truncate">{item.title}</span>
+          </li>
+        ))}
+      </ul>
+      <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-iris group-hover:gap-2">
+        {t("Kun tartibi")} <ArrowRight className="size-4 transition-all" />
+      </span>
+    </Link>
   );
 }
 
@@ -148,6 +175,7 @@ export default function Dashboard() {
           )}
         </div>
         <div className="flex flex-col gap-6">
+          <NextUp />
           <TelegramNudge />
           <QuoteCard />
           <CoachFeed limit={4} />

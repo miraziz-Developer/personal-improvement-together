@@ -30,7 +30,15 @@ from pit.modules.verification.domain.verdict import ProofStatus
 logger = logging.getLogger(__name__)
 
 # Moments that invite the user to act today get a "send proof" button.
-_ACT_NOW = {Moment.MORNING, Moment.EVENING_REMINDER, Moment.PROOF_REJECTED}
+_ACT_NOW = {
+    Moment.MORNING,
+    Moment.MORNING_ROUTINE,
+    Moment.EVENING_REMINDER,
+    Moment.PROOF_REJECTED,
+    Moment.TASK_DUE,
+}
+# About the whole day rather than one challenge, yet still worth a button to act on.
+_ROUTINE = {Moment.MORNING_ROUTINE}
 _FINAL = {Moment.CHALLENGE_COMPLETED, Moment.CHALLENGE_FAILED}
 
 
@@ -52,7 +60,8 @@ async def send_or_unlink(
 
 def notification_keyboard(notification: Notification, web_url: str, lang: str = "uz") -> Keyboard:
     action: list[Button] = []
-    if notification.participation_id and notification.moment not in _FINAL:
+    acts = notification.participation_id or notification.moment in _ROUTINE
+    if acts and notification.moment not in _FINAL:
         key = "btn_send_proof" if notification.moment in _ACT_NOW else "btn_today"
         action = [Button(tr(lang, key), callback=TODAY_CALLBACK)]
     cheer: list[Button] = []

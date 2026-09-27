@@ -57,17 +57,20 @@ class LlmPool:
         response_format: dict[str, Any],
         temperature: float,
         parse: Callable[[str], T],
+        max_tokens: int | None = None,  # long answers (a 90-day roadmap) need room
     ) -> tuple[T, str]:
         """Returns (parsed answer, "provider/model" that gave it). A reply `parse` rejects
         counts as a failure too, so a provider that returns broken JSON is skipped."""
         last_error: Exception | None = None
         for endpoint in self._order():
             try:
+                limits = {"max_tokens": max_tokens} if max_tokens else {}
                 response = await endpoint.client.chat.completions.create(
                     model=endpoint.model,
                     temperature=temperature,
                     messages=messages,
                     response_format=response_format,
+                    **limits,
                 )
                 return parse(response.choices[0].message.content or ""), endpoint.label
             except Exception as error:

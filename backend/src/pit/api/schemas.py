@@ -65,6 +65,7 @@ class MilestoneOut(BaseModel):
 class RoadmapOut(BaseModel):
     outcome: str
     weeks: list[MilestoneOut]
+    months: list[str] = []
 
     @classmethod
     def of(cls, roadmap: Roadmap | None) -> "RoadmapOut | None":
@@ -76,6 +77,7 @@ class RoadmapOut(BaseModel):
                 MilestoneOut(theme=w.theme, goal=w.goal, lessons=list(w.lessons))
                 for w in roadmap.weeks
             ],
+            months=list(roadmap.months),
         )
 
 
@@ -85,6 +87,8 @@ class FocusOut(BaseModel):
     theme: str
     goal: str
     lesson: str | None
+    month: int = 1
+    month_goal: str | None = None
 
     @classmethod
     def of(cls, focus: Focus | None) -> "FocusOut | None":
@@ -96,6 +100,8 @@ class FocusOut(BaseModel):
             theme=focus.theme,
             goal=focus.goal,
             lesson=focus.lesson,
+            month=focus.month,
+            month_goal=focus.month_goal,
         )
 
 

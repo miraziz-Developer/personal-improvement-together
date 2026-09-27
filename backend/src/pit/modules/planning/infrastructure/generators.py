@@ -1,6 +1,7 @@
 """Plan generators. The AI writes the plan; the template generator is both the no-AI mode
 and the safety net when the AI fails. Either way the result is fitted to the user's time."""
 
+import asyncio
 import json
 import logging
 import math
@@ -12,10 +13,18 @@ from typing import Any
 from pit.modules.challenges.domain.challenge import ALLOWED_DURATIONS, Category
 from pit.modules.challenges.domain.roadmap import MAX_TEXT, MAX_WEEKS, Milestone, Roadmap
 from pit.modules.challenges.domain.schedule import Schedule, TaskSpec
-from pit.modules.planning.domain.plan import OnboardingAnswers, PlanProposal
+from pit.modules.planning.domain.life_plan import GoalAnswers, LifePlanRequest
+from pit.modules.planning.domain.plan import (
+    MAX_FREE_MINUTES_PER_DAY,
+    Availability,
+    OnboardingAnswers,
+    PlanProposal,
+)
+from pit.modules.planning.domain.routine import clock, pack
 from pit.modules.planning.infrastructure.generators_ru import (
     DESCRIPTION_RU,
     KEYWORDS_RU,
+    MONTHS_RU,
     PROFILES_RU,
     STAGES_RU,
     TITLE_RU,
@@ -70,7 +79,27 @@ PROFILES: dict[Category, tuple[str, int, str, str]] = {
 KEYWORDS: tuple[tuple[Category, tuple[str, ...]], ...] = (
     (Category.READING, ("kitob", "roman", "mutolaa")),
     (Category.CODE, ("kod", "dastur", "python", "backend", "frontend", "developer", "program")),
-    (Category.SPORT, ("sport", "zal", "yugur", "fitnes", "muay", "boks", "vazn", "mashq", "suz")),
+    (
+        Category.SPORT,
+        (
+            "sport",
+            "zal",
+            "yugur",
+            "fitnes",
+            "muay",
+            "boks",
+            "vazn",
+            "mashq",
+            "suz",
+            "muskul",
+            "mushak",
+            "massa",
+            "tana",
+            "kuch",
+            "turnik",
+            "press",
+        ),
+    ),
     (Category.STUDY, ("ingliz", "til", "ielts", "imtihon", "o'rgan", "matem", "fizika", "sat")),
     (Category.HEALTH, ("uyqu", "suv ich", "meditat", "sog'lom", "ovqat", "erta tur")),
 )
@@ -162,11 +191,20 @@ STAGES_UZ = (
 )
 
 
+MONTHS_UZ = (
+    "Har kungi reja odatga aylandi",
+    "Natija ko'zga aniq ko'rina boshladi",
+    "Maqsad sari eng katta qadam qo'yildi",
+)
+
+
 def template_roadmap(goal: str, duration_days: int, *, ru: bool) -> Roadmap:
     stages = STAGES_RU if ru else STAGES_UZ
     weeks = math.ceil(duration_days / 7)
+    months = (MONTHS_RU if ru else MONTHS_UZ)[: duration_days // 30] if duration_days > 30 else ()
     return Roadmap(
         outcome=goal[:MAX_TEXT],
+        months=months,
         weeks=tuple(
             Milestone(
                 theme=stages[min(i, len(stages) - 1)][0], goal=stages[min(i, len(stages) - 1)][1]
@@ -193,7 +231,14 @@ Qoidalar:
     (masalan "Python: o'zgaruvchilar va turlar", keyingi kun "Python: if/else va sikllar").
     Darsga "Kun 1:" yoki "1-dars" kabi raqam qo'shmang — tartibni ilova o'zi ko'rsatadi.
   - outcome: oxirgi kuni foydalanuvchi nimani qila oladi, 1 gap.
+  - months: davomiylik 30 kundan uzun bo'lsa, har 30 kun oxiridagi aniq, o'lchanadigan marra,
+    tartib bilan ("1-oy:" kabi raqam qo'shmang); 30 kun va undan qisqa bo'lsa — bo'sh ro'yxat.
+- title — butun rejaning qisqa nomi (masalan "90 kunda backend dasturchi"), "1-hafta" demang.
 - Hamma matnlar {language}."""
+
+# A 90-day roadmap is a few thousand tokens; without room the JSON is cut off mid-way.
+PLAN_MAX_TOKENS = 16_000
+LIFE_GOAL_ATTEMPTS = 2  # the free tiers fail now and then; one more try beats a template
 
 # How the prompt names the language the plan must be written in.
 PLAN_LANGUAGE = {"uz": "o'zbek tilida (lotin)", "ru": "rus tilida (kirill)"}
@@ -211,6 +256,7 @@ PLAN_SCHEMA: dict[str, Any] = {
             "type": "object",
             "properties": {
                 "outcome": {"type": "string"},
+                "months": {"type": "array", "items": {"type": "string"}},
                 "weeks": {
                     "type": "array",
                     "items": {
@@ -225,7 +271,7 @@ PLAN_SCHEMA: dict[str, Any] = {
                     },
                 },
             },
-            "required": ["outcome", "weeks"],
+            "required": ["outcome", "months", "weeks"],
             "additionalProperties": False,
         },
         "week": {
@@ -268,6 +314,13 @@ def _clean_time(value: str) -> time | None:
         return None
 
 
+# "1-oy: ...", "30-kun — ...", "Месяц 2: ..." — the app numbers the months itself.
+_MONTH_PREFIX = re.compile(
+    r"^\s*(\d+\s*[-\u2013]?\s*(oy|kun|месяц\w*|день|дн\w*)|(месяц|oy)\s*\d+)\s*[:.\-\u2013\u2014]\s*",
+    re.IGNORECASE,
+)
+
+
 def _short(text: object) -> str:
     return str(text).strip()[:MAX_TEXT]
 
@@ -283,7 +336,10 @@ def _clean_roadmap(data: Any) -> Roadmap | None:
             )
             for w in data["weeks"][:MAX_WEEKS]
         )
-        return Roadmap(outcome=_short(data["outcome"]), weeks=weeks)
+        months = tuple(
+            _short(_MONTH_PREFIX.sub("", str(m))) for m in data.get("months", []) if str(m).strip()
+        )[:3]
+        return Roadmap(outcome=_short(data["outcome"]), weeks=weeks, months=months)
     except (KeyError, TypeError, DomainError):
         logger.warning("AI roadmap was unusable; the plan goes without one")
         return None
@@ -308,28 +364,32 @@ class LlmPlanGenerator:
             logger.exception("AI plan generation failed; using the template plan")
             return await self._fallback.propose(answers)
 
-    async def ask(self, answers: OnboardingAnswers) -> PlanProposal:
-        """The AI's plan without the template fallback (used by `pit.cli ai-check`)."""
+    async def ask(
+        self, answers: OnboardingAnswers, day: dict[str, Any] | None = None
+    ) -> PlanProposal:
+        """The AI's plan without the template fallback (used by `pit.cli ai-check`).
+        `day` describes the user's routine when the goal is part of a life plan."""
         budgets = [answers.availability.budget(d) for d in range(7)]
-        user_text = json.dumps(
-            {
-                "maqsad": answers.goal,
-                "sabab": answers.motivation,
-                "hozirgi_daraja": answers.current_level,
-                "tosiqlar": answers.obstacles,
-                "kunlik_budjet_daqiqa_dushanbadan": budgets,
-            },
-            ensure_ascii=False,
+        facts: dict[str, Any] = {
+            "maqsad": answers.goal,
+            "sabab": answers.motivation,
+            "hozirgi_daraja": answers.current_level,
+            "tosiqlar": answers.obstacles,
+            "kunlik_budjet_daqiqa_dushanbadan": budgets,
+        }
+        if day is not None:
+            facts["kun_tartibi"] = day
+        user_text = json.dumps(facts, ensure_ascii=False)
+        system = PLAN_PROMPT.format(
+            language=PLAN_LANGUAGE.get(answers.language, PLAN_LANGUAGE["uz"])
         )
+        if day is not None:
+            system += LIFE_RULES
         proposal, _ = await self._pool.complete(
             temperature=0.4,
+            max_tokens=PLAN_MAX_TOKENS,
             messages=[
-                {
-                    "role": "system",
-                    "content": PLAN_PROMPT.format(
-                        language=PLAN_LANGUAGE.get(answers.language, PLAN_LANGUAGE["uz"])
-                    ),
-                },
+                {"role": "system", "content": system},
                 {"role": "user", "content": user_text},
             ],
             response_format={
@@ -368,3 +428,98 @@ class LlmPlanGenerator:
             schedule=schedule,
             roadmap=_clean_roadmap(data.get("roadmap")),
         )
+
+
+LIFE_RULES = """
+Bu reja foydalanuvchining bir nechta maqsadidan biri; ular bitta kun tartibida yashaydi:
+- kun_tartibi.bosh_oynalar_dushanbadan — har kuni vazifa qo'yish mumkin bo'lgan vaqt oynalari;
+  at faqat shu oynalar ichida bo'lsin, boshqa hech qayerga emas.
+- Maqsadga mos vaqt tanlang (masalan sport — ertalab yoki kechqurun, o'qish — diqqat yuqori
+  paytda) va boshqa_maqsadlar bilan bir vaqtga qo'ymaslikka harakat qiling.
+- duration_days aynan kun_tartibi.davomiylik_kun bo'lsin."""
+
+
+def _goal_answers(request: LifePlanRequest, goal: GoalAnswers) -> OnboardingAnswers:
+    """Each goal gets an equal share of the free time; the packer settles the exact times."""
+    share = len(request.goals)
+    return OnboardingAnswers(
+        goal=goal.goal,
+        motivation=goal.motivation,
+        current_level=goal.current_level,
+        obstacles="",
+        availability=Availability(
+            minutes_by_weekday=tuple(
+                min(request.frame.free_minutes(d) // share, MAX_FREE_MINUTES_PER_DAY)
+                for d in range(7)
+            )
+        ),
+        language=request.language,
+    )
+
+
+def _day_hint(request: LifePlanRequest, index: int) -> dict[str, Any]:
+    frame = request.frame
+    return {
+        "uygonish": frame.wake.strftime("%H:%M"),
+        "uxlash": frame.sleep.strftime("%H:%M"),
+        "bosh_oynalar_dushanbadan": [
+            [
+                f"{clock(a).strftime('%H:%M')}-{clock(b).strftime('%H:%M')}"
+                for a, b in frame.free_windows(d)
+            ]
+            for d in range(7)
+        ],
+        "boshqa_maqsadlar": [g.goal for i, g in enumerate(request.goals) if i != index],
+        "davomiylik_kun": request.duration_days,
+    }
+
+
+def _fit_life(request: LifePlanRequest, proposals: list[PlanProposal]) -> tuple[PlanProposal, ...]:
+    schedules = pack(request.frame, [p.schedule for p in proposals])
+    return tuple(
+        replace(p, schedule=schedule, duration_days=request.duration_days)
+        for p, schedule in zip(proposals, schedules, strict=True)
+    )
+
+
+class TemplateLifePlanGenerator:
+    """No-AI life plan: a template plan per goal, then packed into the day."""
+
+    def __init__(self, template: TemplatePlanGenerator | None = None) -> None:
+        self._template = template or TemplatePlanGenerator()
+
+    async def one(self, request: LifePlanRequest, index: int) -> PlanProposal:
+        goal = request.goals[index]
+        proposal = await self._template.propose(_goal_answers(request, goal))
+        roadmap = template_roadmap(goal.goal, request.duration_days, ru=request.language == "ru")
+        return replace(proposal, roadmap=roadmap)
+
+    async def propose(self, request: LifePlanRequest) -> tuple[PlanProposal, ...]:
+        return _fit_life(request, [await self.one(request, i) for i in range(len(request.goals))])
+
+
+class LlmLifePlanGenerator:
+    """One AI call per goal, in parallel (a single call for three 90-day roadmaps would be
+    slow and fragile); a goal whose call fails falls back to the template."""
+
+    def __init__(self, single: LlmPlanGenerator, fallback: TemplateLifePlanGenerator) -> None:
+        self._single = single
+        self._fallback = fallback
+
+    async def _one(self, request: LifePlanRequest, index: int) -> PlanProposal:
+        answers = _goal_answers(request, request.goals[index])
+        for attempt in range(1, LIFE_GOAL_ATTEMPTS + 1):
+            try:
+                return await self._single.ask(answers, _day_hint(request, index))
+            except DomainError:
+                raise
+            except Exception:
+                logger.warning("AI life plan goal %s, attempt %s failed", index + 1, attempt)
+        logger.error("AI life plan goal %s failed; using the template", index + 1)
+        return await self._fallback.one(request, index)
+
+    async def propose(self, request: LifePlanRequest) -> tuple[PlanProposal, ...]:
+        proposals = await asyncio.gather(
+            *(self._one(request, i) for i in range(len(request.goals)))
+        )
+        return _fit_life(request, list(proposals))

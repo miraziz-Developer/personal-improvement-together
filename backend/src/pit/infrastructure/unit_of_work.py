@@ -15,7 +15,10 @@ from pit.modules.challenges.infrastructure.repositories import (
 from pit.modules.coaching.infrastructure.repositories import SqlNotificationRepository
 from pit.modules.identity.infrastructure.repositories import SqlUserRepository
 from pit.modules.moderation.infrastructure.repositories import SqlReportRepository
-from pit.modules.planning.infrastructure.repositories import SqlPlanRepository
+from pit.modules.planning.infrastructure.repositories import (
+    SqlLifePlanRepository,
+    SqlPlanRepository,
+)
 from pit.modules.push.infrastructure.repositories import SqlPushSubscriptionRepository
 from pit.modules.ranking.infrastructure.repositories import SqlScoreRepository
 from pit.modules.verification.infrastructure.repositories import SqlProofRepository
@@ -42,6 +45,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
     ledger: SqlLedgerRepository
     scores: SqlScoreRepository
     plans: SqlPlanRepository
+    life_plans: SqlLifePlanRepository
     notifications: SqlNotificationRepository
     reports: SqlReportRepository
     push_subscriptions: SqlPushSubscriptionRepository
@@ -61,6 +65,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
         self.proofs = SqlProofRepository(self._session, self._seen)
         self.wallets = SqlWalletRepository(self._session, self._seen)
         self.plans = SqlPlanRepository(self._session, self._seen)
+        self.life_plans = SqlLifePlanRepository(self._session, self._seen)
         self.notifications = SqlNotificationRepository(self._session, self._seen)
         self.reports = SqlReportRepository(self._session, self._seen)
         self.push_subscriptions = SqlPushSubscriptionRepository(self._session, self._seen)
@@ -87,6 +92,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
             self.proofs,
             self.wallets,
             self.plans,
+            self.life_plans,
             self.notifications,
             self.reports,
             self.push_subscriptions,

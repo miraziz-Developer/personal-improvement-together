@@ -28,9 +28,11 @@ from pit.modules.identity.infrastructure.security import (
     RedisLinkTokens,
     RedisOtpStore,
 )
-from pit.modules.planning.application.ports import PlanGenerator
+from pit.modules.planning.application.ports import LifePlanGenerator, PlanGenerator
 from pit.modules.planning.infrastructure.generators import (
+    LlmLifePlanGenerator,
     LlmPlanGenerator,
+    TemplateLifePlanGenerator,
     TemplatePlanGenerator,
 )
 from pit.modules.push.infrastructure.sender import VapidWebPushSender
@@ -237,8 +239,14 @@ def build_container(
             if proof_ai
             else DevProofVerifier()
         )
+    plan_ai, template = ai_pool(settings, "plan"), TemplatePlanGenerator()
+    life_template = TemplateLifePlanGenerator(template)
+    life_plan_generator: LifePlanGenerator = (
+        LlmLifePlanGenerator(LlmPlanGenerator(plan_ai, template), life_template)
+        if plan_ai
+        else life_template
+    )
     if plan_generator is None:
-        plan_ai, template = ai_pool(settings, "plan"), TemplatePlanGenerator()
         plan_generator = LlmPlanGenerator(plan_ai, template) if plan_ai else template
     queue: InlineVerificationQueue | CeleryVerificationQueue = (
         InlineVerificationQueue() if settings.inline_tasks else CeleryVerificationQueue(settings)
@@ -273,6 +281,7 @@ def build_container(
             verification_queue=queue,
             leaderboard=leaderboard,
             plan_generator=plan_generator,
+            life_plan_generator=life_plan_generator,
             password_hasher=hasher,
             otp_store=otp_store or RedisOtpStore(redis),
             sms_sender=sms_sender,

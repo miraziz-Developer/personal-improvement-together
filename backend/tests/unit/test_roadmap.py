@@ -107,3 +107,17 @@ def test_a_broken_ai_roadmap_is_dropped_not_the_plan() -> None:
 def test_the_template_roadmap_covers_every_week() -> None:
     assert len(template_roadmap("Python", 30, ru=False).weeks) == 5
     assert template_roadmap("Python", 21, ru=True).weeks[0].theme == "Фундамент"
+
+
+def test_month_milestones_lose_the_numbers_the_app_adds_itself() -> None:
+    roadmap = {
+        "outcome": "Loyiha",
+        "months": ["1-oy: Asoslar", "2-oy — Loyiha", "Deploy"],
+        "weeks": [{"theme": "Asoslar", "goal": "Asos", "lessons": ["A"]}],
+    }
+    proposal = LlmPlanGenerator._to_proposal(ai_answer(roadmap), ANSWERS)
+    assert proposal.roadmap is not None and proposal.roadmap.months == (
+        "Asoslar",
+        "Loyiha",
+        "Deploy",
+    )

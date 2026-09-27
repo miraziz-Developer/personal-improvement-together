@@ -10,6 +10,7 @@ from pit.modules.challenges.application.commands import CloseDays, JoinChallenge
 from pit.modules.challenges.domain.challenge import Challenge, ParticipationMode
 from pit.modules.challenges.domain.participation import Participation
 from pit.modules.identity.domain.user import Role, User
+from pit.modules.planning.infrastructure.generators import TemplateLifePlanGenerator
 from pit.modules.verification.application.commands import SubmitProof, VerifyProof
 from pit.modules.verification.infrastructure.storage import InMemoryStorage
 from pit.modules.wallet.application.commands import Deposit
@@ -167,6 +168,7 @@ def world() -> World:
         verification_queue=queue,
         leaderboard=leaderboard,
         plan_generator=planner,
+        life_plan_generator=TemplateLifePlanGenerator(),
         password_hasher=FakeHasher(),
         otp_store=otp_store,
         sms_sender=sms,

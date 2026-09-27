@@ -15,7 +15,8 @@ from pit.modules.coaching.domain.notification import Notification
 from pit.modules.identity.application.ports import GoogleIdentity
 from pit.modules.identity.domain.user import User
 from pit.modules.moderation.domain.report import Report, ReportStatus
-from pit.modules.planning.domain.plan import OnboardingAnswers, Plan, PlanProposal
+from pit.modules.planning.domain.life_plan import LifePlan
+from pit.modules.planning.domain.plan import OnboardingAnswers, Plan, PlanProposal, PlanStatus
 from pit.modules.push.application.ports import PushMessage, SubscriptionGone
 from pit.modules.push.domain.subscription import PushSubscription
 from pit.modules.ranking.domain.scoring import ScoreEntry
@@ -49,6 +50,7 @@ class InMemoryStore:
     ledger: list[LedgerTransaction] = field(default_factory=list)
     scores: dict[str, ScoreEntry] = field(default_factory=dict)
     plans: dict[UUID, Plan] = field(default_factory=dict)
+    life_plans: dict[UUID, LifePlan] = field(default_factory=dict)
     notifications: dict[UUID, Notification] = field(default_factory=dict)
 
 
@@ -176,7 +178,23 @@ class FakeWallets(_Repo[Wallet]):
 
 
 class FakePlans(_Repo[Plan]):
-    pass
+    async def delete_for_user(self, user_id: UUID) -> None:
+        for plan_id in [p.id for p in self._all() if p.user_id == user_id]:
+            self._store.pop(plan_id, None)
+            self._staged.pop(plan_id, None)
+
+
+class FakeLifePlans(_Repo[LifePlan]):
+    async def latest_started(self, user_id: UUID) -> LifePlan | None:
+        started = [
+            p for p in self._all() if p.user_id == user_id and p.status is PlanStatus.STARTED
+        ]
+        return started[-1] if started else None
+
+    async def delete_for_user(self, user_id: UUID) -> None:
+        for plan_id in [p.id for p in self._all() if p.user_id == user_id]:
+            self._store.pop(plan_id, None)
+            self._staged.pop(plan_id, None)
 
 
 class FakeNotifications(_Repo[Notification]):
@@ -243,6 +261,7 @@ class FakeUnitOfWork(UnitOfWork):
         self.ledger = FakeLedger(store.ledger)
         self.scores = FakeScores(store.scores)
         self.plans = FakePlans(store.plans, self._seen)
+        self.life_plans = FakeLifePlans(store.life_plans, self._seen)
         self.notifications = FakeNotifications(store.notifications, self._seen)
         self._repos = [
             self.users,
@@ -256,6 +275,7 @@ class FakeUnitOfWork(UnitOfWork):
             self.ledger,
             self.scores,
             self.plans,
+            self.life_plans,
             self.notifications,
         ]
         self.committed = False

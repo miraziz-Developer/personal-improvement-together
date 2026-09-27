@@ -11,6 +11,8 @@ from pit.shared.domain.errors import InvariantViolation
 
 MAX_WEEKS = 13  # the longest challenge is 90 days
 MAX_LESSONS_PER_WEEK = 7
+MAX_MONTHS = 3
+DAYS_PER_MONTH = 30  # a plan month: days 1-30, 31-60, 61-90
 MAX_TEXT = 200
 
 
@@ -45,17 +47,24 @@ class Focus:
     theme: str
     goal: str
     lesson: str | None  # None when the week has no lesson written for this day
+    month: int = 1  # 1-based plan month (30 days each)
+    month_goal: str | None = None  # the milestone this month leads to, if the roadmap has them
 
 
 @dataclass(frozen=True, slots=True)
 class Roadmap:
     outcome: str  # where you stand on the last day
     weeks: tuple[Milestone, ...]
+    months: tuple[str, ...] = ()  # monthly milestones: what is true at the end of each month
 
     def __post_init__(self) -> None:
         _check(self.outcome, "Yakuniy natija")
         if not 1 <= len(self.weeks) <= MAX_WEEKS:
             raise InvariantViolation(f"Yo'l xaritasi 1-{MAX_WEEKS} haftadan iborat bo'lsin")
+        if len(self.months) > MAX_MONTHS:
+            raise InvariantViolation(f"Oylik marralar {MAX_MONTHS} tadan oshmasin")
+        for month in self.months:
+            _check(month, "Oylik marra")
 
     def focus(self, start: date, working_days: Iterable[date], day: date) -> Focus | None:
         """Today's place on the roadmap. Weeks count from the start date; within a week the
@@ -71,10 +80,13 @@ class Roadmap:
         lesson = milestone.lessons[earlier] if earlier < len(milestone.lessons) else None
         if index >= len(self.weeks) or day not in working:
             lesson = None  # beyond the written roadmap: keep the theme, no invented lessons
+        month = (day - start).days // DAYS_PER_MONTH
         return Focus(
             week=min(index, len(self.weeks) - 1) + 1,
             weeks=len(self.weeks),
             theme=milestone.theme,
             goal=milestone.goal,
             lesson=lesson,
+            month=month + 1,
+            month_goal=self.months[min(month, len(self.months) - 1)] if self.months else None,
         )

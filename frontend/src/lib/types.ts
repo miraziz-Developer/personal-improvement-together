@@ -23,6 +23,7 @@ export interface Milestone {
 export interface Roadmap {
   outcome: string;
   weeks: Milestone[];
+  months: string[]; // what is true at the end of each 30 days
 }
 
 export interface Focus {
@@ -31,6 +32,8 @@ export interface Focus {
   theme: string;
   goal: string;
   lesson: string | null;
+  month: number;
+  month_goal: string | null;
 }
 
 export interface Region {
@@ -225,4 +228,55 @@ export interface Badge {
   title: string;
   hint: string;
   earned: boolean;
+}
+
+export interface BusyBlock {
+  label: string;
+  weekdays: number[]; // 0 = Monday
+  start: string;
+  end: string;
+}
+
+export interface LifeGoal {
+  key: string;
+  goal: string;
+  title: string;
+  description: string;
+  category: Category;
+  difficulty: number;
+  verification_prompt: string;
+  week: Week;
+  roadmap: Roadmap | null;
+  participation_id: string | null;
+}
+
+export interface LifePlan {
+  id: string;
+  status: "draft" | "started";
+  duration_days: number;
+  wake: string;
+  sleep: string;
+  busy: BusyBlock[];
+  budgets: number[];
+  goals: LifeGoal[];
+}
+
+export interface RoutineItem {
+  kind: "wake" | "busy" | "task" | "sleep";
+  start: string;
+  end: string | null;
+  title: string;
+  participation_id: string | null;
+  challenge_title: string | null;
+  category: Category | null;
+  task: TodayTask | null;
+  lesson: string | null;
+}
+
+export interface Routine {
+  date: string;
+  has_life_plan: boolean;
+  items: RoutineItem[];
+  untimed: RoutineItem[];
+  months: { participation_id: string; title: string; month: number; goal: string }[];
 }

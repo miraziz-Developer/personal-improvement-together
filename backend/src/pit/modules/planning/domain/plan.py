@@ -79,6 +79,22 @@ class PlanProposal:
     roadmap: Roadmap | None = None  # week themes and day lessons; the AI writes them
 
 
+def proposal_spec(p: PlanProposal) -> ChallengeSpec:
+    """What an accepted proposal becomes: the user's personal challenge."""
+    return ChallengeSpec(
+        title=p.title,
+        description=p.description,
+        category=p.category,
+        duration_days=p.duration_days,
+        difficulty=p.difficulty,
+        proof_types=PLAN_PROOF_TYPES,
+        verification_prompt=p.verification_prompt,
+        stake_policy=StakePolicy(allowed=True),
+        default_schedule=p.schedule,
+        roadmap=p.roadmap,
+    )
+
+
 class PlanStatus(StrEnum):
     DRAFT = "draft"
     STARTED = "started"
@@ -121,19 +137,7 @@ class Plan(AggregateRoot):
         self.proposal = replace(self.proposal, schedule=schedule)
 
     def challenge_spec(self) -> ChallengeSpec:
-        p = self.proposal
-        return ChallengeSpec(
-            title=p.title,
-            description=p.description,
-            category=p.category,
-            duration_days=p.duration_days,
-            difficulty=p.difficulty,
-            proof_types=PLAN_PROOF_TYPES,
-            verification_prompt=p.verification_prompt,
-            stake_policy=StakePolicy(allowed=True),
-            default_schedule=p.schedule,
-            roadmap=p.roadmap,
-        )
+        return proposal_spec(self.proposal)
 
     def mark_started(self, *, challenge_id: UUID, participation_id: UUID) -> None:
         if self.status is not PlanStatus.DRAFT:

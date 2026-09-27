@@ -131,6 +131,24 @@ LIBRARY: dict[Moment, tuple[tuple[str, str], ...]] = {
             "Bu dunyodagi eng yaxshi sarmoya.",
         ),
     ),
+    Moment.MORNING_ROUTINE: (
+        (
+            "Xayrli tong, {name}! ☀️",
+            "Bugun {goals} ta maqsad bo'yicha {tasks} ta vazifa, jami {minutes} daqiqa. "
+            "Birinchisi: {first}. {focus_line}Kun tartibingiz tayyor!",
+        ),
+        (
+            "Bugungi kun tartibi 🗓",
+            "{tasks} ta vazifa, {minutes} daqiqa. Boshlanishi — {first}. {focus_line}"
+            "Qadam-baqadam, {name}!",
+        ),
+    ),
+    Moment.MONTH_STARTED: (
+        (
+            "🏁 {month}-oy boshlandi",
+            "«{title}»: o'tgan oy marrasi — {done_goal}. Bu oyning marrasi: {goal}. Davom etamiz!",
+        ),
+    ),
     Moment.TASK_DUE: (
         (
             "⏰ {task} vaqti",
