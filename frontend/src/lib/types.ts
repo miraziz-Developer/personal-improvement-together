@@ -299,6 +299,7 @@ export interface RoutineItem {
 export interface Routine {
   date: string;
   has_life_plan: boolean;
+  frame: { wake: string; sleep: string; busy: BusyBlock[] } | null;
   items: RoutineItem[];
   untimed: RoutineItem[];
   months: { participation_id: string; title: string; month: number; goal: string }[];

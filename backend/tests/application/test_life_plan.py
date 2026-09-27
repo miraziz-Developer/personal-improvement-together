@@ -6,9 +6,11 @@ from pit.modules.coaching.application.commands import SendDailyNudges
 from pit.modules.coaching.domain.moments import Moment
 from pit.modules.identity.application.commands import EraseAccount
 from pit.modules.planning.application.commands import (
+    ChangeDayFrame,
     DraftLifePlan,
     EditLifePlanGoal,
     RetimeLifePlanRun,
+    RetimeTasks,
     StartLifePlan,
 )
 from pit.modules.planning.domain.life_plan import GoalAnswers, LifePlanRequest
@@ -156,3 +158,37 @@ async def test_the_routine_only_retimes_a_running_challenge(world: World) -> Non
                 user_id=user.id, plan_id=plan_id, participation_id=running, schedule=longer
             )
         )
+
+
+async def test_tasks_can_be_moved_by_hand_but_not_onto_commitments(world: World) -> None:
+    user = world.add_user()
+    plan_id = await world.bus.handle(DraftLifePlan(user_id=user.id, request=request()))
+    await world.bus.handle(StartLifePlan(user_id=user.id, plan_id=plan_id))
+    joined_later = await world.join(user, world.add_challenge(duration_days=30))  # untimed
+
+    await world.bus.handle(
+        RetimeTasks(user_id=user.id, participation_id=joined_later, times={"main": time(21, 30)})
+    )
+    assert world.participation(joined_later).tasks_on(world.today)[0].at == time(21, 30)
+
+    with pytest.raises(DomainError, match="ustma-ust"):  # 10:00 is work time on weekdays
+        await world.bus.handle(
+            RetimeTasks(user_id=user.id, participation_id=joined_later, times={"main": time(10, 0)})
+        )
+
+
+async def test_the_day_frame_can_change_unless_it_hits_a_task(world: World) -> None:
+    user = world.add_user()
+    plan_id = await world.bus.handle(DraftLifePlan(user_id=user.id, request=request()))
+    await world.bus.handle(StartLifePlan(user_id=user.id, plan_id=plan_id))
+    later_sleep = DayFrame(wake=time(6, 0), sleep=time(23, 30), busy=FRAME.busy)
+    await world.bus.handle(ChangeDayFrame(user_id=user.id, frame=later_sleep))
+    assert world.store.life_plans[plan_id].frame.sleep == time(23, 30)
+
+    all_day_busy = DayFrame(
+        wake=time(6, 0),
+        sleep=time(23, 0),
+        busy=(BusyBlock("Ish", frozenset(range(7)), time(6, 0), time(23, 0)),),
+    )
+    with pytest.raises(DomainError):
+        await world.bus.handle(ChangeDayFrame(user_id=user.id, frame=all_day_busy))

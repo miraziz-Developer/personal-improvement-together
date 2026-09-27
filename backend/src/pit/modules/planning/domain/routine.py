@@ -125,6 +125,28 @@ def check_fits(frame: DayFrame, schedules: Sequence[Schedule], *, fixed: int = 0
             )
 
 
+def check_clashes(frame: DayFrame | None, schedules: Sequence[Schedule]) -> None:
+    """For moving tasks around by hand: timed tasks stay inside the waking day, off the fixed
+    commitments and off each other. Untimed tasks are simply not part of the timeline yet."""
+    for weekday, name in enumerate(WEEKDAY_NAMES):
+        taken: list[tuple[Span, str]] = (
+            [(b.span, b.label) for b in frame.busy_on(weekday)] if frame else []
+        )
+        for schedule in schedules:
+            for task in schedule.week[weekday]:
+                if task.at is None:
+                    continue
+                span = (minutes_of(task.at), minutes_of(task.at) + task.minutes)
+                if frame and (
+                    span[0] < minutes_of(frame.wake) or span[1] > minutes_of(frame.sleep)
+                ):
+                    raise DomainError(f"{name}: «{task.title}» uyg'oq vaqtingizdan tashqarida")
+                clash = next((label for other, label in taken if _overlaps(span, other)), None)
+                if clash is not None:
+                    raise DomainError(f"{name}: «{task.title}» va «{clash}» vaqti ustma-ust tushdi")
+                taken.append((span, task.title))
+
+
 def _padded(taken: list[Span]) -> list[Span]:
     return [(a - GAP_MINUTES, b + GAP_MINUTES) for a, b in taken]
 

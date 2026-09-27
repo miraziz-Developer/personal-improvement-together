@@ -8,6 +8,8 @@ import re
 from collections.abc import Callable
 
 ERRORS_RU: dict[str, str] = {
+    "Kun tartibi hali tuzilmagan": "Распорядок дня ещё не составлен",
+    "Bu kun tartibi yangisi bilan almashtirilgan": "Этот распорядок заменён новым",
     "Bu challenge kun tartibida yo'q": "Этого челленджа нет в распорядке",
     "Kun tartibida faqat vazifalar vaqtini o'zgartirish mumkin": "В распорядке можно менять только время задач",
     "Band vaqt uchun kamida bitta hafta kuni tanlang": "Выберите хотя бы один день недели для занятого времени",

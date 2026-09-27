@@ -7,6 +7,7 @@ from pit.modules.challenges.domain.challenge import ParticipationMode
 from pit.modules.challenges.domain.schedule import Schedule
 from pit.modules.planning.domain.life_plan import LifePlanRequest
 from pit.modules.planning.domain.plan import OnboardingAnswers
+from pit.modules.planning.domain.routine import DayFrame
 from pit.shared.application.messagebus import Command
 
 
@@ -67,3 +68,21 @@ class StartLifePlan(Command):
 
     user_id: UUID
     plan_id: UUID
+
+
+@dataclass(frozen=True, kw_only=True)
+class RetimeTasks(Command):
+    """Move tasks of a running challenge on the daily timeline (task key -> time, None = no
+    time). The same time applies on every day the task happens."""
+
+    user_id: UUID
+    participation_id: UUID
+    times: Mapping[str, time | None]
+
+
+@dataclass(frozen=True, kw_only=True)
+class ChangeDayFrame(Command):
+    """New wake/sleep times or fixed commitments for the routine the user lives by."""
+
+    user_id: UUID
+    frame: DayFrame

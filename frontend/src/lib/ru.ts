@@ -554,4 +554,11 @@ export const RU: Record<string, string> = {
   "Nima qilasiz?": "Чем заняты?",
   "Bir vaqtda 3 tagacha yangi maqsad. Har biri o'z streak'iga ega bo'ladi — birida qoqilsangiz, boshqasi buzilmaydi.": "До 3 новых целей одновременно. У каждой своя серия — споткнётесь в одной, другие не пострадают.",
   "Sizda allaqachon faol challenge'lar bor — ular ham kun tartibiga kiradi. Har vazifani qachon qilasiz? Bo'sh qoldirsangiz, vaqtni o'zim topaman.": "У вас уже есть активные челленджи — они тоже войдут в распорядок. Когда вы делаете каждую задачу? Оставите пустым — время подберу сам.",
+  "Vaqt saqlandi: {time}": "Время сохранено: {time}",
+  "Vaqt olib tashlandi": "Время убрано",
+  "Kun tartibi yangilandi": "Распорядок обновлён",
+  "Kuningiz": "Ваш день",
+  "Tayyor": "Готово",
+  "Tahrirlash": "Редактировать",
+  "Vaqt qo'ying — vazifa kun tartibiga tushadi va vaqtida eslataman.": "Поставьте время — задача попадёт в распорядок, и я напомню вовремя.",
 };

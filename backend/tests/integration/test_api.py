@@ -725,3 +725,47 @@ async def test_the_routine_takes_in_running_challenges_and_lists_what_i_created(
     assert invite.status_code == 200, invite.text
     created = (await api.client.get("/api/v1/me/created-challenges", headers=auth)).json()
     assert created[0]["invite_code"] == invite.json()["invite_code"]
+
+
+async def test_editing_the_routine_by_hand(api: Api) -> None:
+    auth = await api.register()
+    body = {
+        "goals": [{"goal": "Har kuni sport"}],
+        "wake": "06:00",
+        "sleep": "23:00",
+        "busy": [
+            {"label": "Ish", "weekdays": [0, 1, 2, 3, 4, 5, 6], "start": "09:00", "end": "18:00"}
+        ],
+        "duration_days": 30,
+    }
+    plan = (await api.client.post("/api/v1/life-plans", json=body, headers=auth)).json()
+    await api.client.post(f"/api/v1/life-plans/{plan['id']}/start", headers=auth)
+    catalog = (await api.client.get("/api/v1/challenges")).json()
+    calm = next(c for c in catalog if c["duration_days"] == 14)
+    joined = (
+        await api.client.post(
+            f"/api/v1/challenges/{calm['id']}/join", json={"mode": "free"}, headers=auth
+        )
+    ).json()["id"]
+    assert (await api.client.get("/api/v1/me/routine", headers=auth)).json()["untimed"]
+
+    moved = await api.client.put(
+        f"/api/v1/me/participations/{joined}/times",
+        json={"times": {"meditate": "22:00"}},
+        headers=auth,
+    )
+    assert moved.status_code == 204, moved.text
+    routine = (await api.client.get("/api/v1/me/routine", headers=auth)).json()
+    assert routine["untimed"] == [] and routine["frame"]["wake"] == "06:00"
+    assert any(i["start"] == "22:00" for i in routine["items"] if i["kind"] == "task")
+
+    clash = await api.client.put(
+        f"/api/v1/me/participations/{joined}/times",
+        json={"times": {"meditate": "12:00"}},
+        headers=auth,
+    )
+    assert clash.status_code == 422 and "Ish" in clash.json()["message"]
+
+    frame = {**routine["frame"], "sleep": "23:30"}
+    changed = await api.client.put("/api/v1/me/life-plan/frame", json=frame, headers=auth)
+    assert changed.status_code == 200 and changed.json()["sleep"] == "23:30"

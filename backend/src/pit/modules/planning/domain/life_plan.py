@@ -179,6 +179,13 @@ class LifePlan(AggregateRoot):
             self.existing = previous
             raise
 
+    def change_frame(self, frame: DayFrame) -> None:
+        """New wake/sleep times or commitments for the routine being lived. The caller checks
+        the running tasks against it (they live in the participations, not here)."""
+        if self.status is PlanStatus.REPLACED:
+            raise InvalidStateTransition("Bu kun tartibi yangisi bilan almashtirilgan")
+        self.frame = frame
+
     def retire(self) -> None:
         """A newer routine replaces this one: a person lives by one daily routine."""
         if self.status is PlanStatus.STARTED:

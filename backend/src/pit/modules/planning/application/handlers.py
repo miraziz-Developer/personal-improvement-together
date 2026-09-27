@@ -13,11 +13,13 @@ from pit.modules.challenges.domain.challenge import Challenge, ParticipationMode
 from pit.modules.challenges.domain.schedule import Schedule
 from pit.modules.identity.domain.events import AccountErased
 from pit.modules.planning.application.commands import (
+    ChangeDayFrame,
     DraftLifePlan,
     DraftPlan,
     EditLifePlanGoal,
     EditPlan,
     RetimeLifePlanRun,
+    RetimeTasks,
     StartLifePlan,
     StartPlan,
 )
@@ -25,9 +27,10 @@ from pit.modules.planning.application.ports import LifePlanGenerator, PlanGenera
 from pit.modules.planning.domain.life_plan import ExistingRun, LifePlan
 from pit.modules.planning.domain.plan import Plan
 from pit.modules.planning.domain.repositories import LifePlanRepository, PlanRepository
+from pit.modules.planning.domain.routine import check_clashes
 from pit.shared.application.clock import Clock, local_date
 from pit.shared.application.lookup import require
-from pit.shared.domain.errors import PermissionDenied
+from pit.shared.domain.errors import NotFound, PermissionDenied
 from pit.shared.domain.money import Money
 
 
@@ -216,4 +219,50 @@ async def forget_plans(event: AccountErased, uow: PlanningUoW) -> None:
     async with uow:
         await uow.plans.delete_for_user(event.user_id)
         await uow.life_plans.delete_for_user(event.user_id)
+        await uow.commit()
+
+
+async def _running_schedules(
+    uow: PlanningUoW, user_id: UUID, besides: UUID | None = None
+) -> list[Schedule]:
+    schedules = []
+    for participation_id in await uow.participations.list_open_ids(user_id):
+        if participation_id == besides:
+            continue
+        participation = await uow.participations.get(participation_id)
+        if participation is not None:
+            schedules.append(participation.current_schedule)
+    return schedules
+
+
+async def retime_tasks(cmd: RetimeTasks, uow: PlanningUoW, *, clock: Clock) -> None:
+    """Hand edits on the daily timeline. Only times change, so it applies from today."""
+    async with uow:
+        user = require(await uow.users.get(cmd.user_id), "Foydalanuvchi topilmadi")
+        participation = require(
+            await uow.participations.get(cmd.participation_id), "Challenge topilmadi"
+        )
+        if participation.user_id != user.id:
+            raise PermissionDenied("Bu sizning challenge'ingiz emas")
+        current = participation.current_schedule
+        timed = Schedule(
+            week=tuple(
+                tuple(replace(t, at=cmd.times[t.key]) if t.key in cmd.times else t for t in day)
+                for day in current.week
+            )
+        )
+        routine = await uow.life_plans.latest_started(user.id)
+        others = await _running_schedules(uow, user.id, besides=participation.id)
+        check_clashes(routine.frame if routine else None, [*others, timed])
+        participation.retime(timed, local_date(clock.now(), user.timezone))
+        await uow.commit()
+
+
+async def change_day_frame(cmd: ChangeDayFrame, uow: PlanningUoW) -> None:
+    async with uow:
+        routine = await uow.life_plans.latest_started(cmd.user_id)
+        if routine is None:
+            raise NotFound("Kun tartibi hali tuzilmagan")
+        check_clashes(cmd.frame, await _running_schedules(uow, cmd.user_id))
+        routine.change_frame(cmd.frame)
         await uow.commit()

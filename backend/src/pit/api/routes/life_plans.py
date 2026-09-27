@@ -17,9 +17,11 @@ from pit.modules.challenges.domain.participation import ParticipationStatus
 from pit.modules.challenges.infrastructure.tables import challenges, participations
 from pit.modules.identity.domain.user import Locale
 from pit.modules.planning.application.commands import (
+    ChangeDayFrame,
     DraftLifePlan,
     EditLifePlanGoal,
     RetimeLifePlanRun,
+    RetimeTasks,
     StartLifePlan,
 )
 from pit.modules.planning.domain.life_plan import GoalAnswers, LifePlan, LifePlanRequest
@@ -51,6 +53,16 @@ class RunTimesIn(BaseModel):
 
     participation_id: UUID
     times: dict[str, Clock | None]  # task key -> "HH:MM", None = find a time for me
+
+
+class FrameIO(BaseModel):
+    wake: Clock
+    sleep: Clock
+    busy: list[BusyIO] = []
+
+
+class TimesIn(BaseModel):
+    times: dict[str, Clock | None]  # task key -> "HH:MM", None = no time
 
 
 class LifePlanIn(BaseModel):
@@ -144,6 +156,7 @@ class MonthGoal(BaseModel):
 class RoutineOut(BaseModel):
     date: str
     has_life_plan: bool
+    frame: FrameIO | None  # the whole day frame, for editing
     items: list[RoutineItem]  # the timeline, earliest first
     untimed: list[RoutineItem]  # today's tasks without a clock time
     months: list[MonthGoal]
@@ -153,7 +166,7 @@ def _hhmm(moment: time) -> str:
     return moment.strftime("%H:%M")
 
 
-def _frame(body: LifePlanIn) -> DayFrame:
+def _frame(body: LifePlanIn | FrameIO) -> DayFrame:
     return DayFrame(
         wake=time.fromisoformat(body.wake),
         sleep=time.fromisoformat(body.sleep),
@@ -166,6 +179,19 @@ def _frame(body: LifePlanIn) -> DayFrame:
             )
             for b in body.busy
         ),
+    )
+
+
+def _frame_out(frame: DayFrame) -> FrameIO:
+    return FrameIO(
+        wake=_hhmm(frame.wake),
+        sleep=_hhmm(frame.sleep),
+        busy=[
+            BusyIO(
+                label=b.label, weekdays=sorted(b.weekdays), start=_hhmm(b.start), end=_hhmm(b.end)
+            )
+            for b in frame.busy
+        ],
     )
 
 
@@ -283,6 +309,30 @@ async def retime_run(
         )
     )
     return await _load(plan_id, user_id, container, locale)
+
+
+@router.put("/me/participations/{participation_id}/times", status_code=204)
+async def retime_tasks(
+    participation_id: UUID, body: TimesIn, user_id: UserId, container: ContainerDep
+) -> None:
+    """Move tasks on the daily timeline by hand (same time on every day of the task)."""
+    await container.bus.handle(
+        RetimeTasks(
+            user_id=user_id,
+            participation_id=participation_id,
+            times={k: time.fromisoformat(v) if v else None for k, v in body.times.items()},
+        )
+    )
+
+
+@router.put("/me/life-plan/frame", response_model=LifePlanOut)
+async def change_frame(
+    body: FrameIO, user_id: UserId, container: ContainerDep, locale: LocaleDep
+) -> LifePlanOut:
+    await container.bus.handle(ChangeDayFrame(user_id=user_id, frame=_frame(body)))
+    async with container.uow_factory() as uow:
+        plan = require(await uow.life_plans.latest_started(user_id), "Reja topilmadi")
+        return life_plan_out(plan, locale)
 
 
 @router.get("/me/routine/candidates", response_model=list[CandidateOut])
@@ -462,6 +512,7 @@ async def my_routine(user_id: UserId, container: ContainerDep, locale: LocaleDep
     return RoutineOut(
         date=today.isoformat(),
         has_life_plan=plan is not None,
+        frame=_frame_out(plan.frame) if plan else None,
         items=items,
         untimed=untimed,
         months=months,
