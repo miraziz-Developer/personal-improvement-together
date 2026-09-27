@@ -683,3 +683,45 @@ async def test_a_life_plan_needs_sensible_input(api: Api) -> None:
     ru = {**auth, "Accept-Language": "ru"}
     response = await api.client.post("/api/v1/life-plans", json=short_day, headers=ru)
     assert response.status_code == 422 and "6 часов" in response.json()["message"]
+
+
+async def test_the_routine_takes_in_running_challenges_and_lists_what_i_created(api: Api) -> None:
+    auth = await api.register()
+    catalog = (await api.client.get("/api/v1/challenges")).json()
+    english = next(c for c in catalog if c["category"] == "study")
+    joined = await api.client.post(
+        f"/api/v1/challenges/{english['id']}/join", json={"mode": "free"}, headers=auth
+    )
+    running = joined.json()["id"]
+
+    candidates = (await api.client.get("/api/v1/me/routine/candidates", headers=auth)).json()
+    assert [c["participation_id"] for c in candidates] == [running]
+    assert {t["key"] for t in candidates[0]["tasks"]} == {"words", "lesson"}
+    assert candidates[0]["tasks"][0]["weekdays"] == list(range(7))
+
+    body = {
+        "goals": [{"goal": "Har kuni sport"}],
+        "wake": "06:00",
+        "sleep": "23:00",
+        "duration_days": 30,
+        "runs": [{"participation_id": running, "times": {"words": "07:00", "lesson": None}}],
+    }
+    plan = (await api.client.post("/api/v1/life-plans", json=body, headers=auth)).json()
+    run = plan["runs"][0]
+    assert run["title"] == "Ingliz tili: 30 kun"
+    assert run["week"][0][0]["at"] == "07:00" and run["week"][0][1]["at"]  # lesson got a slot
+
+    started = await api.client.post(f"/api/v1/life-plans/{plan['id']}/start", headers=auth)
+    assert started.status_code == 200, started.text
+    detail = (await api.client.get(f"/api/v1/me/participations/{running}", headers=auth)).json()
+    assert detail["today"]["tasks"][0]["at"] == "07:00"
+
+    created = (await api.client.get("/api/v1/me/created-challenges", headers=auth)).json()
+    assert [c["challenge"]["category"] for c in created] == ["sport"]  # the catalog one is not mine
+    assert created[0]["participation_id"] and created[0]["invite_code"] is None
+    invite = await api.client.post(
+        f"/api/v1/me/participations/{created[0]['participation_id']}/group", headers=auth
+    )
+    assert invite.status_code == 200, invite.text
+    created = (await api.client.get("/api/v1/me/created-challenges", headers=auth)).json()
+    assert created[0]["invite_code"] == invite.json()["invite_code"]

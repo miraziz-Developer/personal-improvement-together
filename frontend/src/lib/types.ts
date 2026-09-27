@@ -259,6 +259,29 @@ export interface LifePlan {
   busy: BusyBlock[];
   budgets: number[];
   goals: LifeGoal[];
+  runs: LifePlanRun[]; // challenges already running, timed into the routine
+}
+
+export interface LifePlanRun {
+  participation_id: string;
+  title: string;
+  category: Category;
+  week: Week;
+}
+
+export interface RoutineCandidate {
+  participation_id: string;
+  title: string;
+  category: Category;
+  tasks: { key: string; title: string; minutes: number; required: boolean; at: string | null; weekdays: number[] }[];
+}
+
+export interface CreatedChallenge {
+  challenge: Challenge;
+  participation_id: string | null;
+  status: Participation["status"] | null;
+  invite_code: string | null;
+  members: number;
 }
 
 export interface RoutineItem {

@@ -44,6 +44,14 @@ export default function ParticipationPage() {
       latest?.today.tasks.some((task) => task.proof_status === "pending") ? 2000 : 30_000,
   });
   const previous = useRef<string | null | undefined>(undefined);
+  const loaded = Boolean(p);
+
+  // Arriving from "start with friends": go straight to the invite link.
+  useEffect(() => {
+    if (!loaded || !window.location.search.includes("invite=1")) return;
+    const timer = setTimeout(() => document.getElementById("together")?.scrollIntoView({ behavior: "smooth" }), 400);
+    return () => clearTimeout(timer);
+  }, [loaded]);
 
   useEffect(() => {
     if (!p) return;
@@ -168,6 +176,10 @@ export default function ParticipationPage() {
             </div>
           )}
 
+          <div id="together" className="scroll-mt-24">
+            <TogetherCard participationId={p.id} open={p.status === "active" || p.status === "scheduled"} />
+          </div>
+
           {p.can_cancel && (
             <Button variant="ghost" className="self-start" onClick={() => setCancelOpen(true)}>
               {t("Boshlanmasdan bekor qilish")}
@@ -180,7 +192,6 @@ export default function ParticipationPage() {
             <h2 className="mb-4 font-display text-lg font-semibold">{t("Kalendar")}</h2>
             <Calendar start={p.start_date} end={p.end_date} days={p.calendar} today={p.today.date} />
           </Card>
-          <TogetherCard participationId={p.id} open={p.status === "active" || p.status === "scheduled"} />
           {p.roadmap && <RoadmapView roadmap={p.roadmap} current={p.today.focus?.week} />}
         </div>
       </div>

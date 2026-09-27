@@ -69,6 +69,7 @@ from pit.modules.planning.application.commands import (
     DraftPlan,
     EditLifePlanGoal,
     EditPlan,
+    RetimeLifePlanRun,
     StartLifePlan,
     StartPlan,
 )
@@ -173,6 +174,7 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         EditPlan: planning.edit_plan,
         DraftLifePlan: partial(planning.draft_life_plan, generator=deps.life_plan_generator),
         EditLifePlanGoal: planning.edit_life_plan_goal,
+        RetimeLifePlanRun: planning.retime_life_plan_run,
         StartLifePlan: partial(
             planning.start_life_plan,
             clock=clock,

@@ -46,7 +46,7 @@ export default function PlanPage() {
     }
   }
 
-  async function start(mode: Mode, amount: number) {
+  async function start(mode: Mode, amount: number, withFriends: boolean) {
     setStarting(true);
     try {
       if (dirty) await api(`/plans/${id}/schedule`, { method: "PUT", json: { week } });
@@ -56,7 +56,8 @@ export default function PlanPage() {
       });
       confetti({ particleCount: 160, spread: 90, origin: { y: 0.7 }, colors: ["#ff9a3d", "#ff5f3a", "#ff3d7f", "#7c5cff"] });
       toast("success", t("Sayohat boshlandi! 🚀"), t("Birinchi qadam — eng muhimi. Siz uni qo'ydingiz."));
-      router.push(`/c/${participationId}`);
+      if (withFriends) await api(`/me/participations/${participationId}/group`, { method: "POST" });
+      router.push(withFriends ? `/c/${participationId}?invite=1` : `/c/${participationId}`);
     } catch (error) {
       toast("error", errorMessage(error));
       setStarting(false);

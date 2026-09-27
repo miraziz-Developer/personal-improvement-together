@@ -1,5 +1,6 @@
-from dataclasses import dataclass
-from datetime import date
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from datetime import date, time
 from uuid import UUID
 
 from pit.modules.challenges.domain.challenge import ParticipationMode
@@ -35,10 +36,21 @@ class StartPlan(Command):
 
 @dataclass(frozen=True, kw_only=True)
 class DraftLifePlan(Command):
-    """Several goals + the shape of the day → one clash-free hourly routine (a draft)."""
+    """Several goals + the shape of the day → one clash-free hourly routine (a draft).
+    Every challenge the user is already on joins the routine too; `times` holds the clock
+    times the user chose for their tasks (participation id -> task key -> time, None = any)."""
 
     user_id: UUID
     request: LifePlanRequest
+    times: Mapping[UUID, Mapping[str, time | None]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, kw_only=True)
+class RetimeLifePlanRun(Command):
+    user_id: UUID
+    plan_id: UUID
+    participation_id: UUID
+    schedule: Schedule
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -24,13 +24,14 @@ export default function ChallengeDetail() {
   const { data: c } = useSWR<Challenge>(`/challenges/${id}`);
   const [loading, setLoading] = useState(false);
 
-  async function join(mode: Mode, amount: number) {
+  async function join(mode: Mode, amount: number, withFriends: boolean) {
     setLoading(true);
     try {
       const { id: pid } = await api<{ id: string }>(`/challenges/${id}/join`, { method: "POST", json: { mode, stake_amount: amount } });
       confetti({ particleCount: 140, spread: 80, origin: { y: 0.75 }, colors: ["#ff9a3d", "#ff5f3a", "#ff3d7f", "#34e8a8"] });
       toast("success", t("Qo'shildingiz! 🚀"), t("Bugundan boshlab har kuni bir qadam."));
-      router.push(`/c/${pid}`);
+      if (withFriends) await api(`/me/participations/${pid}/group`, { method: "POST" });
+      router.push(withFriends ? `/c/${pid}?invite=1` : `/c/${pid}`);
     } catch (error) {
       toast("error", errorMessage(error));
       setLoading(false);

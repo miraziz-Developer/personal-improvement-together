@@ -27,5 +27,6 @@ life_plans = Table(
     Column("duration_days", SmallInteger, nullable=False),
     Column("frame", JSONB, nullable=False),  # wake, sleep, busy blocks
     Column("goals", JSONB, nullable=False),  # answers + proposal (+ started ids) per goal
+    Column("existing", JSONB, nullable=False, server_default="[]"),  # running challenges, timed
     *audit_columns(),
 )

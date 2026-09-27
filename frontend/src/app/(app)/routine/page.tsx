@@ -1,6 +1,7 @@
 "use client";
 
 import { BookOpen, CalendarClock, Flag, Plus } from "lucide-react";
+import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import useSWR from "swr";
 
@@ -97,7 +98,14 @@ export default function RoutinePage() {
           <Timeline entries={entries} now={now || undefined} />
           {data.untimed.length > 0 && (
             <div className="mt-6">
-              <h2 className="mb-3 text-sm font-semibold text-mist">{t("Vaqtsiz vazifalar")}</h2>
+              <h2 className="text-sm font-semibold text-mist">{t("Vaqtsiz vazifalar")}</h2>
+              <p className="mt-1 mb-3 text-xs text-mist">
+                {t("Ular ham kun tartibiga tushishi uchun")}{" "}
+                <Link href="/routine/new" className="font-semibold text-flame-400 underline">
+                  {t("kun tartibini yangilang")}
+                </Link>
+                .
+              </p>
               <div className="flex flex-col gap-3">
                 {data.untimed.map((item) => (
                   <TaskEntry key={`${item.participation_id}-${item.task?.key}`} item={item} onSubmitted={refresh} />

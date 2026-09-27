@@ -24,13 +24,23 @@ export function StartPanel({
   minStake?: number;
   maxStake?: number;
   loading: boolean;
-  onStart: (mode: Mode, amount: number) => void;
+  onStart: (mode: Mode, amount: number, withFriends: boolean) => void;
 }) {
   const { me } = useAuth();
   const { stakesEnabled } = useFeatures();
   const { t, tx } = useI18n();
   const [mode, setMode] = useState<Mode>("free");
   const [amount, setAmount] = useState(50_000);
+  const [withFriends, setWithFriends] = useState(false);
+  const friends = (
+    <label className="mt-5 flex cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm">
+      <input type="checkbox" checked={withFriends} onChange={(e) => setWithFriends(e.target.checked)} className="size-5 shrink-0 accent-flame-500" />
+      <span>
+        <b>{t("👥 Do'stlarim bilan birga")}</b>
+        <span className="block text-mist">{t("Boshlagach taklif havolasi chiqadi — do'stlaringiz o'sha rejaga qo'shiladi.")}</span>
+      </span>
+    </label>
+  );
   const available = me?.wallet.available ?? 0;
   const invalid = mode === "stake" && (amount < minStake || amount > maxStake);
 
@@ -44,7 +54,8 @@ export function StartPanel({
             <p className="mt-1 text-sm text-mist">{t("Ball, streak, reyting va murabbiy — barchasi siz uchun ochiq.")}</p>
           </div>
         </div>
-        <Button size="lg" className="mt-5 w-full" loading={loading} onClick={() => onStart("free", 0)}>
+        {friends}
+        <Button size="lg" className="mt-5 w-full" loading={loading} onClick={() => onStart("free", 0, withFriends)}>
           {t("Boshlash")} 🚀
         </Button>
       </Card>
@@ -129,7 +140,8 @@ export function StartPanel({
         </div>
       )}
 
-      <Button size="lg" className="mt-6 w-full" loading={loading} disabled={invalid} onClick={() => onStart(mode, mode === "stake" ? amount : 0)}>
+      {friends}
+      <Button size="lg" className="mt-6 w-full" loading={loading} disabled={invalid} onClick={() => onStart(mode, mode === "stake" ? amount : 0, withFriends)}>
         {mode === "stake" ? t("{sum} bilan boshlash", { sum: money(amount) }) : t("Boshlash")} 🚀
       </Button>
     </Card>

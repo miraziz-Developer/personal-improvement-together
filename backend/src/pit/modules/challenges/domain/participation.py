@@ -245,6 +245,19 @@ class Participation(AggregateRoot):
         self._record(ScheduleChanged(participation_id=self.id, effective_from=effective))
         self._complete_if_finished()
 
+    def retime(self, timed: Schedule, today: date) -> None:
+        """Give the tasks clock times (the daily routine). Only the times may differ, so the
+        promise is unchanged and it can apply from today, unlike a real schedule change."""
+        if not self.is_open:
+            raise InvalidStateTransition("Tugagan challenge rejasini o'zgartirib bo'lmaydi")
+        if timed.without_times() != self.current_schedule.without_times():
+            raise DomainError("Kun tartibida faqat vazifalar vaqtini o'zgartirish mumkin")
+        since = self.schedule_history[-1][0]
+        if since >= today:
+            self.schedule_history[-1] = (since, timed)
+        else:
+            self.schedule_history.append((today, timed))
+
     def ensure_accepts_proof(self, day: date, task_key: str) -> None:
         if self.status is not ParticipationStatus.ACTIVE:
             raise InvalidStateTransition("Challenge faol emas")

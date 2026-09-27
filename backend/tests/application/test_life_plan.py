@@ -8,6 +8,7 @@ from pit.modules.identity.application.commands import EraseAccount
 from pit.modules.planning.application.commands import (
     DraftLifePlan,
     EditLifePlanGoal,
+    RetimeLifePlanRun,
     StartLifePlan,
 )
 from pit.modules.planning.domain.life_plan import GoalAnswers, LifePlanRequest
@@ -87,3 +88,71 @@ async def test_erasing_the_account_forgets_the_plans(world: World) -> None:
     await world.bus.handle(DraftLifePlan(user_id=user.id, request=request()))
     await world.bus.handle(EraseAccount(user_id=user.id, confirm_username=user.username))
     assert world.store.life_plans == {}
+
+
+async def test_running_challenges_join_the_routine_and_get_their_times(world: World) -> None:
+    user = world.add_user()
+    running = await world.join(user, world.add_challenge(duration_days=30))  # task "main", no time
+    plan_id = await world.bus.handle(
+        DraftLifePlan(
+            user_id=user.id,
+            request=request(),
+            times={running: {"main": time(19, 0)}},
+        )
+    )
+    plan = world.store.life_plans[plan_id]
+    assert [run.participation_id for run in plan.existing] == [running]
+    assert plan.existing[0].schedule.week[0][0].at == time(19, 0)
+    check_fits(
+        FRAME,
+        [plan.existing[0].schedule, *(g.proposal.schedule for g in plan.goals)],
+        fixed=1,
+    )
+
+    await world.bus.handle(StartLifePlan(user_id=user.id, plan_id=plan_id))
+    today_task = world.participation(running).tasks_on(world.today)[0]
+    assert today_task.at == time(19, 0) and today_task.minutes == 60  # only the time changed
+
+
+async def test_a_routine_can_be_just_the_running_challenges(world: World) -> None:
+    user = world.add_user()
+    running = await world.join(user, world.add_challenge(duration_days=30))
+    only_existing = LifePlanRequest(goals=(), frame=FRAME, duration_days=30)
+    plan_id = await world.bus.handle(DraftLifePlan(user_id=user.id, request=only_existing))
+    run = world.store.life_plans[plan_id].existing[0]
+    assert run.participation_id == running and run.schedule.week[0][0].at is not None
+
+    lonely = world.add_user()
+    with pytest.raises(DomainError):
+        await world.bus.handle(DraftLifePlan(user_id=lonely.id, request=only_existing))
+
+
+async def test_a_person_has_one_routine_at_a_time(world: World) -> None:
+    user = world.add_user()
+    first = await world.bus.handle(DraftLifePlan(user_id=user.id, request=request()))
+    await world.bus.handle(StartLifePlan(user_id=user.id, plan_id=first))
+    second = await world.bus.handle(DraftLifePlan(user_id=user.id, request=request(30)))
+    # the first routine's goals are running challenges now, so the new one includes them
+    assert len(world.store.life_plans[second].existing) == 2
+    await world.bus.handle(StartLifePlan(user_id=user.id, plan_id=second))
+    assert world.store.life_plans[first].status is PlanStatus.REPLACED
+    assert world.store.life_plans[second].status is PlanStatus.STARTED
+
+
+async def test_the_routine_only_retimes_a_running_challenge(world: World) -> None:
+    user = world.add_user()
+    running = await world.join(user, world.add_challenge(duration_days=30))
+    plan_id = await world.bus.handle(DraftLifePlan(user_id=user.id, request=request()))
+    run = world.store.life_plans[plan_id].existing[0]
+    longer = type(run.schedule)(
+        week=tuple(
+            tuple(t.__class__(t.key, t.title, t.minutes + 30, t.required, t.at) for t in day)
+            for day in run.schedule.week
+        )
+    )
+    with pytest.raises(DomainError):
+        await world.bus.handle(
+            RetimeLifePlanRun(
+                user_id=user.id, plan_id=plan_id, participation_id=running, schedule=longer
+            )
+        )

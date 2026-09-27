@@ -8,6 +8,8 @@ import re
 from collections.abc import Callable
 
 ERRORS_RU: dict[str, str] = {
+    "Bu challenge kun tartibida yo'q": "Этого челленджа нет в распорядке",
+    "Kun tartibida faqat vazifalar vaqtini o'zgartirish mumkin": "В распорядке можно менять только время задач",
     "Band vaqt uchun kamida bitta hafta kuni tanlang": "Выберите хотя бы один день недели для занятого времени",
     "Bu maqsad rejada yo'q": "Такой цели нет в плане",
     "Hamma maqsadlar birga boshlanadi": "Все цели начинаются вместе",
@@ -185,6 +187,7 @@ _TEMPLATES_RU: list[tuple[str, str]] = [
     ("{}: «{}» va «{}» vaqti ustma-ust tushdi", "{0}: «{1}» и «{2}» пересекаются по времени"),
     ("Band vaqt nomi 1-{} belgi bo'lsin", "Название занятого времени — от 1 до {0} символов"),
     ("Band vaqtlar {} tadan oshmasin", "Занятых промежутков — не больше {0}"),
+    ("{}: «{}» uchun bo'sh vaqt topilmadi", "{0}: для «{1}» не нашлось свободного времени"),
     ("Oylik marralar {} tadan oshmasin", "Месячных вех — не больше {0}"),
 ]
 

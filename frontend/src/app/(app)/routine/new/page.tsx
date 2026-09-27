@@ -5,15 +5,16 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, ArrowRight, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import useSWR from "swr";
 
 import { CoachAvatar } from "@/components/coach";
 import { useToast } from "@/components/toast";
 import { Button, Card, Input, Label, Textarea } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
-import { WEEKDAYS_SHORT } from "@/lib/format";
+import { CATEGORY, WEEKDAYS_SHORT } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { freeMinutes } from "@/lib/routine";
-import type { BusyBlock, LifePlan } from "@/lib/types";
+import type { BusyBlock, LifePlan, RoutineCandidate } from "@/lib/types";
 
 const MAX_GOALS = 3;
 const GOAL_IDEAS = ["Kuchli backend dasturchi bo'lish", "Muskulli tana, 5 kg massa", "Ingliz tilida erkin gapirish", "Yiliga 24 ta kitob o'qish"];
@@ -26,11 +27,13 @@ const DURATIONS = [
   { days: 60, title: "60 kun", body: "Ikki oy va 2 ta oylik marra." },
   { days: 90, title: "90 kun", body: "Uch oy va 3 ta oylik marra — katta o'zgarish." },
 ];
-const COACH_LINES = [
-  "Bir vaqtda 3 tagacha maqsad. Har biri o'z streak'iga ega bo'ladi — birida qoqilsangiz, boshqasi buzilmaydi.",
-  "Kuningiz qanday o'tadi? Men vazifalarni faqat bo'sh vaqtingizga, bir-biriga to'qnashmasdan joylayman.",
-  "Qancha muddatga? Uzoqroq reja — oylik marralar bilan.",
-];
+type Step = "goals" | "runs" | "day" | "duration";
+const COACH_LINES: Record<Step, string> = {
+  goals: "Bir vaqtda 3 tagacha yangi maqsad. Har biri o'z streak'iga ega bo'ladi — birida qoqilsangiz, boshqasi buzilmaydi.",
+  runs: "Sizda allaqachon faol challenge'lar bor — ular ham kun tartibiga kiradi. Har vazifani qachon qilasiz? Bo'sh qoldirsangiz, vaqtni o'zim topaman.",
+  day: "Kuningiz qanday o'tadi? Men vazifalarni faqat bo'sh vaqtingizga, bir-biriga to'qnashmasdan joylayman.",
+  duration: "Qancha muddatga? Uzoqroq reja — oylik marralar bilan.",
+};
 
 type GoalDraft = { goal: string; current_level: string };
 
@@ -40,7 +43,9 @@ export default function NewRoutine() {
   const router = useRouter();
   const toast = useToast();
   const { t } = useI18n();
-  const [step, setStep] = useState(0);
+  const { data: candidates } = useSWR<RoutineCandidate[]>("/me/routine/candidates");
+  const [index, setIndex] = useState(0);
+  const [runTimes, setRunTimes] = useState<Record<string, Record<string, string>>>({});
   const [goals, setGoals] = useState<GoalDraft[]>([{ goal: "", current_level: "" }]);
   const [wake, setWake] = useState("06:00");
   const [sleep, setSleep] = useState("23:00");
@@ -48,8 +53,16 @@ export default function NewRoutine() {
   const [duration, setDuration] = useState(60);
   const [loading, setLoading] = useState(false);
 
+  const steps: Step[] = ["goals", ...(candidates?.length ? (["runs"] as const) : []), "day", "duration"];
+  const step = steps[Math.min(index, steps.length - 1)];
+  const last = index >= steps.length - 1;
   const filled = goals.filter((g) => g.goal.trim().length >= 3);
-  const canNext = step === 0 ? filled.length > 0 : step === 1 ? wake < sleep : true;
+  const canNext = step === "goals" ? filled.length > 0 || Boolean(candidates?.length) : step === "day"
+        ? wake < sleep && busy.every((b) => b.label.trim() && b.weekdays.length > 0 && b.start < b.end)
+        : true;
+  const runTime = (participationId: string, key: string, fallback: string | null) => runTimes[participationId]?.[key] ?? fallback ?? "";
+  const setRunTime = (participationId: string, key: string, value: string) =>
+    setRunTimes((all) => ({ ...all, [participationId]: { ...all[participationId], [key]: value } }));
   const patchGoal = (index: number, changes: Partial<GoalDraft>) => setGoals((all) => all.map((g, i) => (i === index ? { ...g, ...changes } : g)));
   const patchBlock = (index: number, changes: Partial<BusyBlock>) => setBusy((all) => all.map((b, i) => (i === index ? { ...b, ...changes } : b)));
 
@@ -58,7 +71,17 @@ export default function NewRoutine() {
     try {
       const plan = await api<LifePlan>("/life-plans", {
         method: "POST",
-        json: { goals: filled, wake, sleep, busy, duration_days: duration },
+        json: {
+          goals: filled,
+          wake,
+          sleep,
+          busy,
+          duration_days: duration,
+          runs: (candidates ?? []).map((c) => ({
+            participation_id: c.participation_id,
+            times: Object.fromEntries(c.tasks.map((task) => [task.key, runTime(c.participation_id, task.key, task.at) || null])),
+          })),
+        },
       });
       router.push(`/life-plans/${plan.id}`);
     } catch (error) {
@@ -70,9 +93,9 @@ export default function NewRoutine() {
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-6 flex gap-1.5">
-        {[0, 1, 2].map((i) => (
+        {steps.map((_, i) => (
           <div key={i} className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5">
-            <motion.div className="bg-flame h-full" initial={false} animate={{ width: i <= step ? "100%" : "0%" }} />
+            <motion.div className="bg-flame h-full" initial={false} animate={{ width: i <= index ? "100%" : "0%" }} />
           </div>
         ))}
       </div>
@@ -84,7 +107,7 @@ export default function NewRoutine() {
 
       <AnimatePresence mode="wait">
         <motion.div key={step} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.25 }}>
-          {step === 0 && (
+          {step === "goals" && (
             <div className="flex flex-col gap-4">
               {goals.map((goal, index) => (
                 <Card key={index} className="flex flex-col gap-3">
@@ -123,7 +146,43 @@ export default function NewRoutine() {
             </div>
           )}
 
-          {step === 1 && (
+          {step === "runs" && candidates && (
+            <div className="flex flex-col gap-4">
+              {candidates.map((run) => {
+                const meta = CATEGORY[run.category];
+                const Icon = meta.icon;
+                return (
+                  <Card key={run.participation_id} className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`grid size-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${meta.gradient}`}>
+                        <Icon className="size-5" />
+                      </div>
+                      <p className="font-semibold">{run.title}</p>
+                    </div>
+                    {run.tasks.map((task) => (
+                      <label key={task.key} className="flex items-center gap-3 rounded-2xl bg-ink-900/60 px-3 py-2">
+                        <span className="min-w-0 flex-1 text-sm">
+                          {task.title}
+                          <span className="block text-xs text-mist">
+                            {t("{m} daq", { m: task.minutes })} · {task.weekdays.length === 7 ? t("har kuni") : task.weekdays.map((d) => t(WEEKDAYS_SHORT[d])).join(", ")}
+                          </span>
+                        </span>
+                        <input
+                          type="time"
+                          value={runTime(run.participation_id, task.key, task.at)}
+                          onChange={(e) => setRunTime(run.participation_id, task.key, e.target.value)}
+                          className="rounded-lg bg-white/5 px-2 py-1 text-sm tabular-nums [color-scheme:dark]"
+                          aria-label={t("Boshlanish vaqti")}
+                        />
+                      </label>
+                    ))}
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {step === "day" && (
             <Card className="flex flex-col gap-5">
               <div className="grid grid-cols-2 gap-3">
                 <label>
@@ -146,8 +205,10 @@ export default function NewRoutine() {
                           value={block.label}
                           onChange={(e) => patchBlock(index, { label: e.target.value })}
                           maxLength={40}
-                          className="min-w-0 flex-1 bg-transparent px-1 text-sm font-semibold outline-none"
-                          aria-label={t("Nomi")}
+                          autoFocus={!block.label}
+                          placeholder={t("Nima qilasiz? Masalan: yo'l, sport zali")}
+                          className="min-w-0 flex-1 bg-transparent px-1 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-white/30"
+                          aria-label={t("Nima qilasiz?")}
                         />
                         <input type="time" value={block.start} onChange={(e) => patchBlock(index, { start: e.target.value })} className="rounded-lg bg-white/5 px-2 py-1 text-sm tabular-nums [color-scheme:dark]" aria-label={t("Boshlanishi")} />
                         <span className="text-mist">–</span>
@@ -179,7 +240,7 @@ export default function NewRoutine() {
                         + {t(preset.label)}
                       </button>
                     ))}
-                    <button onClick={() => setBusy((all) => [...all, { label: t("Band"), weekdays: [0, 1, 2, 3, 4], start: "09:00", end: "12:00" }])} className="rounded-xl bg-white/5 px-3 py-1.5 text-sm text-mist hover:bg-white/10 hover:text-white">
+                    <button onClick={() => setBusy((all) => [...all, { label: "", weekdays: [0, 1, 2, 3, 4], start: "09:00", end: "12:00" }])} className="rounded-xl bg-white/5 px-3 py-1.5 text-sm text-mist hover:bg-white/10 hover:text-white">
                       + {t("Boshqa")}
                     </button>
                   </div>
@@ -200,7 +261,7 @@ export default function NewRoutine() {
             </Card>
           )}
 
-          {step === 2 && (
+          {step === "duration" && (
             <div className="grid gap-3 sm:grid-cols-3">
               {DURATIONS.map((option) => (
                 <button
@@ -222,11 +283,11 @@ export default function NewRoutine() {
       </AnimatePresence>
 
       <div className="mt-6 flex justify-between gap-3">
-        <Button variant="ghost" onClick={() => (step === 0 ? router.push("/onboarding") : setStep((s) => s - 1))}>
+        <Button variant="ghost" onClick={() => (index === 0 ? router.push("/onboarding") : setIndex((i) => i - 1))}>
           <ArrowLeft className="size-4" /> {t("Orqaga")}
         </Button>
-        {step < 2 ? (
-          <Button disabled={!canNext} onClick={() => setStep((s) => s + 1)}>
+        {!last ? (
+          <Button disabled={!canNext} onClick={() => setIndex((i) => i + 1)}>
             {t("Keyingisi")} <ArrowRight className="size-4" />
           </Button>
         ) : (

@@ -3,11 +3,12 @@
 import clsx from "clsx";
 import confetti from "canvas-confetti";
 import { CalendarClock, ChevronDown, Rocket } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useState } from "react";
 import useSWR from "swr";
 
 import { RoadmapView } from "@/components/Roadmap";
+import { TogetherCard } from "@/components/Together";
 import { Timeline, type TimelineEntry } from "@/components/Timeline";
 import { useToast } from "@/components/toast";
 import { Badge, Button, Card, Segmented, Skeleton } from "@/components/ui";
@@ -15,12 +16,23 @@ import { WeekEditor } from "@/components/WeekEditor";
 import { api, errorMessage } from "@/lib/api";
 import { CATEGORY, WEEKDAYS_SHORT } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
-import type { LifeGoal, LifePlan, Week } from "@/lib/types";
+import type { LifeGoal, LifePlan, LifePlanRun, Week } from "@/lib/types";
 
 function dayEntries(plan: LifePlan, weekday: number): TimelineEntry[] {
   const entries: TimelineEntry[] = [
     { kind: "wake", start: plan.wake, title: "" },
     ...plan.busy.filter((b) => b.weekdays.includes(weekday)).map((b) => ({ kind: "busy" as const, start: b.start, end: b.end, title: b.label })),
+    ...plan.runs.flatMap((run) =>
+      run.week[weekday].map((task) => ({
+        kind: "task" as const,
+        start: task.at ?? "",
+        title: task.title,
+        category: run.category,
+        goal: run.title,
+        minutes: task.minutes,
+        optional: !task.required,
+      })),
+    ),
     ...plan.goals.flatMap((goal) =>
       goal.week[weekday].map((task) => ({
         kind: "task" as const,
@@ -36,6 +48,64 @@ function dayEntries(plan: LifePlan, weekday: number): TimelineEntry[] {
   ];
   const order = { wake: 0, busy: 1, task: 2, sleep: 3 };
   return entries.sort((a, b) => a.start.localeCompare(b.start) || order[a.kind] - order[b.kind]);
+}
+
+/** A running challenge in the routine: only its tasks' times can change here. */
+function RunCard({ plan, run, onSaved }: { plan: LifePlan; run: LifePlanRun; onSaved: (plan: LifePlan) => void }) {
+  const { t } = useI18n();
+  const toast = useToast();
+  const [times, setTimes] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const meta = CATEGORY[run.category];
+  const Icon = meta.icon;
+  const tasks = Array.from(new Map(run.week.flat().map((task) => [task.key, task])).values());
+  const dirty = Object.keys(times).length > 0;
+
+  async function save() {
+    setSaving(true);
+    try {
+      const week = run.week.map((day) => day.map((task) => (times[task.key] ? { ...task, at: times[task.key] } : task)));
+      onSaved(await api<LifePlan>(`/life-plans/${plan.id}/runs/${run.participation_id}`, { method: "PUT", json: { week } }));
+      setTimes({});
+      toast("success", t("Reja saqlandi"));
+    } catch (error) {
+      toast("error", errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <div className={`grid size-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${meta.gradient}`}>
+          <Icon className="size-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="font-semibold">{run.title}</p>
+          <p className="text-xs text-mist">{t("Faol challenge — vazifalari o'zgarmaydi, faqat vaqti")}</p>
+        </div>
+      </div>
+      {tasks.map((task) => (
+        <label key={task.key} className="flex items-center gap-3 rounded-2xl bg-ink-900/60 px-3 py-2 text-sm">
+          <span className="min-w-0 flex-1">{task.title}</span>
+          <input
+            type="time"
+            disabled={plan.status !== "draft"}
+            value={times[task.key] ?? task.at ?? ""}
+            onChange={(e) => setTimes((all) => ({ ...all, [task.key]: e.target.value }))}
+            className="rounded-lg bg-white/5 px-2 py-1 tabular-nums [color-scheme:dark] disabled:opacity-60"
+            aria-label={t("Boshlanish vaqti")}
+          />
+        </label>
+      ))}
+      {dirty && (
+        <Button loading={saving} onClick={save}>
+          {t("Saqlash")}
+        </Button>
+      )}
+    </Card>
+  );
 }
 
 function GoalCard({ plan, goal, onSaved }: { plan: LifePlan; goal: LifeGoal; onSaved: (plan: LifePlan) => void }) {
@@ -99,7 +169,6 @@ function GoalCard({ plan, goal, onSaved }: { plan: LifePlan; goal: LifeGoal; onS
 
 export default function LifePlanPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const toast = useToast();
   const { t } = useI18n();
   const { data: plan, mutate } = useSWR<LifePlan>(`/life-plans/${id}`);
@@ -111,10 +180,11 @@ export default function LifePlanPage() {
   async function start() {
     setStarting(true);
     try {
-      await api(`/life-plans/${id}/start`, { method: "POST" });
+      await mutate(await api<LifePlan>(`/life-plans/${id}/start`, { method: "POST" }), false);
       confetti({ particleCount: 160, spread: 90, origin: { y: 0.7 }, colors: ["#ff9a3d", "#ff5f3a", "#ff3d7f", "#7c5cff"] });
-      toast("success", t("Kun tartibi boshlandi! 🚀"), t("Har bir maqsad — o'z challenge'i va o'z streak'i."));
-      router.push("/routine");
+      toast("success", t("Kun tartibi boshlandi! 🚀"), t("Endi do'stlaringizni har bir maqsadga taklif qilishingiz mumkin 👥"));
+      setStarting(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
       toast("error", errorMessage(error));
       setStarting(false);
@@ -144,10 +214,22 @@ export default function LifePlanPage() {
         <Timeline entries={dayEntries(plan, weekday)} />
       </Card>
 
+      {plan.runs.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <h2 className="font-display text-lg font-semibold">{t("Faol challenge'laringiz")}</h2>
+          {plan.runs.map((run) => (
+            <RunCard key={run.participation_id} plan={plan} run={run} onSaved={(updated) => mutate(updated, false)} />
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-col gap-4">
-        <h2 className="font-display text-lg font-semibold">{t("Maqsadlar")}</h2>
+        {plan.goals.length > 0 && <h2 className="font-display text-lg font-semibold">{t("Yangi maqsadlar")}</h2>}
         {plan.goals.map((goal) => (
-          <GoalCard key={goal.key} plan={plan} goal={goal} onSaved={(updated) => mutate(updated, false)} />
+          <div key={goal.key} className="flex flex-col gap-3">
+            <GoalCard plan={plan} goal={goal} onSaved={(updated) => mutate(updated, false)} />
+            {goal.participation_id && <TogetherCard participationId={goal.participation_id} open />}
+          </div>
         ))}
       </div>
 

@@ -98,6 +98,7 @@ def proposal_spec(p: PlanProposal) -> ChallengeSpec:
 class PlanStatus(StrEnum):
     DRAFT = "draft"
     STARTED = "started"
+    REPLACED = "replaced"  # a newer daily routine took its place (a person has one routine)
 
 
 def ensure_fits(schedule: Schedule, availability: Availability) -> None:

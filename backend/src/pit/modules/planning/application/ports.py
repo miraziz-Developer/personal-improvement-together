@@ -15,7 +15,7 @@ class PlanGenerator(Protocol):
 
 
 class LifePlanGenerator(Protocol):
-    """Several goals → one proposal per goal (same order), already fitted into the day frame
-    without clashes."""
+    """Several goals → one proposal per goal (same order). Clock times are only suggestions;
+    LifePlan.draft fits them into the day together with the challenges already running."""
 
     async def propose(self, request: LifePlanRequest) -> tuple[PlanProposal, ...]: ...

@@ -14,10 +14,12 @@ from pit.api.deps import ContainerDep, LocaleDep, UserId
 from pit.api.ratelimit import rate_limit
 from pit.catalog_ru import catalog_text
 from pit.modules.challenges.domain.participation import ParticipationStatus
-from pit.modules.challenges.infrastructure.tables import participations
+from pit.modules.challenges.infrastructure.tables import challenges, participations
+from pit.modules.identity.domain.user import Locale
 from pit.modules.planning.application.commands import (
     DraftLifePlan,
     EditLifePlanGoal,
+    RetimeLifePlanRun,
     StartLifePlan,
 )
 from pit.modules.planning.domain.life_plan import GoalAnswers, LifePlan, LifePlanRequest
@@ -44,12 +46,55 @@ class BusyIO(BaseModel):
     end: Clock
 
 
+class RunTimesIn(BaseModel):
+    """When the user does the tasks of a challenge they are already on (same time every day)."""
+
+    participation_id: UUID
+    times: dict[str, Clock | None]  # task key -> "HH:MM", None = find a time for me
+
+
 class LifePlanIn(BaseModel):
     goals: list[GoalIn]
     wake: Clock
     sleep: Clock
     busy: list[BusyIO] = []
     duration_days: int
+    runs: list[RunTimesIn] = []
+
+
+class RunOut(BaseModel):
+    participation_id: UUID
+    title: str
+    category: str
+    week: s.Week
+
+
+class CandidateTask(BaseModel):
+    key: str
+    title: str
+    minutes: int
+    required: bool
+    at: str | None
+    weekdays: list[int]  # days of the week the task happens on, 0 = Monday
+
+
+class CandidateOut(BaseModel):
+    """A running challenge the new routine will include."""
+
+    participation_id: UUID
+    title: str
+    category: str
+    tasks: list[CandidateTask]
+
+
+class CreatedOut(BaseModel):
+    """A challenge the user made (AI plan or daily routine goal) and how it is going."""
+
+    challenge: s.ChallengeOut
+    participation_id: UUID | None
+    status: str | None
+    invite_code: str | None
+    members: int
 
 
 class LifeGoalOut(BaseModel):
@@ -74,6 +119,7 @@ class LifePlanOut(BaseModel):
     busy: list[BusyIO]
     budgets: list[int]  # 80% of the free minutes per weekday, Monday first
     goals: list[LifeGoalOut]
+    runs: list[RunOut]  # challenges already running, with their tasks' times in the routine
 
 
 class RoutineItem(BaseModel):
@@ -123,7 +169,7 @@ def _frame(body: LifePlanIn) -> DayFrame:
     )
 
 
-def life_plan_out(plan: LifePlan) -> LifePlanOut:
+def life_plan_out(plan: LifePlan, locale: Locale = Locale.UZ) -> LifePlanOut:
     frame = plan.frame
     return LifePlanOut(
         id=plan.id,
@@ -153,15 +199,33 @@ def life_plan_out(plan: LifePlan) -> LifePlanOut:
             )
             for g in plan.goals
         ],
+        runs=[
+            RunOut(
+                participation_id=run.participation_id,
+                title=_title(run.challenge_id, run.title, locale),
+                category=run.category.value,
+                week=views.localized_week(
+                    s.schedule_to_week(run.schedule), catalog_text(run.challenge_id, locale)
+                ),
+            )
+            for run in plan.existing
+        ],
     )
 
 
-async def _load(plan_id: UUID, user_id: UUID, container: ContainerDep) -> LifePlanOut:
+def _title(challenge_id: UUID, stored: str, locale: Locale) -> str:
+    text = catalog_text(challenge_id, locale)
+    return text.title if text else stored
+
+
+async def _load(
+    plan_id: UUID, user_id: UUID, container: ContainerDep, locale: Locale = Locale.UZ
+) -> LifePlanOut:
     async with container.uow_factory() as uow:
         plan = require(await uow.life_plans.get(plan_id), "Reja topilmadi")
         if plan.user_id != user_id:
             raise PermissionDenied("Bu sizning rejangiz emas")
-        return life_plan_out(plan)
+        return life_plan_out(plan, locale)
 
 
 @router.post(
@@ -182,13 +246,125 @@ async def draft(
         duration_days=body.duration_days,
         language=locale.value,
     )
-    plan_id = await container.bus.handle(DraftLifePlan(user_id=user_id, request=request))
-    return await _load(plan_id, user_id, container)
+    times = {
+        run.participation_id: {
+            key: time.fromisoformat(at) if at else None for key, at in run.times.items()
+        }
+        for run in body.runs
+    }
+    plan_id = await container.bus.handle(
+        DraftLifePlan(user_id=user_id, request=request, times=times)
+    )
+    return await _load(plan_id, user_id, container, locale)
 
 
 @router.get("/life-plans/{plan_id}", response_model=LifePlanOut)
-async def get_life_plan(plan_id: UUID, user_id: UserId, container: ContainerDep) -> LifePlanOut:
-    return await _load(plan_id, user_id, container)
+async def get_life_plan(
+    plan_id: UUID, user_id: UserId, container: ContainerDep, locale: LocaleDep
+) -> LifePlanOut:
+    return await _load(plan_id, user_id, container, locale)
+
+
+@router.put("/life-plans/{plan_id}/runs/{participation_id}", response_model=LifePlanOut)
+async def retime_run(
+    plan_id: UUID,
+    participation_id: UUID,
+    body: s.ScheduleIn,
+    user_id: UserId,
+    container: ContainerDep,
+    locale: LocaleDep,
+) -> LifePlanOut:
+    await container.bus.handle(
+        RetimeLifePlanRun(
+            user_id=user_id,
+            plan_id=plan_id,
+            participation_id=participation_id,
+            schedule=s.week_to_schedule(body.week),
+        )
+    )
+    return await _load(plan_id, user_id, container, locale)
+
+
+@router.get("/me/routine/candidates", response_model=list[CandidateOut])
+async def routine_candidates(
+    user_id: UserId, container: ContainerDep, locale: LocaleDep
+) -> list[CandidateOut]:
+    """The challenges a new daily routine will include, task by task."""
+    result = []
+    async with container.uow_factory() as uow:
+        for participation_id in await uow.participations.list_open_ids(user_id):
+            p = require(await uow.participations.get(participation_id), "Challenge topilmadi")
+            challenge = require(await uow.challenges.get(p.challenge_id), "Challenge topilmadi")
+            text = catalog_text(challenge.id, locale)
+            tasks: dict[str, CandidateTask] = {}
+            for weekday, day in enumerate(p.current_schedule.week):
+                for task in day:
+                    found = tasks.get(task.key)
+                    if found is None:
+                        tasks[task.key] = CandidateTask(
+                            key=task.key,
+                            title=text.tasks.get(task.key, task.title) if text else task.title,
+                            minutes=task.minutes,
+                            required=task.required,
+                            at=task.at.strftime("%H:%M") if task.at else None,
+                            weekdays=[weekday],
+                        )
+                    else:
+                        found.weekdays.append(weekday)
+            result.append(
+                CandidateOut(
+                    participation_id=p.id,
+                    title=_title(challenge.id, challenge.title, locale),
+                    category=challenge.category.value,
+                    tasks=list(tasks.values()),
+                )
+            )
+    return result
+
+
+@router.get("/me/created-challenges", response_model=list[CreatedOut])
+async def created_challenges(
+    user_id: UserId, container: ContainerDep, locale: LocaleDep
+) -> list[CreatedOut]:
+    """Challenges the user made — to invite friends to them, and to see how each is going."""
+    async with container.uow_factory() as uow:
+        ids = await uow.session.execute(
+            select(challenges.c.id)
+            .where(challenges.c.created_by == user_id)
+            .order_by(challenges.c.created_at.desc())
+        )
+        counts = await views.participant_counts(uow)
+        result = []
+        for challenge_id in ids.scalars():
+            challenge = require(await uow.challenges.get(challenge_id), "Challenge topilmadi")
+            mine = await uow.session.execute(
+                select(participations.c.id)
+                .where(
+                    participations.c.challenge_id == challenge_id,
+                    participations.c.user_id == user_id,
+                )
+                .order_by(participations.c.created_at.desc())
+                .limit(1)
+            )
+            participation_id = mine.scalar_one_or_none()
+            participation = (
+                await uow.participations.get(participation_id) if participation_id else None
+            )
+            group = (
+                await uow.groups.get(participation.group_id)
+                if participation and participation.group_id
+                else None
+            )
+            result.append(
+                CreatedOut(
+                    challenge=views.challenge_out(challenge, counts.get(challenge_id, 0), locale),
+                    participation_id=participation.id if participation else None,
+                    status=participation.status.value if participation else None,
+                    invite_code=group.invite_code if group else None,
+                    members=len(group.member_ids) if group else 0,
+                )
+            )
+        return result
 
 
 @router.put("/life-plans/{plan_id}/goals/{goal_key}", response_model=LifePlanOut)
@@ -207,16 +383,20 @@ async def edit_goal(
 
 
 @router.post("/life-plans/{plan_id}/start", response_model=LifePlanOut)
-async def start(plan_id: UUID, user_id: UserId, container: ContainerDep) -> LifePlanOut:
+async def start(
+    plan_id: UUID, user_id: UserId, container: ContainerDep, locale: LocaleDep
+) -> LifePlanOut:
     await container.bus.handle(StartLifePlan(user_id=user_id, plan_id=plan_id))
-    return await _load(plan_id, user_id, container)
+    return await _load(plan_id, user_id, container, locale)
 
 
 @router.get("/me/life-plan", response_model=LifePlanOut | None)
-async def my_life_plan(user_id: UserId, container: ContainerDep) -> LifePlanOut | None:
+async def my_life_plan(
+    user_id: UserId, container: ContainerDep, locale: LocaleDep
+) -> LifePlanOut | None:
     async with container.uow_factory() as uow:
         plan = await uow.life_plans.latest_started(user_id)
-        return life_plan_out(plan) if plan else None
+        return life_plan_out(plan, locale) if plan else None
 
 
 @router.get("/me/routine", response_model=RoutineOut)

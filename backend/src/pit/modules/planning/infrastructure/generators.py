@@ -20,7 +20,7 @@ from pit.modules.planning.domain.plan import (
     OnboardingAnswers,
     PlanProposal,
 )
-from pit.modules.planning.domain.routine import clock, pack
+from pit.modules.planning.domain.routine import clock
 from pit.modules.planning.infrastructure.generators_ru import (
     DESCRIPTION_RU,
     KEYWORDS_RU,
@@ -475,11 +475,8 @@ def _day_hint(request: LifePlanRequest, index: int) -> dict[str, Any]:
 
 
 def _fit_life(request: LifePlanRequest, proposals: list[PlanProposal]) -> tuple[PlanProposal, ...]:
-    schedules = pack(request.frame, [p.schedule for p in proposals])
-    return tuple(
-        replace(p, schedule=schedule, duration_days=request.duration_days)
-        for p, schedule in zip(proposals, schedules, strict=True)
-    )
+    # Clock times are settled by LifePlan.draft, together with the challenges already running.
+    return tuple(replace(p, duration_days=request.duration_days) for p in proposals)
 
 
 class TemplateLifePlanGenerator:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, time
 
 from pit.shared.domain.errors import DomainError, InvariantViolation
@@ -84,6 +84,9 @@ class Schedule:
     @property
     def required_minutes_per_week(self) -> int:
         return sum(t.minutes for tasks in self.week for t in tasks if t.required)
+
+    def without_times(self) -> Schedule:
+        return Schedule(week=tuple(tuple(replace(t, at=None) for t in day) for day in self.week))
 
     def is_at_least_as_demanding_as(self, other: Schedule) -> bool:
         return (

@@ -97,13 +97,15 @@ class DayFrame:
         return int(self.free_minutes(weekday) * LOAD_SHARE)
 
 
-def check_fits(frame: DayFrame, schedules: Sequence[Schedule]) -> None:
-    """Every task has a time, lies in free time, and no two tasks of any goal clash."""
+def check_fits(frame: DayFrame, schedules: Sequence[Schedule], *, fixed: int = 0) -> None:
+    """Every task has a time, lies in free time, and no two tasks of any goal clash. The first
+    `fixed` schedules are challenges already running: they may use more than the 80% on
+    their own (that promise was made before), but then nothing new fits beside them."""
     for weekday, name in enumerate(WEEKDAY_NAMES):
         taken: list[tuple[Span, str]] = [(b.span, b.label) for b in frame.busy_on(weekday)]
         start_of_day, end_of_day = minutes_of(frame.wake), minutes_of(frame.sleep)
-        planned = 0
-        for schedule in schedules:
+        planned = planned_new = 0
+        for index, schedule in enumerate(schedules):
             for task in schedule.week[weekday]:
                 if task.at is None:
                     raise DomainError(f"{name}: «{task.title}» uchun vaqt belgilang")
@@ -115,7 +117,8 @@ def check_fits(frame: DayFrame, schedules: Sequence[Schedule]) -> None:
                     raise DomainError(f"{name}: «{task.title}» va «{clash}» vaqti ustma-ust tushdi")
                 taken.append((span, task.title))
                 planned += task.minutes
-        if planned > frame.budget(weekday):
+                planned_new += task.minutes if index >= fixed else 0
+        if planned_new and planned > frame.budget(weekday):
             raise DomainError(
                 f"{name}: reja {planned} daqiqa, bo'sh vaqtingizning 80% i esa "
                 f"{frame.budget(weekday)} daqiqa"
@@ -142,10 +145,13 @@ def _first_slot(
     return None
 
 
-def pack(frame: DayFrame, schedules: Sequence[Schedule]) -> list[Schedule]:
+def pack(frame: DayFrame, schedules: Sequence[Schedule], *, fixed: int = 0) -> list[Schedule]:
     """Give every task a clash-free time inside the free windows. A time the task already has
     is kept when it fits; otherwise the earliest free slot is used. Goals earlier in the list
-    and required tasks go first; what does not fit is shortened (required) or dropped."""
+    and required tasks go first; what does not fit is shortened (required) or dropped.
+
+    The first `fixed` schedules are challenges already running: they go first and only get
+    times — never shortened or dropped. One that cannot be placed at all is an error."""
     weeks: list[list[list[TaskSpec]]] = [[[] for _ in range(7)] for _ in schedules]
     for weekday in range(7):
         windows = frame.free_windows(weekday)
@@ -154,14 +160,20 @@ def pack(frame: DayFrame, schedules: Sequence[Schedule]) -> list[Schedule]:
         main_ends: dict[int, int] = {}  # goal -> end of its last required task today
         order = [
             (goal, task)
+            for goal, schedule in enumerate(schedules[:fixed])
+            for task in schedule.week[weekday]
+        ] + [
+            (goal, task)
             for required in (True, False)
             for goal, schedule in enumerate(schedules)
+            if goal >= fixed
             for task in schedule.week[weekday]
             if task.required is required
         ]
         for goal, task in order:
-            length = min(task.minutes, left)
-            if length < MIN_SLOT_MINUTES:
+            keep = goal < fixed
+            length = task.minutes if keep else min(task.minutes, left)
+            if length < MIN_SLOT_MINUTES and not keep:
                 continue
             wanted = minutes_of(task.at) if task.at else None
             start: int | None = None
@@ -177,9 +189,13 @@ def pack(frame: DayFrame, schedules: Sequence[Schedule]) -> list[Schedule]:
                 start = _first_slot(windows, taken, length, after)
                 if start is None and after:
                     start = _first_slot(windows, taken, length)
-            while start is None and length > MIN_SLOT_MINUTES and task.required:
+            while start is None and length > MIN_SLOT_MINUTES and task.required and not keep:
                 length = max(MIN_SLOT_MINUTES, length - 15)
                 start = _first_slot(windows, taken, length)
+            if start is None and keep:
+                raise DomainError(
+                    f"{WEEKDAY_NAMES[weekday]}: «{task.title}» uchun bo'sh vaqt topilmadi"
+                )
             if start is None:
                 continue
             taken.append((start, start + length))
@@ -188,12 +204,28 @@ def pack(frame: DayFrame, schedules: Sequence[Schedule]) -> list[Schedule]:
                 main_ends[goal] = max(main_ends.get(goal, 0), start + length)
             weeks[goal][weekday].append(replace(task, minutes=length, at=clock(start)))
     result: list[Schedule] = []
-    for week in weeks:
+    for index, week in enumerate(weeks):
         days = []
         for tasks in week:
             tasks.sort(key=lambda t: t.at or time(0))
-            days.append(tuple(tasks) if any(t.required for t in tasks) else ())
+            if index < fixed:
+                days.append(tuple(tasks))  # kept as the challenge defines it
+            else:
+                days.append(tuple(tasks) if any(t.required for t in tasks) else ())
+        if index < fixed:
+            result.append(_in_original_order(schedules[index], days))
+            continue
         if not any(days):
             raise DomainError("Kun tartibingizda bu maqsad uchun bo'sh vaqt qolmadi")
         result.append(Schedule(week=tuple(days)))
     return result
+
+
+def _in_original_order(original: Schedule, placed: list[tuple[TaskSpec, ...]]) -> Schedule:
+    """A running challenge keeps its task order; only the times are new
+    (Participation.retime accepts nothing else)."""
+    week = []
+    for day, tasks in zip(original.week, placed, strict=True):
+        times = {t.key: t.at for t in tasks}
+        week.append(tuple(replace(t, at=times[t.key]) for t in day))
+    return Schedule(week=tuple(week))

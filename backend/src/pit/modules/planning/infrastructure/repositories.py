@@ -12,7 +12,7 @@ from pit.modules.challenges.infrastructure.serialization import (
     schedule_from_json,
     schedule_to_json,
 )
-from pit.modules.planning.domain.life_plan import GoalAnswers, LifeGoal, LifePlan
+from pit.modules.planning.domain.life_plan import ExistingRun, GoalAnswers, LifeGoal, LifePlan
 from pit.modules.planning.domain.plan import (
     Availability,
     OnboardingAnswers,
@@ -151,6 +151,16 @@ class SqlLifePlanRepository(SqlRepository[LifePlan]):
                 }
                 for g in item.goals
             ],
+            "existing": [
+                {
+                    "participation_id": str(e.participation_id),
+                    "challenge_id": str(e.challenge_id),
+                    "title": e.title,
+                    "category": e.category.value,
+                    "schedule": schedule_to_json(e.schedule),
+                }
+                for e in item.existing
+            ],
         }
 
     async def _to_aggregate(self, row: Mapping[str, Any]) -> LifePlan:
@@ -172,6 +182,16 @@ class SqlLifePlanRepository(SqlRepository[LifePlan]):
                     participation_id=UUID(g["participation_id"]) if g["participation_id"] else None,
                 )
                 for g in row["goals"]
+            ),
+            existing=tuple(
+                ExistingRun(
+                    participation_id=UUID(e["participation_id"]),
+                    challenge_id=UUID(e["challenge_id"]),
+                    title=e["title"],
+                    category=Category(e["category"]),
+                    schedule=schedule_from_json(e["schedule"]),
+                )
+                for e in row["existing"] or []
             ),
         )
 
