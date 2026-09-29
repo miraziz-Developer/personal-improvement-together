@@ -14,6 +14,8 @@ class VerificationRequest:
     file_key: str | None
     text_note: str | None
     expected_code: str | None
+    lesson: str | None = None  # today's topic on the roadmap: the proof should be about it
+    language: str = "uz"  # the reason is shown to the user in their language
 
 
 class ProofVerifier(Protocol):

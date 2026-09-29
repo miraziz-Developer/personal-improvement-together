@@ -108,6 +108,14 @@ async def verify_proof(cmd: VerifyProof, uow: VerificationUoW, *, verifier: Proo
             criteria = challenge.verification_prompt
             if task is not None:
                 criteria = f"{criteria}\nBugungi vazifa: {task.title} ({task.minutes} daqiqa)"
+            focus = (
+                challenge.roadmap.focus(
+                    participation.start_date, participation.days, proof.for_date
+                )
+                if challenge.roadmap
+                else None
+            )
+            owner = await uow.users.get(proof.user_id)
             verdict = await verifier.verify(
                 VerificationRequest(
                     proof_id=proof.id,
@@ -116,6 +124,8 @@ async def verify_proof(cmd: VerifyProof, uow: VerificationUoW, *, verifier: Proo
                     file_key=proof.file_key,
                     text_note=proof.text_note,
                     expected_code=proof.expected_code,
+                    lesson=(focus.lesson or focus.theme) if focus else None,
+                    language=owner.locale.value if owner else "uz",
                 )
             )
         proof.apply_ai_verdict(verdict)

@@ -21,10 +21,17 @@ Qoidalar:
 - Internetdan olinganga, skrinshotga yoki boshqa odamning rasmiga o'xshasa — reject.
 - Kutilgan kod berilgan bo'lsa, rasmda qog'ozga yozilgan kodni toping va detected_code ga
   aynan yozing; topilmasa null qo'ying.
-- reason foydalanuvchiga ko'rsatiladi: o'zbek tilida, bitta qisqa gap, hurmat bilan.
+- Bugungi mavzu berilgan bo'lsa, isbot shu mavzu yoki unga yaqin ish haqida bo'lsin. Mavzu —
+  yo'nalish: rasm mavzuni aniq ko'rsatmasa ham, faoliyat mos bo'lsa approve (masalan mavzu
+  "Python: sikllar", rasmda kod muharriri). Butunlay boshqa ish bo'lsa (mavzu kitob, rasmda
+  ovqat) — reject va sababida bugungi mavzuni eslating.
+- reason foydalanuvchiga ko'rsatiladi: {language}, bitta qisqa gap, hurmat bilan.
 - Foydalanuvchilar orasida bolalar bor. Rasm yoki matnda yalang'ochlik, zo'ravonlik, qon,
   o'ziga zarar yetkazish, qurol bilan tahdid, giyohvandlik yoki nafrat bo'lsa — unsafe: true
   (qaror baribir moderatorga boradi). Aks holda unsafe: false."""
+
+# How the prompt names the language of the reason the user will read.
+REASON_LANGUAGE = {"uz": "o'zbek tilida (lotin)", "ru": "rus tilida"}
 
 VERDICT_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -63,6 +70,7 @@ class LlmProofVerifier:
         text = (
             f"Kategoriya: {request.category}\n"
             f"Mezon: {request.criteria}\n"
+            f"Bugungi mavzu: {request.lesson or 'berilmagan'}\n"
             f"Kutilgan kod: {request.expected_code or 'talab qilinmaydi'}\n"
             f"Foydalanuvchi matni: {request.text_note or '—'}"
         )
@@ -75,7 +83,12 @@ class LlmProofVerifier:
         verdict, label = await self._pool.complete(
             temperature=0,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT.format(
+                        language=REASON_LANGUAGE.get(request.language, REASON_LANGUAGE["uz"])
+                    ),
+                },
                 {"role": "user", "content": content},
             ],
             response_format={
