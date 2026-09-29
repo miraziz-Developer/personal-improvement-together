@@ -8,6 +8,7 @@ import re
 from collections.abc import Callable
 
 ERRORS_RU: dict[str, str] = {
+    "Kun tartibini bugundan 2 hafta oldinga ko'rish mumkin": "Распорядок можно смотреть на две недели вперёд",
     "Bu challenge allaqachon tugagan": "Этот челлендж уже завершён",
     "Garovli challenge'dan chiqib bo'lmaydi — u oxirigacha davom etadi": "Из челленджа со ставкой нельзя выйти — он идёт до конца",
     "Faqat davom etayotgan challenge'ni pauza qilish mumkin": "На паузу можно поставить только идущий челлендж",

@@ -1,10 +1,10 @@
 """Life plan: several goals in one hourly routine, and the day's timeline to live by."""
 
-from datetime import time
+from datetime import date, time, timedelta
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -29,9 +29,11 @@ from pit.modules.planning.domain.life_plan import GoalAnswers, LifePlan, LifePla
 from pit.modules.planning.domain.routine import BusyBlock, DayFrame, minutes_of
 from pit.shared.application.clock import local_date
 from pit.shared.application.lookup import require
-from pit.shared.domain.errors import PermissionDenied
+from pit.shared.domain.errors import DomainError, PermissionDenied
 
 router = APIRouter(tags=["life-plans"])
+
+ROUTINE_AHEAD_DAYS = 13
 
 Clock = Annotated[str, Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")]
 
@@ -161,6 +163,7 @@ class MonthGoal(BaseModel):
 
 class RoutineOut(BaseModel):
     date: str
+    is_today: bool  # proofs can only be sent for today; other days are a preview
     has_life_plan: bool
     frame: FrameIO | None  # the whole day frame, for editing
     items: list[RoutineItem]  # the timeline, earliest first
@@ -469,11 +472,20 @@ async def my_life_plan(
 
 
 @router.get("/me/routine", response_model=RoutineOut)
-async def my_routine(user_id: UserId, container: ContainerDep, locale: LocaleDep) -> RoutineOut:
-    """Today as one timeline: waking up, fixed commitments, every goal's tasks, sleep."""
+async def my_routine(
+    user_id: UserId,
+    container: ContainerDep,
+    locale: LocaleDep,
+    day: Annotated[date | None, Query()] = None,
+) -> RoutineOut:
+    """A day as one timeline: waking up, fixed commitments, every goal's tasks, sleep.
+    Today by default; up to two weeks ahead to see what is coming."""
     async with container.uow_factory() as uow:
         user = require(await uow.users.get(user_id), "Foydalanuvchi topilmadi")
-        today = local_date(container.clock.now(), user.timezone)
+        real_today = local_date(container.clock.now(), user.timezone)
+        today = day or real_today
+        if not real_today <= today <= real_today + timedelta(days=ROUTINE_AHEAD_DAYS):
+            raise DomainError("Kun tartibini bugundan 2 hafta oldinga ko'rish mumkin")
         plan = await uow.life_plans.latest_started(user_id)
         items: list[RoutineItem] = []
         untimed: list[RoutineItem] = []
@@ -489,7 +501,9 @@ async def my_routine(user_id: UserId, container: ContainerDep, locale: LocaleDep
         ids = await uow.session.execute(
             select(participations.c.id).where(
                 participations.c.user_id == user_id,
-                participations.c.status == ParticipationStatus.ACTIVE.value,
+                participations.c.status.in_(
+                    [ParticipationStatus.ACTIVE.value, ParticipationStatus.SCHEDULED.value]
+                ),
             )
         )
         secret = container.settings.daily_code_secret.get_secret_value().encode()
@@ -531,6 +545,7 @@ async def my_routine(user_id: UserId, container: ContainerDep, locale: LocaleDep
     items.sort(key=lambda i: ("99" if i.kind == "sleep" else i.start, order[i.kind]))
     return RoutineOut(
         date=today.isoformat(),
+        is_today=today == real_today,
         has_life_plan=plan is not None,
         frame=_frame_out(plan.frame) if plan else None,
         items=items,

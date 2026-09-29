@@ -4,6 +4,7 @@ import io
 import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from datetime import date, timedelta
 from typing import Any
 
 import fakeredis
@@ -787,3 +788,25 @@ async def test_adding_a_catalog_challenge_straight_into_the_routine(api: Api) ->
         "/api/v1/me/routine/challenges", json={"challenge_id": calm["id"]}, headers=auth
     )
     assert again.status_code == 422  # already on it
+
+
+async def test_the_routine_can_be_seen_ahead(api: Api) -> None:
+    auth = await api.register()
+    catalog = (await api.client.get("/api/v1/challenges")).json()
+    calm = next(c for c in catalog if c["duration_days"] == 14)
+    await api.client.post(
+        "/api/v1/me/routine/challenges",
+        json={"challenge_id": calm["id"], "times": {"meditate": "07:10"}},
+        headers=auth,
+    )
+    today = (await api.client.get("/api/v1/me/routine", headers=auth)).json()
+    assert today["is_today"] is True
+    tomorrow_date = (date.fromisoformat(today["date"]) + timedelta(days=1)).isoformat()
+    tomorrow = (
+        await api.client.get(f"/api/v1/me/routine?day={tomorrow_date}", headers=auth)
+    ).json()
+    assert tomorrow["is_today"] is False and tomorrow["date"] == tomorrow_date
+    assert [i["start"] for i in tomorrow["items"] if i["kind"] == "task"] == ["07:10"]
+    too_far = (date.fromisoformat(today["date"]) + timedelta(days=30)).isoformat()
+    refused = await api.client.get(f"/api/v1/me/routine?day={too_far}", headers=auth)
+    assert refused.status_code == 422

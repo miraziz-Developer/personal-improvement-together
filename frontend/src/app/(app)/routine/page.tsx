@@ -11,7 +11,7 @@ import { useToast } from "@/components/toast";
 import { Timeline, type TimelineEntry } from "@/components/Timeline";
 import { Button, Card, EmptyState, PageHeader, Skeleton } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
-import { shortDate } from "@/lib/format";
+import { shortDate, WEEKDAYS_SHORT } from "@/lib/format";
 import { type FrameLike, timeProblem } from "@/lib/routine";
 import { useI18n } from "@/lib/i18n";
 import type { Routine, RoutineItem } from "@/lib/types";
@@ -73,12 +73,14 @@ function TaskEntry({
   editing,
   showLesson,
   frame,
+  preview,
 }: {
   item: RoutineItem;
   onSubmitted: () => void;
   editing: boolean;
   showLesson: boolean;
   frame: FrameLike | null;
+  preview: boolean; // another day than today: nothing to prove yet
 }) {
   const { t } = useI18n();
   if (!item.task || !item.participation_id) return null;
@@ -94,7 +96,49 @@ function TaskEntry({
           <BookOpen className="size-3.5" /> {item.lesson}
         </p>
       )}
-      <ProofTask participationId={item.participation_id} task={item.task} onSubmitted={onSubmitted} />
+      {preview ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-white/10 bg-white/[0.02] p-4">
+          {item.task.at && <span className="rounded-lg bg-white/10 px-1.5 py-0.5 text-xs font-semibold tabular-nums">{item.task.at}</span>}
+          <p className="font-semibold">{item.task.title}</p>
+          <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs text-mist">{t("{m} daq", { m: item.task.minutes })}</span>
+          {!item.task.required && <span className="text-xs text-mist">{t("qo'shimcha")}</span>}
+        </div>
+      ) : (
+        <ProofTask participationId={item.participation_id} task={item.task} onSubmitted={onSubmitted} />
+      )}
+    </div>
+  );
+}
+
+const AHEAD_DAYS = 7;
+
+function isoDay(offset: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Today, tomorrow and the rest of the week — to see what is coming. */
+function DayStrip({ offset, onChange }: { offset: number; onChange: (offset: number) => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="mb-4 flex gap-1.5 overflow-x-auto pb-1">
+      {Array.from({ length: AHEAD_DAYS }, (_, i) => {
+        const day = isoDay(i);
+        const weekday = (new Date(`${day}T00:00:00`).getDay() + 6) % 7;
+        const label = i === 0 ? t("Bugun") : i === 1 ? t("Ertaga") : t(WEEKDAYS_SHORT[weekday]);
+        return (
+          <button
+            key={day}
+            onClick={() => onChange(i)}
+            aria-pressed={offset === i}
+            className={`flex shrink-0 flex-col items-center rounded-2xl px-3.5 py-2 text-sm transition ${offset === i ? "bg-flame text-white" : "bg-white/5 text-mist hover:text-white"}`}
+          >
+            <span className="font-semibold">{label}</span>
+            <span className="text-xs opacity-80">{shortDate(day)}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -132,7 +176,11 @@ function FrameCard({ frame, onSaved }: { frame: DayFrameValue; onSaved: () => vo
 
 export default function RoutinePage() {
   const { t } = useI18n();
-  const { data, mutate } = useSWR<Routine>("/me/routine", { refreshInterval: 60_000 });
+  const [offset, setOffset] = useState(0);
+  const { data, mutate } = useSWR<Routine>(offset ? `/me/routine?day=${isoDay(offset)}` : "/me/routine", {
+    refreshInterval: 60_000,
+    keepPreviousData: true, // switching days keeps the page in place while the next loads
+  });
   const now = useSyncExternalStore(everyMinute, clockNow, () => "");
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -151,7 +199,7 @@ export default function RoutinePage() {
       end: item.end,
       title: item.title,
       category: item.category,
-      children: item.kind === "task" ? <TaskEntry item={item} onSubmitted={refresh} editing={editing} showLesson={showLesson} frame={data.frame} /> : undefined,
+      children: item.kind === "task" ? <TaskEntry item={item} onSubmitted={refresh} editing={editing} showLesson={showLesson} frame={data.frame} preview={!data.is_today} /> : undefined,
     };
   });
   const nothing = data.items.every((i) => i.kind !== "task") && data.untimed.length === 0;
@@ -179,6 +227,7 @@ export default function RoutinePage() {
       />
 
       {editing && data.frame && <FrameCard frame={data.frame} onSaved={refresh} />}
+      <DayStrip offset={offset} onChange={setOffset} />
       <AddToRoutine open={adding} onClose={() => setAdding(false)} onAdded={refresh} frame={data.frame} />
 
       {data.months.length > 0 && (
@@ -220,14 +269,14 @@ export default function RoutinePage() {
         </Card>
       ) : (
         <Card>
-          <Timeline entries={entries} now={now || undefined} />
+          <Timeline entries={entries} now={data.is_today ? now || undefined : undefined} />
           {data.untimed.length > 0 && (
             <div className="mt-6">
               <h2 className="text-sm font-semibold text-mist">{t("Vaqtsiz vazifalar")}</h2>
               <p className="mt-1 mb-3 text-xs text-mist">{t("Vaqt qo'ying — vazifa kun tartibiga tushadi va vaqtida eslataman.")}</p>
               <div className="flex flex-col gap-3">
                 {data.untimed.map((item) => (
-                  <TaskEntry key={`${item.participation_id}-${item.task?.key}`} item={item} onSubmitted={refresh} editing showLesson frame={data.frame} />
+                  <TaskEntry key={`${item.participation_id}-${item.task?.key}`} item={item} onSubmitted={refresh} editing showLesson frame={data.frame} preview={!data.is_today} />
                 ))}
               </div>
             </div>

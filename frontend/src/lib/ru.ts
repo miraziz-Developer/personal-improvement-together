@@ -583,4 +583,6 @@ export const RU: Record<string, string> = {
   "Challenge shu yerda tugaydi va kun tartibingizdan olib tashlanadi. To'plagan ballaringiz o'zingizda qoladi.": "Челлендж закончится здесь и исчезнет из распорядка. Набранные баллы останутся у вас.",
   "Faqat biroz dam kerak bo'lsa — pauza yaxshiroq: streak saqlanadi.": "Если нужен лишь отдых — лучше пауза: серия сохранится.",
   "Pauza": "Пауза",
+  "Bugun": "Сегодня",
+  "Ertaga": "Завтра",
 };

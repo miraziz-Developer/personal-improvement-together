@@ -298,6 +298,7 @@ export interface RoutineItem {
 
 export interface Routine {
   date: string;
+  is_today: boolean;
   has_life_plan: boolean;
   frame: { wake: string; sleep: string; busy: BusyBlock[] } | null;
   items: RoutineItem[];
