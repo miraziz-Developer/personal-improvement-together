@@ -240,7 +240,9 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
             partial(coaching.on_proof_rejected, clock=clock),
         ],
         ProofSentToReview: [partial(coaching.on_proof_in_review, clock=clock)],
-        ParticipationStarted: [partial(coaching.on_started, clock=clock)],
+        ParticipationStarted: [
+            partial(coaching.on_started, clock=clock, texts=deps.challenge_texts)
+        ],
         DayFrozen: [partial(coaching.on_day_frozen, clock=clock)],
         DayNeedsHumanReview: [verification.escalate_for_review],
         DayCompleted: [
@@ -248,7 +250,9 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
             partial(coaching.on_day_completed, clock=clock),
             partial(coaching.on_friend_day_done, clock=clock),
         ],
-        GroupMemberJoined: [partial(coaching.on_friend_joined, clock=clock)],
+        GroupMemberJoined: [
+            partial(coaching.on_friend_joined, clock=clock, texts=deps.challenge_texts)
+        ],
         # Privacy first: if a later handler fails, the photos and messages are already gone.
         AccountErased: [
             push.forget_subscriptions,
@@ -264,7 +268,7 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         ParticipationCompleted: [
             release,
             partial(ranking.award_completion_bonus, index=deps.leaderboard),
-            partial(coaching.on_completed, clock=clock),
+            partial(coaching.on_completed, clock=clock, texts=deps.challenge_texts),
         ],
         ParticipationCancelled: [release],
         ParticipationFailed: [
@@ -288,6 +292,10 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         event_handlers[NotificationCreated] = deliveries
     if deps.telegram is not None:
         event_handlers[ProofApproved].append(
-            partial(telegram.announce_task_approved, telegram=deps.telegram)
+            partial(
+                telegram.announce_task_approved,
+                telegram=deps.telegram,
+                texts=deps.challenge_texts,
+            )
         )
     return MessageBus(deps.uow_factory, command_handlers, event_handlers, strict=strict)

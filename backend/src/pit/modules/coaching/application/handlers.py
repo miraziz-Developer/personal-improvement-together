@@ -115,16 +115,25 @@ def _days_left(participation: Participation) -> int:
     )
 
 
-async def _context(uow: CoachingUoW, participation_id: UUID) -> tuple[Participation, str, str]:
+async def _context(
+    uow: CoachingUoW, participation_id: UUID, texts: ChallengeTexts = _OWN_TEXTS
+) -> tuple[Participation, str, str]:
+    """The run, its owner's name and the challenge title in the owner's language."""
     participation = require(await uow.participations.get(participation_id), "Challenge topilmadi")
     user = require(await uow.users.get(participation.user_id), "Foydalanuvchi topilmadi")
     challenge = require(await uow.challenges.get(participation.challenge_id), "Challenge topilmadi")
-    return participation, user.username, challenge.title
+    return participation, user.username, texts.title(challenge, user.locale.value)
 
 
-async def on_started(event: ParticipationStarted, uow: CoachingUoW, *, clock: Clock) -> None:
+async def on_started(
+    event: ParticipationStarted,
+    uow: CoachingUoW,
+    *,
+    clock: Clock,
+    texts: ChallengeTexts = _OWN_TEXTS,
+) -> None:
     async with uow:
-        participation, name, title = await _context(uow, event.participation_id)
+        participation, name, title = await _context(uow, event.participation_id, texts)
         await _notify(
             uow,
             clock,
@@ -191,9 +200,15 @@ async def on_failed(event: ParticipationFailed, uow: CoachingUoW, *, clock: Cloc
         await uow.commit()
 
 
-async def on_completed(event: ParticipationCompleted, uow: CoachingUoW, *, clock: Clock) -> None:
+async def on_completed(
+    event: ParticipationCompleted,
+    uow: CoachingUoW,
+    *,
+    clock: Clock,
+    texts: ChallengeTexts = _OWN_TEXTS,
+) -> None:
     async with uow:
-        _, name, title = await _context(uow, event.participation_id)
+        _, name, title = await _context(uow, event.participation_id, texts)
         await _notify(
             uow,
             clock,
@@ -268,11 +283,18 @@ async def on_friend_day_done(event: DayCompleted, uow: CoachingUoW, *, clock: Cl
         await uow.commit()
 
 
-async def on_friend_joined(event: GroupMemberJoined, uow: CoachingUoW, *, clock: Clock) -> None:
+async def on_friend_joined(
+    event: GroupMemberJoined,
+    uow: CoachingUoW,
+    *,
+    clock: Clock,
+    texts: ChallengeTexts = _OWN_TEXTS,
+) -> None:
     async with uow:
         friend = require(await uow.users.get(event.user_id), "Foydalanuvchi topilmadi")
         challenge = require(await uow.challenges.get(event.challenge_id), "Challenge topilmadi")
         for mate in await _group_mates(uow, event.group_id, event.user_id):
+            reader = await uow.users.get(mate.user_id)
             await _notify(
                 uow,
                 clock,
@@ -281,7 +303,7 @@ async def on_friend_joined(event: GroupMemberJoined, uow: CoachingUoW, *, clock:
                 moment=Moment.FRIEND_JOINED,
                 participation_id=mate.id,
                 friend=friend.username,
-                title=challenge.title,
+                title=texts.title(challenge, reader.locale.value if reader else "uz"),
             )
         await uow.commit()
 

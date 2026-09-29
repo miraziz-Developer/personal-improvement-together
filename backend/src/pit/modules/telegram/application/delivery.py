@@ -5,6 +5,7 @@ a blocked bot unlinks the chat so nobody keeps writing to it."""
 
 import logging
 
+from pit.modules.coaching.application.ports import ChallengeTexts, OwnTexts
 from pit.modules.coaching.domain.messages import Moment
 from pit.modules.coaching.domain.notification import Notification, NotificationCreated
 from pit.modules.identity.domain.user import User
@@ -103,7 +104,11 @@ class TelegramMessenger:
 
 
 async def announce_task_approved(
-    event: ProofApproved, uow: TelegramUoW, *, telegram: TelegramApi
+    event: ProofApproved,
+    uow: TelegramUoW,
+    *,
+    telegram: TelegramApi,
+    texts: ChallengeTexts | None = None,
 ) -> None:
     """A quick "✅ accepted" while other tasks remain. When this proof completes the day, the
     coach's day-done message follows instead, so we stay quiet to avoid a double message."""
@@ -128,7 +133,9 @@ async def announce_task_approved(
         if task.required and not remaining:
             return
         lang = user.locale.value
-        text = tr(lang, "task_approved", title=html(task.title))
+        challenge = await uow.challenges.get(participation.challenge_id)
+        title = (texts or OwnTexts()).task_title(challenge, task, lang) if challenge else task.title
+        text = tr(lang, "task_approved", title=html(title))
         buttons: Keyboard = ()
         if remaining:
             text += tr(lang, "remaining", n=len(remaining))
