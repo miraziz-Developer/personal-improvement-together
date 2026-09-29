@@ -112,6 +112,16 @@ LIBRARY_RU: dict[Moment, tuple[tuple[str, str], ...]] = {
             "{tasks} задач, {minutes} мин. Начало — {first}. {focus_line}Шаг за шагом, {name}!",
         ),
     ),
+    Moment.DAY_SUMMARY: (
+        (
+            "Итог дня 🌙",
+            "Сегодня выполнено {done}/{planned}. {tomorrow_line}Хорошего отдыха, {name}!",
+        ),
+        (
+            "Спасибо за день 🙏",
+            "{done}/{planned} задач — каждая это шаг. {tomorrow_line}Завтра продолжим.",
+        ),
+    ),
     Moment.MONTH_STARTED: (
         (
             "🏁 Начался {month}-й месяц",
@@ -242,4 +252,5 @@ PHRASES_RU = {
     "group_line": "В группе {rank}-е место. ",
     "money_line": "Ваша ставка ({stake}) полностью возвращена.",
     "focus_line": "Тема дня: {focus}. ",
+    "tomorrow_line": "Завтра первым: {first}. ",
 }

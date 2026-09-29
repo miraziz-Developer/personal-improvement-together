@@ -30,6 +30,7 @@ ALL_FACTS = {
     "month": 2,
     "done_goal": "Odat shakllandi",
     "goal": "Natija ko'rinadi",
+    "tomorrow_line": "Ertaga birinchisi: 06:30 — Yugurish. ",
 }
 
 

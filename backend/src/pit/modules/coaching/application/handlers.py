@@ -34,6 +34,8 @@ from pit.modules.coaching.domain.notification import Notification
 from pit.modules.coaching.domain.repositories import NotificationRepository
 from pit.modules.identity.domain.events import AccountErased
 from pit.modules.identity.domain.repositories import UserRepository
+from pit.modules.identity.domain.user import User
+from pit.modules.planning.domain.repositories import LifePlanRepository
 from pit.modules.verification.domain.events import ProofRejected, ProofSentToReview
 from pit.modules.verification.domain.repositories import ProofRepository
 from pit.modules.verification.domain.verdict import ProofStatus
@@ -60,6 +62,9 @@ class CoachingUoW(Transaction, Protocol):
 
     @property
     def proofs(self) -> ProofRepository: ...
+
+    @property
+    def life_plans(self) -> LifePlanRepository: ...
 
 
 REMINDER_WINDOW = timedelta(minutes=30)  # a reminder later than this would only nag
@@ -339,80 +344,164 @@ async def send_daily_nudges(
     return sent
 
 
+async def _runs_by_user(uow: CoachingUoW) -> dict[UUID, list[tuple[Participation, Challenge]]]:
+    runs: dict[UUID, list[tuple[Participation, Challenge]]] = {}
+    for participation_id in await uow.participations.list_open_ids():
+        participation = await uow.participations.get(participation_id)
+        if participation is None or participation.status is not ParticipationStatus.ACTIVE:
+            continue
+        challenge = require(
+            await uow.challenges.get(participation.challenge_id), "Challenge topilmadi"
+        )
+        runs.setdefault(participation.user_id, []).append((participation, challenge))
+    return runs
+
+
+def _first_task(
+    texts: ChallengeTexts, runs: list[tuple[Participation, Challenge]], day: date, locale: str
+) -> str | None:
+    """The day's first task, "07:00 — Running" when it has a time."""
+    tasks = [(t, c) for p, c in runs for t in p.tasks_on(day)]
+    if not tasks:
+        return None
+    timed = sorted((item for item in tasks if item[0].at), key=lambda item: item[0].at or 0)
+    task, challenge = timed[0] if timed else tasks[0]
+    title = texts.task_title(challenge, task, locale)
+    return f"{task.at.strftime('%H:%M')} — {title}" if task.at else title
+
+
+async def _morning_for(
+    uow: CoachingUoW,
+    clock: Clock,
+    texts: ChallengeTexts,
+    user: User,
+    mine: list[tuple[Participation, Challenge]],
+    today: date,
+) -> int:
+    """One morning message for one person (ids make a repeat a no-op)."""
+    locale = user.locale.value
+    sent = await _month_milestones(uow, clock, texts, user.id, mine, today, locale)
+    working = [(p, c) for p, c in mine if p.tasks_on(today)]
+    if not working:
+        only = mine[0][0] if len(mine) == 1 else None
+        await _notify(
+            uow,
+            clock,
+            key=f"rest:{only.id if only else user.id}:{today.isoformat()}",
+            user_id=user.id,
+            participation_id=only.id if only else None,
+            moment=Moment.REST_DAY,
+        )
+        return sent + 1
+    focus = next((f for p, c in working if (f := _focus_text(texts, c, p, today, locale))), None)
+    tasks = [t for p, _ in working for t in p.tasks_on(today)]
+    if len(working) == 1:
+        participation = working[0][0]
+        await _notify(
+            uow,
+            clock,
+            key=f"morning:{participation.id}:{today.isoformat()}",
+            user_id=user.id,
+            participation_id=participation.id,
+            moment=Moment.MORNING,
+            name=user.username,
+            tasks=len(tasks),
+            minutes=sum(t.minutes for t in tasks),
+            streak=participation.current_streak,
+            focus=focus,
+        )
+    else:
+        await _notify(
+            uow,
+            clock,
+            key=f"routine:{user.id}:{today.isoformat()}",
+            user_id=user.id,
+            participation_id=None,
+            moment=Moment.MORNING_ROUTINE,
+            name=user.username,
+            goals=len(working),
+            tasks=len(tasks),
+            minutes=sum(t.minutes for t in tasks),
+            first=_first_task(texts, working, today, locale),
+            focus=focus,
+        )
+    return sent + 1
+
+
 async def _send_mornings(uow: CoachingUoW, clock: Clock, texts: ChallengeTexts) -> int:
-    """One morning message per person: with several goals it is the day's routine in one
-    message, not one message per goal. Month boundaries get their milestone message."""
+    """The fixed 08:00 morning message. People with a daily routine get theirs when they
+    wake up instead (see _routine_moments), unless they are up before 08:00 anyway."""
     sent = 0
     async with uow:
-        runs: dict[UUID, list[tuple[Participation, Challenge]]] = {}
-        for participation_id in await uow.participations.list_open_ids():
-            participation = await uow.participations.get(participation_id)
-            if participation is None or participation.status is not ParticipationStatus.ACTIVE:
-                continue
-            challenge = require(
-                await uow.challenges.get(participation.challenge_id), "Challenge topilmadi"
-            )
-            runs.setdefault(participation.user_id, []).append((participation, challenge))
-        for user_id, mine in runs.items():
+        for user_id, mine in (await _runs_by_user(uow)).items():
             user = require(await uow.users.get(user_id), "Foydalanuvchi topilmadi")
-            today = local_date(clock.now(), user.timezone)
-            locale = user.locale.value
-            sent += await _month_milestones(uow, clock, texts, user.id, mine, today, locale)
-            working = [(p, c) for p, c in mine if p.tasks_on(today)]
-            if not working:
-                only = mine[0][0] if len(mine) == 1 else None
-                await _notify(
-                    uow,
-                    clock,
-                    key=f"rest:{only.id if only else user_id}:{today.isoformat()}",
-                    user_id=user_id,
-                    participation_id=only.id if only else None,
-                    moment=Moment.REST_DAY,
-                )
-                sent += 1
-                continue
-            focus = next(
-                (f for p, c in working if (f := _focus_text(texts, c, p, today, locale))), None
-            )
-            tasks = [(t, p, c) for p, c in working for t in p.tasks_on(today)]
-            if len(working) == 1:
-                participation = working[0][0]
-                await _notify(
-                    uow,
-                    clock,
-                    key=f"morning:{participation.id}:{today.isoformat()}",
-                    user_id=user_id,
-                    participation_id=participation.id,
-                    moment=Moment.MORNING,
-                    name=user.username,
-                    tasks=len(tasks),
-                    minutes=sum(t.minutes for t, _, _ in tasks),
-                    streak=participation.current_streak,
-                    focus=focus,
-                )
-            else:
-                timed = sorted((t for t in tasks if t[0].at), key=lambda item: item[0].at or 0)
-                first_task, _, first_challenge = timed[0] if timed else tasks[0]
-                first = texts.task_title(first_challenge, first_task, locale)
-                if first_task.at:
-                    first = f"{first_task.at.strftime('%H:%M')} — {first}"
-                await _notify(
-                    uow,
-                    clock,
-                    key=f"routine:{user_id}:{today.isoformat()}",
-                    user_id=user_id,
-                    participation_id=None,
-                    moment=Moment.MORNING_ROUTINE,
-                    name=user.username,
-                    goals=len(working),
-                    tasks=len(tasks),
-                    minutes=sum(t.minutes for t, _, _ in tasks),
-                    first=first,
-                    focus=focus,
-                )
-            sent += 1
+            now = clock.now().astimezone(ZoneInfo(user.timezone))
+            routine = await uow.life_plans.latest_started(user_id)
+            if routine is not None and routine.frame.wake > now.time():
+                continue  # still asleep: the message comes at wake-up time
+            sent += await _morning_for(uow, clock, texts, user, mine, now.date())
         await uow.commit()
     return sent
+
+
+WAKE_WINDOW = timedelta(minutes=30)
+SUMMARY_BEFORE_SLEEP = (timedelta(minutes=45), timedelta(minutes=15))
+
+
+async def _routine_moments(uow: CoachingUoW, clock: Clock, texts: ChallengeTexts) -> int:
+    """For people with a daily routine: the morning message at wake-up time, and a short
+    summary of the day before they go to sleep. Called from the few-minute tick."""
+    sent = 0
+    for user_id, mine in (await _runs_by_user(uow)).items():
+        routine = await uow.life_plans.latest_started(user_id)
+        if routine is None:
+            continue
+        user = require(await uow.users.get(user_id), "Foydalanuvchi topilmadi")
+        now = clock.now().astimezone(ZoneInfo(user.timezone))
+        today, clock_now = now.date(), now.replace(tzinfo=None)
+        wake = datetime.combine(today, routine.frame.wake)
+        if wake <= clock_now < wake + WAKE_WINDOW:
+            sent += await _morning_for(uow, clock, texts, user, mine, today)
+        sleep = datetime.combine(today, routine.frame.sleep)
+        if routine.frame.sleeps_after_midnight:
+            sleep += timedelta(days=1)
+        if sleep - SUMMARY_BEFORE_SLEEP[0] <= clock_now < sleep - SUMMARY_BEFORE_SLEEP[1]:
+            sent += await _day_summary(uow, clock, texts, user, mine, today)
+    return sent
+
+
+async def _day_summary(
+    uow: CoachingUoW,
+    clock: Clock,
+    texts: ChallengeTexts,
+    user: User,
+    mine: list[tuple[Participation, Challenge]],
+    today: date,
+) -> int:
+    planned = done = 0
+    for participation, _ in mine:
+        required = [t for t in participation.tasks_on(today) if t.required]
+        if not required:
+            continue
+        proofs = await uow.proofs.list_for_day(participation.id, today)
+        handled = {p.task_key for p in proofs if p.status is not ProofStatus.REJECTED}
+        planned += len(required)
+        done += sum(1 for t in required if t.key in handled)
+    if planned == 0:
+        return 0
+    await _notify(
+        uow,
+        clock,
+        key=f"summary:{user.id}:{today.isoformat()}",
+        user_id=user.id,
+        participation_id=None,
+        moment=Moment.DAY_SUMMARY,
+        name=user.username,
+        done=done,
+        planned=planned,
+        tomorrow=_first_task(texts, mine, today + timedelta(days=1), user.locale.value),
+    )
+    return 1
 
 
 async def _month_milestones(
@@ -497,6 +586,7 @@ async def send_task_reminders(
                     focus=_focus_text(texts, challenge, participation, today, locale),
                 )
                 sent += 1
+        sent += await _routine_moments(uow, clock, texts)
         await uow.commit()
     return sent
 

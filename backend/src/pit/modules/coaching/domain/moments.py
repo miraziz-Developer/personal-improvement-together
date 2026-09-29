@@ -24,3 +24,4 @@ class Moment(StrEnum):
     TASK_DUE = "task_due"
     MORNING_ROUTINE = "morning_routine"
     MONTH_STARTED = "month_started"
+    DAY_SUMMARY = "day_summary"

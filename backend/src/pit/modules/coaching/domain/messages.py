@@ -143,6 +143,16 @@ LIBRARY: dict[Moment, tuple[tuple[str, str], ...]] = {
             "Qadam-baqadam, {name}!",
         ),
     ),
+    Moment.DAY_SUMMARY: (
+        (
+            "Kun yakuni 🌙",
+            "Bugun {done}/{planned} vazifa bajarildi. {tomorrow_line}Yaxshi dam oling, {name}!",
+        ),
+        (
+            "Bugun uchun rahmat 🙏",
+            "{done}/{planned} vazifa — har biri bir qadam. {tomorrow_line}Ertaga davom etamiz.",
+        ),
+    ),
     Moment.MONTH_STARTED: (
         (
             "🏁 {month}-oy boshlandi",
@@ -263,6 +273,7 @@ PHRASES = {
     "group_line": "Guruhda {rank}-o'rin. ",
     "money_line": "Garovingiz ({stake}) to'liq qaytarildi.",
     "focus_line": "Bugungi mavzu: {focus}. ",
+    "tomorrow_line": "Ertaga birinchisi: {first}. ",
 }
 
 _BY_LOCALE = {
@@ -274,7 +285,9 @@ _BY_LOCALE = {
 def _derived(phrases: dict[str, str], facts: dict[str, object]) -> dict[str, object]:
     """Sub-sentences that exist only sometimes, in the reader's language."""
     rank, stake, focus = facts.get("rank"), facts.get("stake"), facts.get("focus")
+    tomorrow = facts.get("tomorrow")
     return {
+        "tomorrow_line": phrases["tomorrow_line"].format(first=tomorrow) if tomorrow else "",
         "focus_line": phrases["focus_line"].format(focus=focus) if focus else "",
         "group_line": phrases["group_line"].format(rank=rank) if rank else "",
         "money_line": phrases["money_line"].format(stake=stake) if stake else "",

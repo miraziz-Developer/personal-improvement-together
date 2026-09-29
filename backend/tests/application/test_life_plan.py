@@ -2,7 +2,7 @@ from datetime import time
 
 import pytest
 
-from pit.modules.coaching.application.commands import SendDailyNudges
+from pit.modules.coaching.application.commands import SendDailyNudges, SendTaskReminders
 from pit.modules.coaching.domain.moments import Moment
 from pit.modules.identity.application.commands import EraseAccount
 from pit.modules.planning.application.commands import (
@@ -215,3 +215,34 @@ async def test_a_challenge_joins_the_routine_at_the_chosen_time(world: World) ->
         await world.bus.handle(
             AddToRoutine(user_id=user.id, challenge_id=at_work.id, times={"main": time(10, 0)})
         )
+
+
+async def test_the_morning_comes_at_wake_up_and_the_day_closes_with_a_summary(
+    world: World,
+) -> None:
+    user = world.add_user()
+    late_riser = DayFrame(wake=time(9, 30), sleep=time(23, 0), busy=())
+    plan_id = await world.bus.handle(
+        DraftLifePlan(
+            user_id=user.id,
+            request=LifePlanRequest(
+                goals=(GoalAnswers("Har kuni sport"),), frame=late_riser, duration_days=30
+            ),
+        )
+    )
+    await world.bus.handle(StartLifePlan(user_id=user.id, plan_id=plan_id))
+
+    def moments() -> list[Moment]:
+        return [n.moment for n in world.store.notifications.values()]
+
+    await world.bus.handle(SendDailyNudges(kind="morning"))  # 09:00 — still asleep
+    assert Moment.MORNING not in moments()
+    world.clock.advance(minutes=35)  # 09:35
+    await world.bus.handle(SendTaskReminders())
+    assert moments().count(Moment.MORNING) == 1
+
+    world.clock.advance(hours=12, minutes=45)  # 22:20, sleep at 23:00
+    await world.bus.handle(SendTaskReminders())
+    await world.bus.handle(SendTaskReminders())
+    summaries = [n for n in world.store.notifications.values() if n.moment is Moment.DAY_SUMMARY]
+    assert len(summaries) == 1 and "0/" in summaries[0].body
