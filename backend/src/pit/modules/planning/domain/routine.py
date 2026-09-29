@@ -111,7 +111,10 @@ def check_fits(frame: DayFrame, schedules: Sequence[Schedule], *, fixed: int = 0
                     raise DomainError(f"{name}: «{task.title}» uchun vaqt belgilang")
                 span = (minutes_of(task.at), minutes_of(task.at) + task.minutes)
                 if span[0] < start_of_day or span[1] > end_of_day:
-                    raise DomainError(f"{name}: «{task.title}» uyg'oq vaqtingizdan tashqarida")
+                    raise DomainError(
+                        f"{name}: «{task.title}» uyg'oq vaqtingizdan tashqarida "
+                        f"({frame.wake:%H:%M}-{frame.sleep:%H:%M})"
+                    )
                 clash = next((label for other, label in taken if _overlaps(span, other)), None)
                 if clash is not None:
                     raise DomainError(f"{name}: «{task.title}» va «{clash}» vaqti ustma-ust tushdi")
@@ -140,7 +143,10 @@ def check_clashes(frame: DayFrame | None, schedules: Sequence[Schedule]) -> None
                 if frame and (
                     span[0] < minutes_of(frame.wake) or span[1] > minutes_of(frame.sleep)
                 ):
-                    raise DomainError(f"{name}: «{task.title}» uyg'oq vaqtingizdan tashqarida")
+                    raise DomainError(
+                        f"{name}: «{task.title}» uyg'oq vaqtingizdan tashqarida "
+                        f"({frame.wake:%H:%M}-{frame.sleep:%H:%M})"
+                    )
                 clash = next((label for other, label in taken if _overlaps(span, other)), None)
                 if clash is not None:
                     raise DomainError(f"{name}: «{task.title}» va «{clash}» vaqti ustma-ust tushdi")

@@ -567,4 +567,8 @@ export const RU: Record<string, string> = {
   "Har vazifani qachon qilasiz? Bo'sh qoldirsangiz, bo'sh vaqtingizdan o'zim joy topaman.": "Когда вы делаете каждую задачу? Оставите пустым — найду место в свободном времени.",
   "Kun tartibiga qo'shish": "Добавить в распорядок",
   "Challenge qo'shish": "Добавить челлендж",
+  "Uyg'onish {wake} — undan keyin boshlang": "Подъём в {wake} — начните позже",
+  "Uxlash {sleep} — ko'pi bilan {latest} da boshlang": "Отбой в {sleep} — начните не позже {latest}",
+  "«{label}» bilan ustma-ust ({from}–{to})": "Пересекается с «{label}» ({from}–{to})",
+  "«{title}» bilan ustma-ust": "Пересекается с «{title}»",
 };

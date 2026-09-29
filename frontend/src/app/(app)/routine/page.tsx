@@ -12,6 +12,7 @@ import { Timeline, type TimelineEntry } from "@/components/Timeline";
 import { Button, Card, EmptyState, PageHeader, Skeleton } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { shortDate } from "@/lib/format";
+import { type FrameLike, timeProblem } from "@/lib/routine";
 import { useI18n } from "@/lib/i18n";
 import type { Routine, RoutineItem } from "@/lib/types";
 
@@ -22,12 +23,13 @@ const everyMinute = (callback: () => void) => {
 const clockNow = () => new Date().toTimeString().slice(0, 5);
 
 /** Moves a task on the timeline. The time holds on every day the task happens. */
-function TimeField({ item, onSaved }: { item: RoutineItem; onSaved: () => void }) {
+function TimeField({ item, onSaved, frame }: { item: RoutineItem; onSaved: () => void; frame: FrameLike | null }) {
   const { t } = useI18n();
   const toast = useToast();
   const [value, setValue] = useState(item.task?.at ?? "");
   const [saving, setSaving] = useState(false);
   const changed = value !== (item.task?.at ?? "");
+  const problem = timeProblem(frame, value, item.task?.minutes ?? 0, [(new Date().getDay() + 6) % 7]);
 
   async function save() {
     if (!item.task || !item.participation_id) return;
@@ -44,7 +46,7 @@ function TimeField({ item, onSaved }: { item: RoutineItem; onSaved: () => void }
   }
 
   return (
-    <div className="flex items-center gap-2 px-1">
+    <div className="flex flex-wrap items-center gap-2 px-1">
       <label className="flex items-center gap-1.5 rounded-xl bg-white/5 px-2 py-1 text-xs text-mist focus-within:text-white">
         <Clock className="size-3.5" />
         <input
@@ -55,7 +57,8 @@ function TimeField({ item, onSaved }: { item: RoutineItem; onSaved: () => void }
           aria-label={t("Boshlanish vaqti")}
         />
       </label>
-      {changed && (
+      {problem && <span className="text-xs text-danger">{t(problem[0], problem[1])}</span>}
+      {changed && !problem && (
         <button onClick={save} disabled={saving} className="flex items-center gap-1 rounded-xl bg-flame-500/20 px-2.5 py-1 text-xs font-semibold text-flame-200 hover:bg-flame-500/30 disabled:opacity-50">
           <Check className="size-3.5" /> {t("Saqlash")}
         </button>
@@ -64,7 +67,19 @@ function TimeField({ item, onSaved }: { item: RoutineItem; onSaved: () => void }
   );
 }
 
-function TaskEntry({ item, onSubmitted, editing, showLesson }: { item: RoutineItem; onSubmitted: () => void; editing: boolean; showLesson: boolean }) {
+function TaskEntry({
+  item,
+  onSubmitted,
+  editing,
+  showLesson,
+  frame,
+}: {
+  item: RoutineItem;
+  onSubmitted: () => void;
+  editing: boolean;
+  showLesson: boolean;
+  frame: FrameLike | null;
+}) {
   const { t } = useI18n();
   if (!item.task || !item.participation_id) return null;
   return (
@@ -73,7 +88,7 @@ function TaskEntry({ item, onSubmitted, editing, showLesson }: { item: RoutineIt
         {item.challenge_title}
         {item.end && ` · ${t("{time} gacha", { time: item.end })}`}
       </p>
-      {editing && <TimeField key={item.task.at ?? ""} item={item} onSaved={onSubmitted} />}
+      {editing && <TimeField key={item.task.at ?? ""} item={item} onSaved={onSubmitted} frame={frame} />}
       {showLesson && item.lesson && (
         <p className="flex items-center gap-1.5 px-1 text-xs text-iris">
           <BookOpen className="size-3.5" /> {item.lesson}
@@ -136,7 +151,7 @@ export default function RoutinePage() {
       end: item.end,
       title: item.title,
       category: item.category,
-      children: item.kind === "task" ? <TaskEntry item={item} onSubmitted={refresh} editing={editing} showLesson={showLesson} /> : undefined,
+      children: item.kind === "task" ? <TaskEntry item={item} onSubmitted={refresh} editing={editing} showLesson={showLesson} frame={data.frame} /> : undefined,
     };
   });
   const nothing = data.items.every((i) => i.kind !== "task") && data.untimed.length === 0;
@@ -164,7 +179,7 @@ export default function RoutinePage() {
       />
 
       {editing && data.frame && <FrameCard frame={data.frame} onSaved={refresh} />}
-      <AddToRoutine open={adding} onClose={() => setAdding(false)} onAdded={refresh} />
+      <AddToRoutine open={adding} onClose={() => setAdding(false)} onAdded={refresh} frame={data.frame} />
 
       {data.months.length > 0 && (
         <Card className="mb-4 flex flex-col gap-2">
@@ -212,7 +227,7 @@ export default function RoutinePage() {
               <p className="mt-1 mb-3 text-xs text-mist">{t("Vaqt qo'ying — vazifa kun tartibiga tushadi va vaqtida eslataman.")}</p>
               <div className="flex flex-col gap-3">
                 {data.untimed.map((item) => (
-                  <TaskEntry key={`${item.participation_id}-${item.task?.key}`} item={item} onSubmitted={refresh} editing showLesson />
+                  <TaskEntry key={`${item.participation_id}-${item.task?.key}`} item={item} onSubmitted={refresh} editing showLesson frame={data.frame} />
                 ))}
               </div>
             </div>

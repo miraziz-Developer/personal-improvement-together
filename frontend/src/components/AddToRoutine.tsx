@@ -9,6 +9,7 @@ import { Button, Modal, Skeleton } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { CATEGORY, minutes, WEEKDAYS_SHORT } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
+import { type FrameLike, timeProblem, toMinutes } from "@/lib/routine";
 import type { Challenge, Participation } from "@/lib/types";
 
 type TaskLine = { key: string; title: string; minutes: number; weekdays: number[] };
@@ -27,7 +28,30 @@ function taskLines(challenge: Challenge): TaskLine[] {
 }
 
 /** "I'll do this challenge at this time": pick a challenge, give its tasks times, done. */
-export function AddToRoutine({ open, onClose, onAdded }: { open: boolean; onClose: () => void; onAdded: () => void }) {
+/** Two picked tasks of the same challenge that would overlap on a shared day. */
+function selfClash(lines: TaskLine[], times: Record<string, string>): Record<string, string> {
+  const clashes: Record<string, string> = {};
+  for (const a of lines) {
+    for (const b of lines) {
+      if (a.key === b.key || !times[a.key] || !times[b.key] || !a.weekdays.some((d) => b.weekdays.includes(d))) continue;
+      const [aStart, bStart] = [toMinutes(times[a.key]), toMinutes(times[b.key])];
+      if (aStart < bStart + b.minutes && bStart < aStart + a.minutes) clashes[a.key] = b.title;
+    }
+  }
+  return clashes;
+}
+
+export function AddToRoutine({
+  open,
+  onClose,
+  onAdded,
+  frame,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onAdded: () => void;
+  frame?: FrameLike | null;
+}) {
   const { t } = useI18n();
   const toast = useToast();
   const { data: catalog } = useSWR<Challenge[]>(open ? "/challenges" : null);
@@ -36,6 +60,17 @@ export function AddToRoutine({ open, onClose, onAdded }: { open: boolean; onClos
   const [times, setTimes] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
+  const lines = picked ? taskLines(picked) : [];
+  const clashes = selfClash(lines, times);
+  const problems = Object.fromEntries(
+    lines.map((task) => {
+      const problem = timeProblem(frame, times[task.key] ?? "", task.minutes, task.weekdays);
+      if (problem) return [task.key, t(problem[0], problem[1])];
+      if (clashes[task.key]) return [task.key, t("«{title}» bilan ustma-ust", { title: clashes[task.key] })];
+      return [task.key, null];
+    }),
+  );
+  const blocked = Object.values(problems).some(Boolean);
   const running = new Set(mine?.filter((p) => p.status === "active" || p.status === "scheduled").map((p) => p.challenge_id));
   const available = catalog?.filter((c) => !running.has(c.id)) ?? [];
 
@@ -94,8 +129,8 @@ export function AddToRoutine({ open, onClose, onAdded }: { open: boolean; onClos
       ) : (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-mist">{t("Har vazifani qachon qilasiz? Bo'sh qoldirsangiz, bo'sh vaqtingizdan o'zim joy topaman.")}</p>
-          {taskLines(picked).map((task) => (
-            <label key={task.key} className="flex items-center gap-3 rounded-2xl bg-ink-900/60 px-3 py-2">
+          {lines.map((task) => (
+            <label key={task.key} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-ink-900/60 px-3 py-2">
               <span className="min-w-0 flex-1 text-sm">
                 {task.title}
                 <span className="block text-xs text-mist">
@@ -113,13 +148,14 @@ export function AddToRoutine({ open, onClose, onAdded }: { open: boolean; onClos
                   aria-label={t("Boshlanish vaqti")}
                 />
               </span>
+              {problems[task.key] && <span className="w-full text-xs text-danger">{problems[task.key]}</span>}
             </label>
           ))}
           <div className="mt-2 flex gap-2">
             <Button variant="ghost" onClick={() => setPicked(null)}>
               <ArrowLeft className="size-4" /> {t("Orqaga")}
             </Button>
-            <Button className="flex-1" loading={saving} onClick={add}>
+            <Button className="flex-1" loading={saving} disabled={blocked} onClick={add}>
               {t("Kun tartibiga qo'shish")}
             </Button>
           </div>

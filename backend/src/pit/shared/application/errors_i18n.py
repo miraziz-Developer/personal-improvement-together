@@ -185,7 +185,10 @@ _TEMPLATES_RU: list[tuple[str, str]] = [
         "{0}: время окончания должно быть позже начала",
     ),
     ("{}: «{}» uchun vaqt belgilang", "{0}: укажите время для «{1}»"),
-    ("{}: «{}» uyg'oq vaqtingizdan tashqarida", "{0}: «{1}» выходит за время бодрствования"),
+    (
+        "{}: «{}» uyg'oq vaqtingizdan tashqarida ({})",
+        "{0}: «{1}» выходит за время бодрствования ({2})",
+    ),
     ("{}: «{}» va «{}» vaqti ustma-ust tushdi", "{0}: «{1}» и «{2}» пересекаются по времени"),
     ("Band vaqt nomi 1-{} belgi bo'lsin", "Название занятого времени — от 1 до {0} символов"),
     ("Band vaqtlar {} tadan oshmasin", "Занятых промежутков — не больше {0}"),

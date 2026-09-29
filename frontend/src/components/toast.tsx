@@ -22,7 +22,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const push = useCallback((tone: Tone, title: string, body?: string) => {
     const id = Date.now() + Math.random();
-    setToasts((all) => [...all, { id, tone, title, body }]);
+    // Pressing a button again must not stack the same message three times.
+    setToasts((all) => (all.some((t) => t.title === title && t.body === body) ? all : [...all, { id, tone, title, body }]));
     setTimeout(() => setToasts((all) => all.filter((t) => t.id !== id)), 5200);
   }, []);
 
