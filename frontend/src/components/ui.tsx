@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
 import { Flame, Loader2, X } from "lucide-react";
 import Link from "next/link";
-import { forwardRef } from "react";
+import { forwardRef, useEffect, useId } from "react";
 import { currentLocale, translate } from "@/lib/i18n";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -216,6 +216,14 @@ export function Modal({
   title: string;
   children: React.ReactNode;
 }) {
+  const titleId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -232,9 +240,14 @@ export function Modal({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
             onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-display text-lg font-semibold">{title}</h3>
+              <h3 id={titleId} className="font-display text-lg font-semibold">
+                {title}
+              </h3>
               <button onClick={onClose} className="rounded-xl p-2 text-mist hover:bg-white/5 hover:text-white" aria-label={translate(currentLocale(), "Yopish")}>
                 <X className="size-5" />
               </button>
