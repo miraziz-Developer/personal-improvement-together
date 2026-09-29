@@ -561,4 +561,10 @@ export const RU: Record<string, string> = {
   "Tayyor": "Готово",
   "Tahrirlash": "Редактировать",
   "Vaqt qo'ying — vazifa kun tartibiga tushadi va vaqtida eslataman.": "Поставьте время — задача попадёт в распорядок, и я напомню вовремя.",
+  "Kun tartibiga qo'shildi 🎉": "Добавлено в распорядок 🎉",
+  "Kun tartibiga challenge qo'shish": "Добавить челлендж в распорядок",
+  "Katalogdagi hamma challenge'larda allaqachon qatnashyapsiz 💪": "Вы уже участвуете во всех челленджах каталога 💪",
+  "Har vazifani qachon qilasiz? Bo'sh qoldirsangiz, bo'sh vaqtingizdan o'zim joy topaman.": "Когда вы делаете каждую задачу? Оставите пустым — найду место в свободном времени.",
+  "Kun tartibiga qo'shish": "Добавить в распорядок",
+  "Challenge qo'shish": "Добавить челлендж",
 };

@@ -65,6 +65,7 @@ from pit.modules.moderation.application import handlers as moderation
 from pit.modules.moderation.application.commands import FileReport, ResolveReport
 from pit.modules.planning.application import handlers as planning
 from pit.modules.planning.application.commands import (
+    AddToRoutine,
     ChangeDayFrame,
     DraftLifePlan,
     DraftPlan,
@@ -179,6 +180,12 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         RetimeLifePlanRun: planning.retime_life_plan_run,
         RetimeTasks: partial(planning.retime_tasks, clock=clock),
         ChangeDayFrame: planning.change_day_frame,
+        AddToRoutine: partial(
+            planning.add_to_routine,
+            clock=clock,
+            escrow=escrow,
+            stakes_enabled=deps.stakes_enabled,
+        ),
         StartLifePlan: partial(
             planning.start_life_plan,
             clock=clock,

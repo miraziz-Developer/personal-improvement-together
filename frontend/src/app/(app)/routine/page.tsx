@@ -4,6 +4,7 @@ import { BookOpen, CalendarClock, Check, Clock, Flag, Pencil, Plus } from "lucid
 import { useState, useSyncExternalStore } from "react";
 import useSWR from "swr";
 
+import { AddToRoutine } from "@/components/AddToRoutine";
 import { DayFrameEditor, type DayFrameValue, frameIsValid } from "@/components/DayFrameEditor";
 import { ProofTask } from "@/components/ProofTask";
 import { useToast } from "@/components/toast";
@@ -119,6 +120,7 @@ export default function RoutinePage() {
   const { data, mutate } = useSWR<Routine>("/me/routine", { refreshInterval: 60_000 });
   const now = useSyncExternalStore(everyMinute, clockNow, () => "");
   const [editing, setEditing] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   if (!data) return <Skeleton className="h-96" />;
 
@@ -146,19 +148,23 @@ export default function RoutinePage() {
         subtitle={shortDate(data.date)}
         action={
           <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => setAdding(true)}>
+              <Plus className="size-4" /> {t("Challenge qo'shish")}
+            </Button>
             {(data.items.some((i) => i.kind === "task") || data.has_life_plan) && (
               <Button size="sm" variant={editing ? "primary" : "secondary"} onClick={() => setEditing((v) => !v)}>
                 {editing ? <Check className="size-4" /> : <Pencil className="size-4" />} {editing ? t("Tayyor") : t("Tahrirlash")}
               </Button>
             )}
             <Button href="/routine/new" size="sm" variant="secondary">
-              <Plus className="size-4" /> {data.has_life_plan ? t("Yangi kun tartibi") : t("Kun tartibini tuzish")}
+              <CalendarClock className="size-4" /> {data.has_life_plan ? t("Yangi kun tartibi") : t("Kun tartibini tuzish")}
             </Button>
           </div>
         }
       />
 
       {editing && data.frame && <FrameCard frame={data.frame} onSaved={refresh} />}
+      <AddToRoutine open={adding} onClose={() => setAdding(false)} onAdded={refresh} />
 
       {data.months.length > 0 && (
         <Card className="mb-4 flex flex-col gap-2">
@@ -183,7 +189,18 @@ export default function RoutinePage() {
                 ? t("Tiklanish ham rejaning bir qismi. Ertaga yana davom etamiz.")
                 : t("Bir nechta maqsadingizni ayting — AI ularni bitta, soatma-soat kun tartibiga joylaydi.")
             }
-            action={!data.has_life_plan && <Button href="/routine/new">{t("Kun tartibini tuzish")}</Button>}
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button onClick={() => setAdding(true)}>
+                  <Plus className="size-4" /> {t("Challenge qo'shish")}
+                </Button>
+                {!data.has_life_plan && (
+                  <Button href="/routine/new" variant="secondary">
+                    {t("Kun tartibini tuzish")}
+                  </Button>
+                )}
+              </div>
+            }
           />
         </Card>
       ) : (

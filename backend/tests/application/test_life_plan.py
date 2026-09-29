@@ -6,6 +6,7 @@ from pit.modules.coaching.application.commands import SendDailyNudges
 from pit.modules.coaching.domain.moments import Moment
 from pit.modules.identity.application.commands import EraseAccount
 from pit.modules.planning.application.commands import (
+    AddToRoutine,
     ChangeDayFrame,
     DraftLifePlan,
     EditLifePlanGoal,
@@ -192,3 +193,25 @@ async def test_the_day_frame_can_change_unless_it_hits_a_task(world: World) -> N
     )
     with pytest.raises(DomainError):
         await world.bus.handle(ChangeDayFrame(user_id=user.id, frame=all_day_busy))
+
+
+async def test_a_challenge_joins_the_routine_at_the_chosen_time(world: World) -> None:
+    user = world.add_user()
+    plan_id = await world.bus.handle(DraftLifePlan(user_id=user.id, request=request()))
+    await world.bus.handle(StartLifePlan(user_id=user.id, plan_id=plan_id))
+    picked = world.add_challenge(duration_days=30)
+    participation_id = await world.bus.handle(
+        AddToRoutine(user_id=user.id, challenge_id=picked.id, times={"main": time(21, 0)})
+    )
+    task = world.participation(participation_id).tasks_on(world.today)[0]
+    assert task.at == time(21, 0) and task.minutes == 60
+
+    placed = world.add_challenge(duration_days=30)  # no time given: the routine finds one
+    auto = await world.bus.handle(AddToRoutine(user_id=user.id, challenge_id=placed.id))
+    assert world.participation(auto).tasks_on(world.today)[0].at is not None
+
+    at_work = world.add_challenge(duration_days=30)
+    with pytest.raises(DomainError, match="ustma-ust"):
+        await world.bus.handle(
+            AddToRoutine(user_id=user.id, challenge_id=at_work.id, times={"main": time(10, 0)})
+        )

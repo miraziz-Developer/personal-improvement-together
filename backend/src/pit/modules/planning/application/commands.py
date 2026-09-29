@@ -86,3 +86,13 @@ class ChangeDayFrame(Command):
 
     user_id: UUID
     frame: DayFrame
+
+
+@dataclass(frozen=True, kw_only=True)
+class AddToRoutine(Command):
+    """Join a challenge straight into the daily routine: "I'll do this at that time".
+    times: task key -> time; a missing or None time is placed in the free time for you."""
+
+    user_id: UUID
+    challenge_id: UUID
+    times: Mapping[str, time | None] = field(default_factory=dict)

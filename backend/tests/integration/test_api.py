@@ -769,3 +769,21 @@ async def test_editing_the_routine_by_hand(api: Api) -> None:
     frame = {**routine["frame"], "sleep": "23:30"}
     changed = await api.client.put("/api/v1/me/life-plan/frame", json=frame, headers=auth)
     assert changed.status_code == 200 and changed.json()["sleep"] == "23:30"
+
+
+async def test_adding_a_catalog_challenge_straight_into_the_routine(api: Api) -> None:
+    auth = await api.register()
+    catalog = (await api.client.get("/api/v1/challenges")).json()
+    calm = next(c for c in catalog if c["duration_days"] == 14)
+    added = await api.client.post(
+        "/api/v1/me/routine/challenges",
+        json={"challenge_id": calm["id"], "times": {"meditate": "07:10"}},
+        headers=auth,
+    )
+    assert added.status_code == 201, added.text
+    routine = (await api.client.get("/api/v1/me/routine", headers=auth)).json()
+    assert [i["start"] for i in routine["items"] if i["kind"] == "task"] == ["07:10"]
+    again = await api.client.post(
+        "/api/v1/me/routine/challenges", json={"challenge_id": calm["id"]}, headers=auth
+    )
+    assert again.status_code == 422  # already on it

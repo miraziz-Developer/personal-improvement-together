@@ -17,6 +17,7 @@ from pit.modules.challenges.domain.participation import ParticipationStatus
 from pit.modules.challenges.infrastructure.tables import challenges, participations
 from pit.modules.identity.domain.user import Locale
 from pit.modules.planning.application.commands import (
+    AddToRoutine,
     ChangeDayFrame,
     DraftLifePlan,
     EditLifePlanGoal,
@@ -63,6 +64,11 @@ class FrameIO(BaseModel):
 
 class TimesIn(BaseModel):
     times: dict[str, Clock | None]  # task key -> "HH:MM", None = no time
+
+
+class AddToRoutineIn(BaseModel):
+    challenge_id: UUID
+    times: dict[str, Clock | None] = {}  # task key -> "HH:MM"; missing/None = find a time
 
 
 class LifePlanIn(BaseModel):
@@ -323,6 +329,19 @@ async def retime_tasks(
             times={k: time.fromisoformat(v) if v else None for k, v in body.times.items()},
         )
     )
+
+
+@router.post("/me/routine/challenges", response_model=s.IdOut, status_code=201)
+async def add_to_routine(body: AddToRoutineIn, user_id: UserId, container: ContainerDep) -> s.IdOut:
+    """Join a challenge straight into the daily routine at the chosen times."""
+    participation_id = await container.bus.handle(
+        AddToRoutine(
+            user_id=user_id,
+            challenge_id=body.challenge_id,
+            times={k: time.fromisoformat(v) if v else None for k, v in body.times.items()},
+        )
+    )
+    return s.IdOut(id=participation_id)
 
 
 @router.put("/me/life-plan/frame", response_model=LifePlanOut)
