@@ -527,7 +527,8 @@ async def my_routine(user_id: UserId, container: ContainerDep, locale: LocaleDep
                 else:
                     untimed.append(item)
     order = {"wake": 0, "busy": 1, "task": 2, "sleep": 3}
-    items.sort(key=lambda i: (i.start, order[i.kind]))
+    # Going to bed after midnight ("00:30") still closes the day, so sleep always sorts last.
+    items.sort(key=lambda i: ("99" if i.kind == "sleep" else i.start, order[i.kind]))
     return RoutineOut(
         date=today.isoformat(),
         has_life_plan=plan is not None,

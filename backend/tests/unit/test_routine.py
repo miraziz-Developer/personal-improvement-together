@@ -64,3 +64,12 @@ def test_check_fits_names_the_problem() -> None:
     night = daily(TaskSpec("code", "Kod", 60, at=time(22, 30)))
     with pytest.raises(DomainError, match="tashqarida"):
         check_fits(FRAME, [night])
+
+
+def test_going_to_bed_after_midnight_is_fine() -> None:
+    night_owl = DayFrame(wake=time(8, 0), sleep=time(0, 30))
+    assert night_owl.day_end == 24 * 60 and night_owl.free_windows(6) == [(495, 1440)]
+    late = daily(TaskSpec("code", "Kod", 60, at=time(22, 45)))
+    check_fits(night_owl, [late])  # 22:45-23:45 is inside the day
+    with pytest.raises(InvariantViolation):
+        DayFrame(wake=time(8, 0), sleep=time(12, 0))

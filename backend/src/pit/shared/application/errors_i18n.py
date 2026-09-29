@@ -19,7 +19,7 @@ ERRORS_RU: dict[str, str] = {
     "Har bir maqsadni yozing": "Напишите каждую цель",
     "Kun tartibingizda bu maqsad uchun bo'sh vaqt qolmadi": "В вашем распорядке не осталось свободного времени для этой цели",
     "Muddat 30, 60 yoki 90 kun bo'lsin": "Срок — 30, 60 или 90 дней",
-    "Uyg'onish va uxlash vaqti orasida kamida 6 soat bo'lsin (uxlash yarim tungacha)": "Между подъёмом и сном должно быть не меньше 6 часов (отбой — до полуночи)",
+    "Uyg'onish va uxlash vaqti orasida kamida 6 soat bo'lsin": "Между подъёмом и сном должно быть не меньше 6 часов",
     "Faqat katalog challenge'i yangilanadi": "Обновлять можно только челленджи каталога",
     "Haftada 7 tadan ortiq dars bo'lmaydi": "В неделе не больше 7 уроков",
     "AI ishonch darajasi 0 va 1 oralig'ida bo'lishi kerak": "Уверенность ИИ должна быть от 0 до 1",

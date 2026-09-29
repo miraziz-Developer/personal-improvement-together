@@ -17,6 +17,7 @@ WAKE_UP_MINUTES = 15  # nobody starts a task the minute the alarm rings
 GAP_MINUTES = 10  # a breather between two tasks
 MIN_SLOT_MINUTES = 15  # shorter gaps in the day are not worth planning into
 MIN_AWAKE_MINUTES = 6 * 60
+DAY_MINUTES = 24 * 60
 MAX_BUSY_BLOCKS = 6
 MAX_LABEL = 40
 
@@ -64,16 +65,25 @@ class DayFrame:
     busy: tuple[BusyBlock, ...] = ()
 
     def __post_init__(self) -> None:
-        if minutes_of(self.sleep) - minutes_of(self.wake) < MIN_AWAKE_MINUTES:
-            raise InvariantViolation(
-                "Uyg'onish va uxlash vaqti orasida kamida 6 soat bo'lsin (uxlash yarim tungacha)"
-            )
+        awake = (minutes_of(self.sleep) - minutes_of(self.wake)) % DAY_MINUTES
+        if awake < MIN_AWAKE_MINUTES:
+            raise InvariantViolation("Uyg'onish va uxlash vaqti orasida kamida 6 soat bo'lsin")
         if len(self.busy) > MAX_BUSY_BLOCKS:
             raise InvariantViolation(f"Band vaqtlar {MAX_BUSY_BLOCKS} tadan oshmasin")
 
     @property
     def awake(self) -> Span:
-        return minutes_of(self.wake) + WAKE_UP_MINUTES, minutes_of(self.sleep)
+        return minutes_of(self.wake) + WAKE_UP_MINUTES, self.day_end
+
+    @property
+    def sleeps_after_midnight(self) -> bool:
+        return self.sleep <= self.wake
+
+    @property
+    def day_end(self) -> int:
+        """Last minute tasks may run to. Going to bed after midnight still ends the planning
+        day at 24:00: a task at 00:15 would belong to the next calendar day."""
+        return DAY_MINUTES if self.sleeps_after_midnight else minutes_of(self.sleep)
 
     def busy_on(self, weekday: int) -> list[BusyBlock]:
         return sorted((b for b in self.busy if weekday in b.weekdays), key=lambda b: b.start)
@@ -103,7 +113,7 @@ def check_fits(frame: DayFrame, schedules: Sequence[Schedule], *, fixed: int = 0
     their own (that promise was made before), but then nothing new fits beside them."""
     for weekday, name in enumerate(WEEKDAY_NAMES):
         taken: list[tuple[Span, str]] = [(b.span, b.label) for b in frame.busy_on(weekday)]
-        start_of_day, end_of_day = minutes_of(frame.wake), minutes_of(frame.sleep)
+        start_of_day, end_of_day = minutes_of(frame.wake), frame.day_end
         planned = planned_new = 0
         for index, schedule in enumerate(schedules):
             for task in schedule.week[weekday]:
@@ -140,9 +150,7 @@ def check_clashes(frame: DayFrame | None, schedules: Sequence[Schedule]) -> None
                 if task.at is None:
                     continue
                 span = (minutes_of(task.at), minutes_of(task.at) + task.minutes)
-                if frame and (
-                    span[0] < minutes_of(frame.wake) or span[1] > minutes_of(frame.sleep)
-                ):
+                if frame and (span[0] < minutes_of(frame.wake) or span[1] > frame.day_end):
                     raise DomainError(
                         f"{name}: «{task.title}» uyg'oq vaqtingizdan tashqarida "
                         f"({frame.wake:%H:%M}-{frame.sleep:%H:%M})"

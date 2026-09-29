@@ -6,7 +6,7 @@ import { Trash2 } from "lucide-react";
 import { Input, Label } from "@/components/ui";
 import { WEEKDAYS_SHORT } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
-import { freeMinutes } from "@/lib/routine";
+import { awakeLongEnough, freeMinutes } from "@/lib/routine";
 import type { BusyBlock } from "@/lib/types";
 
 export type DayFrameValue = { wake: string; sleep: string; busy: BusyBlock[] };
@@ -20,7 +20,7 @@ const hoursAndMinutes = (total: number) => `${Math.floor(total / 60)}:${String(t
 
 /** What the server will accept: a real waking day and fully described commitments. */
 export const frameIsValid = ({ wake, sleep, busy }: DayFrameValue) =>
-  wake < sleep && busy.every((b) => b.label.trim() && b.weekdays.length > 0 && b.start < b.end);
+  awakeLongEnough(wake, sleep) && busy.every((b) => b.label.trim() && b.weekdays.length > 0 && b.start < b.end);
 
 /** Wake up, go to sleep, and the fixed commitments in between — with the free time it leaves. */
 export function DayFrameEditor({ value, onChange }: { value: DayFrameValue; onChange: (value: DayFrameValue) => void }) {
