@@ -1,8 +1,10 @@
 import asyncio
+from datetime import date
 from typing import Annotated
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
+from pydantic import BaseModel
 from sqlalchemy import select
 
 from pit.api import schemas as s
@@ -14,6 +16,8 @@ from pit.modules.challenges.application.commands import (
     CancelParticipation,
     ChangeSchedule,
     JoinChallenge,
+    LeaveChallenge,
+    PauseChallenge,
 )
 from pit.modules.challenges.domain.challenge import ApprovalStatus
 from pit.modules.challenges.domain.participation import Participation
@@ -187,3 +191,26 @@ async def proof_status(proof_id: UUID, user_id: UserId, container: ContainerDep)
             reason=reason or None,
             reviewed_by_human=proof.review is not None,
         )
+
+
+class PauseIn(BaseModel):
+    days: int
+
+
+class PauseOut(BaseModel):
+    paused_from: date
+
+
+@router.post("/me/participations/{participation_id}/leave", status_code=204)
+async def leave(participation_id: UUID, user_id: UserId, container: ContainerDep) -> None:
+    await container.bus.handle(LeaveChallenge(user_id=user_id, participation_id=participation_id))
+
+
+@router.post("/me/participations/{participation_id}/pause", response_model=PauseOut)
+async def pause(
+    participation_id: UUID, body: PauseIn, user_id: UserId, container: ContainerDep
+) -> PauseOut:
+    first: date = await container.bus.handle(
+        PauseChallenge(user_id=user_id, participation_id=participation_id, days=body.days)
+    )
+    return PauseOut(paused_from=first)

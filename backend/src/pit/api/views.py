@@ -84,7 +84,7 @@ def participation_out(
         start_date=p.start_date,
         end_date=p.end_date,
         days_completed=p.days_completed,
-        total_days=len(p.days),
+        total_days=p.total_days,
         current_streak=p.current_streak,
         best_streak=p.best_streak,
         freezes_left=p.freezes_left,

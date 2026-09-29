@@ -105,7 +105,7 @@ async def board(
                     current_streak=p.current_streak,
                     best_streak=p.best_streak,
                     days_completed=p.days_completed,
-                    total_days=len(p.days),
+                    total_days=p.total_days,
                 )
             )
         members.sort(key=lambda m: (m.days_completed, m.current_streak), reverse=True)

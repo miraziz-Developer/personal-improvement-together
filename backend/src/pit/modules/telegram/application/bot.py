@@ -476,7 +476,7 @@ class TelegramBot:
                         streak=p.current_streak,
                         best=p.best_streak,
                         done=p.days_completed,
-                        total=len(p.days),
+                        total=p.total_days,
                         freezes=p.freezes_left,
                     )
                 )

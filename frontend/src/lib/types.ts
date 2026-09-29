@@ -2,7 +2,7 @@
 
 export type Category = "sport" | "code" | "study" | "reading" | "health" | "custom";
 export type Mode = "free" | "stake";
-export type DayStatus = "pending" | "done" | "frozen" | "missed" | "awaiting_review";
+export type DayStatus = "pending" | "done" | "frozen" | "missed" | "awaiting_review" | "paused";
 export type ProofStatus = "pending" | "approved" | "rejected" | "needs_review";
 
 export interface Task {

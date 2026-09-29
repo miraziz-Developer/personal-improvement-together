@@ -134,7 +134,7 @@ async def on_started(event: ParticipationStarted, uow: CoachingUoW, *, clock: Cl
             participation_id=event.participation_id,
             name=name,
             title=title,
-            days=len(participation.days),
+            days=participation.total_days,
         )
         await uow.commit()
 

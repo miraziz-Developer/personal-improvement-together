@@ -70,3 +70,20 @@ class JoinGroup(Command):
 
     user_id: UUID
     invite_code: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class LeaveChallenge(Command):
+    """Stop a free challenge for good (a stake run cannot be left)."""
+
+    user_id: UUID
+    participation_id: UUID
+
+
+@dataclass(frozen=True, kw_only=True)
+class PauseChallenge(Command):
+    """A break of a few days; the run gets that much longer. Returns the first paused day."""
+
+    user_id: UUID
+    participation_id: UUID
+    days: int

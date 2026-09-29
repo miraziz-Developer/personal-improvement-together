@@ -1,7 +1,7 @@
 "use client";
 
 import confetti from "canvas-confetti";
-import { Coins, KeyRound, Snowflake } from "lucide-react";
+import { Coins, KeyRound, LogOut, Pause, Snowflake } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
@@ -38,6 +38,10 @@ export default function ParticipationPage() {
   const { t } = useI18n();
   const { refreshMe } = useAuth();
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [pauseDays, setPauseDays] = useState(3);
+  const [busy, setBusy] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const { data: p, mutate } = useSWR<ParticipationDetail>(`/me/participations/${id}`, {
     refreshInterval: (latest) =>
@@ -69,6 +73,35 @@ export default function ParticipationPage() {
   const meta = CATEGORY[p.category];
   const Icon = meta.icon;
   const requiredLeft = p.today.tasks.filter((task) => task.required && task.proof_status !== "approved").length;
+
+  async function pause() {
+    setBusy(true);
+    try {
+      const { paused_from } = await api<{ paused_from: string }>(`/me/participations/${id}/pause`, { method: "POST", json: { days: pauseDays } });
+      toast("success", t("Pauza: {from} dan {n} kun 🌙", { from: shortDate(paused_from), n: pauseDays }), t("Streak saqlanadi, challenge shuncha kunga uzayadi."));
+      setPauseOpen(false);
+      mutate();
+    } catch (error) {
+      toast("error", errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function leave() {
+    setBusy(true);
+    try {
+      await api(`/me/participations/${id}/leave`, { method: "POST" });
+      toast("info", t("Challenge'dan chiqdingiz"), t("Istalgan vaqt yangisini boshlashingiz mumkin 🌱"));
+      setLeaveOpen(false);
+      mutate();
+      refreshMe();
+    } catch (error) {
+      toast("error", errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function cancel() {
     setCancelling(true);
@@ -185,6 +218,16 @@ export default function ParticipationPage() {
               {t("Boshlanmasdan bekor qilish")}
             </Button>
           )}
+          {p.status === "active" && p.mode === "free" && (
+            <div className="flex flex-wrap gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setPauseOpen(true)}>
+                <Pause className="size-4" /> {t("Pauza qilish")}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setLeaveOpen(true)}>
+                <LogOut className="size-4" /> {t("Challenge'dan chiqish")}
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-6">
@@ -195,6 +238,44 @@ export default function ParticipationPage() {
           {p.roadmap && <RoadmapView roadmap={p.roadmap} current={p.today.focus?.week} />}
         </div>
       </div>
+
+      <Modal open={pauseOpen} onClose={() => setPauseOpen(false)} title={t("Pauza qilish")}>
+        <p className="text-mist">{t("Kasallik, safar yoki imtihon? Pauza kunlari streak'ni buzmaydi va hisobga kirmaydi — challenge shuncha kunga uzayadi.")}</p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          {[1, 2, 3, 5, 7, 14].map((n) => (
+            <button
+              key={n}
+              onClick={() => setPauseDays(n)}
+              aria-pressed={pauseDays === n}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${pauseDays === n ? "bg-iris text-white" : "bg-white/5 text-mist hover:text-white"}`}
+            >
+              {t("{n} kun", { n })}
+            </button>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-mist">{t("Bitta challenge'da jami 14 kungacha pauza qilish mumkin.")}</p>
+        <div className="mt-6 flex gap-2">
+          <Button variant="secondary" className="flex-1" onClick={() => setPauseOpen(false)}>
+            {t("Bekor")}
+          </Button>
+          <Button className="flex-1" loading={busy} onClick={pause}>
+            {t("Pauza qilish")}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={leaveOpen} onClose={() => setLeaveOpen(false)} title={t("Challenge'dan chiqasizmi?")}>
+        <p className="text-mist">{t("Challenge shu yerda tugaydi va kun tartibingizdan olib tashlanadi. To'plagan ballaringiz o'zingizda qoladi.")}</p>
+        <p className="mt-2 text-sm text-mist">{t("Faqat biroz dam kerak bo'lsa — pauza yaxshiroq: streak saqlanadi.")}</p>
+        <div className="mt-6 flex gap-2">
+          <Button variant="secondary" className="flex-1" onClick={() => setLeaveOpen(false)}>
+            {t("Qolaman")}
+          </Button>
+          <Button variant="danger" className="flex-1" loading={busy} onClick={leave}>
+            {t("Chiqish")}
+          </Button>
+        </div>
+      </Modal>
 
       <Modal open={cancelOpen} onClose={() => setCancelOpen(false)} title={t("Bekor qilasizmi?")}>
         <p className="text-mist">

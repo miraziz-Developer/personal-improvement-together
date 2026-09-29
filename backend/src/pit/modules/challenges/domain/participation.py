@@ -25,6 +25,7 @@ from pit.shared.domain.money import Money
 DAYS_PER_FREEZE = 10  # one freeze per 10 *scheduled* days
 MAX_OPEN_STAKES = 3
 MAX_START_DELAY_DAYS = 30
+MAX_PAUSE_DAYS = 14  # per run, all pauses together: a break, not a way to stretch forever
 
 
 class ParticipationStatus(StrEnum):
@@ -44,6 +45,7 @@ class DayStatus(StrEnum):
     FROZEN = "frozen"
     MISSED = "missed"
     AWAITING_REVIEW = "awaiting_review"
+    PAUSED = "paused"  # the user took a break: neither done nor missed, the run is longer
 
 
 class DayEvidence(StrEnum):
@@ -82,6 +84,7 @@ class Participation(AggregateRoot):
     days: dict[date, DayStatus]
     freezes_total: int
     freezes_used: int = 0
+    paused_days: int = 0  # the run is this many days longer because of pauses
     current_streak: int = 0
     best_streak: int = 0
     group_id: UUID | None = None
@@ -143,7 +146,12 @@ class Participation(AggregateRoot):
 
     @property
     def end_date(self) -> date:
-        return self.start_date + timedelta(days=self.duration_days - 1)
+        return self.start_date + timedelta(days=self.duration_days + self.paused_days - 1)
+
+    @property
+    def total_days(self) -> int:
+        """Scheduled days that count (pauses do not)."""
+        return sum(1 for s in self.days.values() if s is not DayStatus.PAUSED)
 
     @property
     def is_stake(self) -> bool:
@@ -169,7 +177,10 @@ class Participation(AggregateRoot):
         return next(s for since, s in reversed(self.schedule_history) if since <= day)
 
     def tasks_on(self, day: date) -> tuple[TaskSpec, ...]:
-        return self.schedule_on(day).tasks_on(day) if day in self.days else ()
+        """A paused day is like a rest day: no tasks, no reminders, nothing to prove."""
+        if day not in self.days or self.days[day] is DayStatus.PAUSED:
+            return ()
+        return self.schedule_on(day).tasks_on(day)
 
     def task(self, day: date, key: str) -> TaskSpec | None:
         return self.schedule_on(day).task(day, key) if day in self.days else None
@@ -223,6 +234,51 @@ class Participation(AggregateRoot):
             )
         )
 
+    def leave(self, today: date) -> None:
+        """The user stops a free challenge. Nothing is judged; it just ends here.
+        A stake run cannot be left — the money is exactly the promise not to."""
+        if not self.is_open:
+            raise InvalidStateTransition("Bu challenge allaqachon tugagan")
+        if self.is_stake:
+            raise DomainError("Garovli challenge'dan chiqib bo'lmaydi — u oxirigacha davom etadi")
+        self.status = ParticipationStatus.CANCELLED
+        self.finished_on = today
+        self._record(
+            ParticipationCancelled(
+                participation_id=self.id, user_id=self.user_id, mode=self.mode, stake=self.stake
+            )
+        )
+
+    def pause(self, days: int, today: date) -> date:
+        """A break of `days` days (illness, travel). Paused days neither count nor break the
+        streak; the run gets that much longer. Starts today unless today is already done.
+        Returns the first paused day."""
+        if self.status is not ParticipationStatus.ACTIVE:
+            raise InvalidStateTransition("Faqat davom etayotgan challenge'ni pauza qilish mumkin")
+        if self.is_stake:
+            raise DomainError("Garovli challenge'ni pauza qilib bo'lmaydi")
+        if days < 1 or self.paused_days + days > MAX_PAUSE_DAYS:
+            raise DomainError(
+                f"Pauza jami {MAX_PAUSE_DAYS} kundan oshmasin "
+                f"(qolgani: {MAX_PAUSE_DAYS - self.paused_days} kun)"
+            )
+        start = (
+            today
+            if self.days.get(today, DayStatus.PENDING) is DayStatus.PENDING
+            else (today + timedelta(days=1))
+        )
+        stop = start + timedelta(days=days)
+        old_end = self.end_date
+        for day, status in self.days.items():
+            if start <= day < stop and status is DayStatus.PENDING:
+                self.days[day] = DayStatus.PAUSED
+        self.paused_days += days
+        extension = _scheduled_days(
+            old_end + timedelta(days=1), self.end_date, self.current_schedule
+        )
+        self.days.update({d: s for d, s in extension.items() if d not in self.days})
+        return start
+
     def change_schedule(self, new: Schedule, today: date) -> None:
         """Takes effect from tomorrow; days already lived keep their plan.
 
@@ -239,9 +295,11 @@ class Participation(AggregateRoot):
         if effective > self.end_date:
             raise DomainError("Challenge oxirgi kunida rejani o'zgartirib bo'lmaydi")
         kept = {d: s for d, s in self.days.items() if d < effective}  # future days are pending
-        self.days = kept | _scheduled_days(effective, self.end_date, new)
+        paused = {d for d, s in self.days.items() if d >= effective and s is DayStatus.PAUSED}
+        future = _scheduled_days(effective, self.end_date, new)
+        self.days = kept | {d: DayStatus.PAUSED if d in paused else s for d, s in future.items()}
         self.schedule_history.append((effective, new))
-        self.freezes_total = max(self.freezes_used, len(self.days) // DAYS_PER_FREEZE)
+        self.freezes_total = max(self.freezes_used, self.total_days // DAYS_PER_FREEZE)
         self._record(ScheduleChanged(participation_id=self.id, effective_from=effective))
         self._complete_if_finished()
 
@@ -361,7 +419,8 @@ class Participation(AggregateRoot):
     def _complete_if_finished(self) -> None:
         if self.status is not ParticipationStatus.ACTIVE:
             return
-        if not all(s in (DayStatus.DONE, DayStatus.FROZEN) for s in self.days.values()):
+        settled = (DayStatus.DONE, DayStatus.FROZEN, DayStatus.PAUSED)
+        if not all(s in settled for s in self.days.values()):
             return
         self.status = ParticipationStatus.COMPLETED
         self.finished_on = self.end_date

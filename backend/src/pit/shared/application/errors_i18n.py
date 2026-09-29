@@ -8,6 +8,10 @@ import re
 from collections.abc import Callable
 
 ERRORS_RU: dict[str, str] = {
+    "Bu challenge allaqachon tugagan": "Этот челлендж уже завершён",
+    "Garovli challenge'dan chiqib bo'lmaydi — u oxirigacha davom etadi": "Из челленджа со ставкой нельзя выйти — он идёт до конца",
+    "Faqat davom etayotgan challenge'ni pauza qilish mumkin": "На паузу можно поставить только идущий челлендж",
+    "Garovli challenge'ni pauza qilib bo'lmaydi": "Челлендж со ставкой нельзя поставить на паузу",
     "Kun tartibi hali tuzilmagan": "Распорядок дня ещё не составлен",
     "Bu kun tartibi yangisi bilan almashtirilgan": "Этот распорядок заменён новым",
     "Bu challenge kun tartibida yo'q": "Этого челленджа нет в распорядке",
@@ -192,6 +196,10 @@ _TEMPLATES_RU: list[tuple[str, str]] = [
     ("{}: «{}» va «{}» vaqti ustma-ust tushdi", "{0}: «{1}» и «{2}» пересекаются по времени"),
     ("Band vaqt nomi 1-{} belgi bo'lsin", "Название занятого времени — от 1 до {0} символов"),
     ("Band vaqtlar {} tadan oshmasin", "Занятых промежутков — не больше {0}"),
+    (
+        "Pauza jami {} kundan oshmasin (qolgani: {} kun)",
+        "Пауза — не больше {0} дней всего (осталось: {1})",
+    ),
     ("{}: «{}» uchun bo'sh vaqt topilmadi", "{0}: для «{1}» не нашлось свободного времени"),
     ("Oylik marralar {} tadan oshmasin", "Месячных вех — не больше {0}"),
 ]

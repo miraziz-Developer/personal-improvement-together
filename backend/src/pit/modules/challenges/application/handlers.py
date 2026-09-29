@@ -11,6 +11,8 @@ from pit.modules.challenges.application.commands import (
     CreateGroup,
     JoinChallenge,
     JoinGroup,
+    LeaveChallenge,
+    PauseChallenge,
     RecordTaskApproved,
     RefreshDay,
 )
@@ -289,3 +291,20 @@ async def withdraw_participations(
             )
             participation.withdraw(today)
         await uow.commit()
+
+
+async def leave_challenge(cmd: LeaveChallenge, uow: ChallengesUoW, *, clock: Clock) -> None:
+    async with uow:
+        participation = await _owned(uow, cmd.participation_id, cmd.user_id)
+        user = require(await uow.users.get(cmd.user_id), "Foydalanuvchi topilmadi")
+        participation.leave(local_date(clock.now(), user.timezone))
+        await uow.commit()
+
+
+async def pause_challenge(cmd: PauseChallenge, uow: ChallengesUoW, *, clock: Clock) -> date:
+    async with uow:
+        participation = await _owned(uow, cmd.participation_id, cmd.user_id)
+        user = require(await uow.users.get(cmd.user_id), "Foydalanuvchi topilmadi")
+        first = participation.pause(cmd.days, local_date(clock.now(), user.timezone))
+        await uow.commit()
+        return first

@@ -13,6 +13,8 @@ from pit.modules.challenges.application.commands import (
     CreateGroup,
     JoinChallenge,
     JoinGroup,
+    LeaveChallenge,
+    PauseChallenge,
     RecordTaskApproved,
     RefreshDay,
 )
@@ -196,6 +198,8 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
             planning.start_plan, clock=clock, escrow=escrow, stakes_enabled=deps.stakes_enabled
         ),
         # challenges — the "pick a ready-made challenge" path, and the daily calendar
+        LeaveChallenge: partial(challenges.leave_challenge, clock=clock),
+        PauseChallenge: partial(challenges.pause_challenge, clock=clock),
         JoinChallenge: partial(
             challenges.join_challenge,
             clock=clock,

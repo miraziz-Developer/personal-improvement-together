@@ -70,6 +70,7 @@ export const DAY_STATUS: Record<DayStatus, { label: string; cell: string; dot: s
   missed: { label: "O'tkazildi", cell: "bg-danger/70", dot: "bg-danger" },
   awaiting_review: { label: "Kutilmoqda", cell: "bg-amberish/70", dot: "bg-amberish" },
   pending: { label: "Oldinda", cell: "bg-white/[0.07]", dot: "bg-white/30" },
+  paused: { label: "Pauza", cell: "bg-iris/40", dot: "bg-iris" },
 };
 
 export const PROOF_STATUS: Record<ProofStatus, { label: string; tone: string }> = {
