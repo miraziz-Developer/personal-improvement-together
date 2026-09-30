@@ -810,3 +810,17 @@ async def test_the_routine_can_be_seen_ahead(api: Api) -> None:
     too_far = (date.fromisoformat(today["date"]) + timedelta(days=30)).isoformat()
     refused = await api.client.get(f"/api/v1/me/routine?day={too_far}", headers=auth)
     assert refused.status_code == 422
+
+
+async def test_progress_counts_days_and_open_challenges(api: Api) -> None:
+    auth = await api.register()
+    catalog = (await api.client.get("/api/v1/challenges")).json()
+    calm = next(c for c in catalog if c["duration_days"] == 14)
+    joined = await api.client.post(
+        f"/api/v1/challenges/{calm['id']}/join", json={"mode": "free"}, headers=auth
+    )
+    progress = (await api.client.get("/api/v1/me/progress", headers=auth)).json()
+    assert len(progress["days"]) == 30 and progress["days"][-1]["planned"] == 0  # today not over
+    assert progress["this_week"] is None and progress["days_done"] == 0
+    assert [r["participation_id"] for r in progress["runs"]] == [joined.json()["id"]]
+    assert progress["runs"][0]["total_days"] == 14

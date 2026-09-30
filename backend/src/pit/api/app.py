@@ -15,6 +15,7 @@ from pit.api.routes import (
     media,
     plans,
     privacy,
+    progress,
     social,
     telegram,
     together,
@@ -121,6 +122,7 @@ def create_app(container: Container | None = None) -> FastAPI:
         telegram,
         together,
         privacy,
+        progress,
     )
     for module in modules:
         app.include_router(module.router, prefix="/api/v1")
