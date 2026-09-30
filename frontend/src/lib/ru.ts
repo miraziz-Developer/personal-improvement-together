@@ -606,4 +606,5 @@ export const RU: Record<string, string> = {
   "Siz": "Вы",
   "Do'stlaringizga yozing…": "Напишите друзьям…",
   "Guruhga xabar": "Сообщение группе",
+  "Freeze o'tkazib yuborilgan kunda streak'ni saqlaydi. 7 kun ketma-ket bajarsangiz, sarflangani qaytadi.": "Заморозка сохраняет серию в пропущенный день. 7 дней подряд — и потраченная заморозка вернётся.",
 };

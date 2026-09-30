@@ -25,3 +25,4 @@ class Moment(StrEnum):
     MORNING_ROUTINE = "morning_routine"
     MONTH_STARTED = "month_started"
     DAY_SUMMARY = "day_summary"
+    FREEZE_REGAINED = "freeze_regained"

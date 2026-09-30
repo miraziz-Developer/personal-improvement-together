@@ -4,6 +4,7 @@ import pytest
 
 from pit.modules.challenges.application.commands import LeaveChallenge, PauseChallenge
 from pit.modules.challenges.domain.participation import DayStatus, ParticipationStatus
+from pit.modules.coaching.domain.moments import Moment
 from pit.shared.domain.errors import DomainError
 from tests.application.conftest import World
 
@@ -57,3 +58,18 @@ async def test_leaving_a_free_challenge_ends_it_quietly(world: World) -> None:
     assert run.status is ParticipationStatus.CANCELLED and not run.is_open
     with pytest.raises(DomainError):
         await world.bus.handle(LeaveChallenge(user_id=user.id, participation_id=pid))
+
+
+async def test_a_week_in_a_row_earns_back_a_spent_freeze(world: World) -> None:
+    user = world.add_user()
+    pid = await world.join(user, world.add_challenge(duration_days=30))  # 3 freezes
+    run = world.participation(pid)
+    await world.next_day()  # day 1 missed: a freeze covers it
+    assert run.freezes_left == run.freezes_total - 1
+
+    for _ in range(7):
+        await world.prove(user, pid, photo=False)
+        await world.next_day()
+    assert run.current_streak == 7 and run.freezes_left == run.freezes_total
+    regained = [n for n in world.store.notifications.values() if n.moment is Moment.FREEZE_REGAINED]
+    assert len(regained) == 1

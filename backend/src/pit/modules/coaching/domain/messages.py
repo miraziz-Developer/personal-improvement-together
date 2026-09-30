@@ -61,6 +61,13 @@ LIBRARY: dict[Moment, tuple[tuple[str, str], ...]] = {
             "sizdan tortib ololmaydi.",
         ),
     ),
+    Moment.FREEZE_REGAINED: (
+        (
+            "🧊 Freeze qaytdi!",
+            "{name}, {streak} kun ketma-ket — o'tkazib yuborilgan kun uchun sarflangan freeze "
+            "sizga qaytarildi. Qolgan freeze: {freezes_left}.",
+        ),
+    ),
     Moment.DAY_FROZEN: (
         (
             "Hech gap yo'q, dam oling 🧊",

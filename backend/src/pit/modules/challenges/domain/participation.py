@@ -10,6 +10,7 @@ from pit.modules.challenges.domain.events import (
     DayCompleted,
     DayFrozen,
     DayNeedsHumanReview,
+    FreezeRegained,
     OptionalTaskCompleted,
     ParticipationCancelled,
     ParticipationCompleted,
@@ -25,6 +26,7 @@ from pit.shared.domain.money import Money
 DAYS_PER_FREEZE = 10  # one freeze per 10 *scheduled* days
 MAX_OPEN_STAKES = 3
 MAX_START_DELAY_DAYS = 30
+STREAK_TO_REGAIN_FREEZE = 7  # a week in a row earns back one freeze spent on a missed day
 MAX_PAUSE_DAYS = 14  # per run, all pauses together: a break, not a way to stretch forever
 
 
@@ -395,6 +397,13 @@ class Participation(AggregateRoot):
                 difficulty=self.difficulty,
             )
         )
+        if self.current_streak % STREAK_TO_REGAIN_FREEZE == 0 and self.freezes_used > 0:
+            self.freezes_used -= 1
+            self._record(
+                FreezeRegained(
+                    participation_id=self.id, user_id=self.user_id, streak=self.current_streak
+                )
+            )
 
     def _miss(self, day: date) -> None:
         if self.freezes_left > 0:

@@ -43,6 +43,15 @@ class DayFrozen(DomainEvent):
 
 
 @dataclass(frozen=True, kw_only=True)
+class FreezeRegained(DomainEvent):
+    """A long enough streak after a missed day gives the used freeze back."""
+
+    participation_id: UUID
+    user_id: UUID
+    streak: int
+
+
+@dataclass(frozen=True, kw_only=True)
 class DayNeedsHumanReview(DomainEvent):
     """A stake day would be lost on an AI rejection alone — a moderator must decide."""
 

@@ -9,6 +9,7 @@ from pit.modules.challenges.domain.challenge import Challenge
 from pit.modules.challenges.domain.events import (
     DayCompleted,
     DayFrozen,
+    FreezeRegained,
     GroupMemberJoined,
     ParticipationCompleted,
     ParticipationFailed,
@@ -169,6 +170,23 @@ async def on_day_completed(event: DayCompleted, uow: CoachingUoW, *, clock: Cloc
             name=name,
             streak=event.streak,
             days_left=_days_left(participation),
+        )
+        await uow.commit()
+
+
+async def on_freeze_regained(event: FreezeRegained, uow: CoachingUoW, *, clock: Clock) -> None:
+    async with uow:
+        participation, name, _ = await _context(uow, event.participation_id)
+        await _notify(
+            uow,
+            clock,
+            key=f"regained:{event.participation_id}:{event.streak}",
+            user_id=event.user_id,
+            moment=Moment.FREEZE_REGAINED,
+            participation_id=event.participation_id,
+            name=name,
+            streak=event.streak,
+            freezes_left=participation.freezes_left,
         )
         await uow.commit()
 

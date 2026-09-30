@@ -149,7 +149,9 @@ export default function ParticipationPage() {
                 <StreakFlame streak={p.current_streak} size="md" />
               </div>
               <div>
-                <p className="text-xs text-mist">{t("Freeze")}</p>
+                <p className="text-xs text-mist" title={t("Freeze o'tkazib yuborilgan kunda streak'ni saqlaydi. 7 kun ketma-ket bajarsangiz, sarflangani qaytadi.")}>
+                  {t("Freeze")} <span className="text-mist/60">ⓘ</span>
+                </p>
                 <p className="flex items-center gap-1 pt-1">
                   {Array.from({ length: Math.max(p.freezes_left, 0) }).map((_, i) => (
                     <Snowflake key={i} className="size-5 text-ice" />

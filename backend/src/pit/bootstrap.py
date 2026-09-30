@@ -23,6 +23,7 @@ from pit.modules.challenges.domain.events import (
     DayCompleted,
     DayFrozen,
     DayNeedsHumanReview,
+    FreezeRegained,
     GroupMemberJoined,
     OptionalTaskCompleted,
     ParticipationCancelled,
@@ -246,6 +247,7 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
             partial(coaching.on_started, clock=clock, texts=deps.challenge_texts)
         ],
         DayFrozen: [partial(coaching.on_day_frozen, clock=clock)],
+        FreezeRegained: [partial(coaching.on_freeze_regained, clock=clock)],
         DayNeedsHumanReview: [verification.escalate_for_review],
         DayCompleted: [
             partial(ranking.award_day_points, index=deps.leaderboard),
