@@ -4,6 +4,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     Date,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -100,4 +101,15 @@ participation_days = Table(
     ),
     Column("day", Date, primary_key=True),
     Column("status", String(16), nullable=False),
+)
+
+group_messages = Table(
+    "group_messages",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("group_id", Uuid, ForeignKey("groups.id"), nullable=False),
+    Column("user_id", Uuid, ForeignKey("users.id"), nullable=False),
+    Column("text", String(280), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Index("ix_group_messages_group_time", "group_id", "created_at"),
 )

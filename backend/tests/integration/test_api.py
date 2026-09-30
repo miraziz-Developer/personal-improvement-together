@@ -824,3 +824,44 @@ async def test_progress_counts_days_and_open_challenges(api: Api) -> None:
     assert progress["this_week"] is None and progress["days_done"] == 0
     assert [r["participation_id"] for r in progress["runs"]] == [joined.json()["id"]]
     assert progress["runs"][0]["total_days"] == 14
+
+
+async def test_friends_write_short_messages_in_their_group(api: Api) -> None:
+    owner, friend = await api.register("guruh_egasi"), await api.register("guruh_dosti")
+    catalog = (await api.client.get("/api/v1/challenges")).json()
+    calm = next(c for c in catalog if c["duration_days"] == 14)
+    mine = (
+        await api.client.post(
+            f"/api/v1/challenges/{calm['id']}/join", json={"mode": "free"}, headers=owner
+        )
+    ).json()["id"]
+    lonely = await api.client.post(
+        f"/api/v1/me/participations/{mine}/group/messages", json={"text": "Salom"}, headers=owner
+    )
+    assert lonely.status_code == 422  # no group yet
+    code = (await api.client.post(f"/api/v1/me/participations/{mine}/group", headers=owner)).json()
+    theirs = (
+        await api.client.post(f"/api/v1/groups/{code['invite_code']}/join", headers=friend)
+    ).json()["id"]
+
+    sent = await api.client.post(
+        f"/api/v1/me/participations/{theirs}/group/messages",
+        json={"text": "Bugun ham bajardim 💪"},
+        headers=friend,
+    )
+    assert sent.status_code == 201, sent.text
+    seen = (
+        await api.client.get(f"/api/v1/me/participations/{mine}/group/messages", headers=owner)
+    ).json()
+    assert [(m["username"], m["text"], m["is_me"]) for m in seen] == [
+        ("guruh_dosti", "Bugun ham bajardim 💪", False)
+    ]
+    too_long = await api.client.post(
+        f"/api/v1/me/participations/{mine}/group/messages", json={"text": "x" * 281}, headers=owner
+    )
+    assert too_long.status_code == 422
+    stranger = await api.register("begona")
+    peek = await api.client.get(
+        f"/api/v1/me/participations/{mine}/group/messages", headers=stranger
+    )
+    assert peek.status_code == 403

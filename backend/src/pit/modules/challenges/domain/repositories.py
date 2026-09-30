@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pit.modules.challenges.domain.challenge import Challenge
 from pit.modules.challenges.domain.group import Group
+from pit.modules.challenges.domain.group_message import GroupMessage
 from pit.modules.challenges.domain.participation import Participation
 
 
@@ -32,3 +33,15 @@ class GroupRepository(Protocol):
     async def get(self, group_id: UUID) -> Group | None: ...
 
     async def get_by_code(self, invite_code: str) -> Group | None: ...
+
+
+class GroupMessageRepository(Protocol):
+    """Append-only: a message is written once and read in order, never edited."""
+
+    async def add(self, message: GroupMessage) -> None: ...
+
+    async def recent(self, group_id: UUID, limit: int) -> list[GroupMessage]:
+        """The newest `limit` messages, oldest first."""
+        ...
+
+    async def delete_for_user(self, user_id: UUID) -> None: ...

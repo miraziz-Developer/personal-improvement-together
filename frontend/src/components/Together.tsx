@@ -9,6 +9,7 @@ import { ReportButton } from "@/components/ReportButton";
 import { useToast } from "@/components/toast";
 import { Button, Card, StreakFlame } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
+import { timeAgo } from "@/lib/format";
 import type { GroupBoard, GroupMember } from "@/lib/types";
 import { useI18n } from "@/lib/i18n";
 
@@ -95,6 +96,67 @@ function MemberRow({
 }
 
 /** "Together": invite friends to the same plan and see how everyone is doing today. */
+type Message = { id: string; username: string; text: string; created_at: string; is_me: boolean };
+const MAX_MESSAGE = 280;
+
+/** Short words between friends: "done for today", "don't give up". Members only. */
+function GroupChat({ participationId, open }: { participationId: string; open: boolean }) {
+  const { t } = useI18n();
+  const toast = useToast();
+  const key = `/me/participations/${participationId}/group/messages`;
+  const { data: messages, mutate } = useSWR<Message[]>(key, { refreshInterval: 20_000 });
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function send(event: React.FormEvent) {
+    event.preventDefault();
+    if (!text.trim()) return;
+    setSending(true);
+    try {
+      await api(key, { method: "POST", json: { text: text.trim() } });
+      setText("");
+      await mutate();
+    } catch (error) {
+      toast("error", errorMessage(error));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="mt-5">
+      <p className="text-xs font-semibold text-mist">{t("Guruh xabarlari")}</p>
+      <ul className="mt-2 flex max-h-64 flex-col gap-1.5 overflow-y-auto">
+        {messages?.length === 0 && <li className="text-sm text-mist">{t("Hali xabar yo'q — birinchi bo'lib do'stlaringizni ruhlantiring 💬")}</li>}
+        {messages?.map((message) => (
+          <li key={message.id} className={clsx("rounded-2xl px-3 py-2 text-sm", message.is_me ? "ml-8 bg-flame-500/10" : "mr-8 bg-white/[0.04]")}>
+            <p className="flex items-center gap-1.5 text-xs text-mist">
+              <b className="text-white/85">{message.is_me ? t("Siz") : message.username}</b> · {timeAgo(message.created_at)}
+              {!message.is_me && <ReportButton username={message.username} />}
+            </p>
+            <p className="mt-0.5 break-words whitespace-pre-line">{message.text}</p>
+          </li>
+        ))}
+      </ul>
+      {open && (
+        <form onSubmit={send} className="mt-2 flex items-center gap-2">
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            maxLength={MAX_MESSAGE}
+            placeholder={t("Do'stlaringizga yozing…")}
+            aria-label={t("Guruhga xabar")}
+            className="h-10 min-w-0 flex-1 rounded-2xl border border-white/10 bg-ink-900/70 px-3 text-sm outline-none focus:border-flame-500/70"
+          />
+          <Button type="submit" size="sm" loading={sending} disabled={!text.trim()} aria-label={t("Yuborish")}>
+            <Send className="size-4" />
+          </Button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 export function TogetherCard({ participationId, open }: { participationId: string; open: boolean }) {
   const toast = useToast();
   const { t } = useI18n();
@@ -167,6 +229,8 @@ export function TogetherCard({ participationId, open }: { participationId: strin
           <MemberRow key={member.username} member={member} rank={index + 1} participationId={participationId} open={open} />
         ))}
       </ul>
+
+      {board.members.length > 1 && <GroupChat participationId={participationId} open={open} />}
 
       {open && (
         <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.02] p-3">

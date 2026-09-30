@@ -87,3 +87,12 @@ class PauseChallenge(Command):
     user_id: UUID
     participation_id: UUID
     days: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class PostGroupMessage(Command):
+    """A short message to the friends' group of this participation."""
+
+    user_id: UUID
+    participation_id: UUID
+    text: str

@@ -601,4 +601,9 @@ export const RU: Record<string, string> = {
   "{done}/{planned} bajarildi": "выполнено {done}/{planned}",
   "rejada hech narsa yo'q": "ничего не запланировано",
   "Birinchi bajarilgan kundan keyin shu yerda ustunlar o'sib boradi": "После первого выполненного дня здесь начнут расти столбики",
+  "Guruh xabarlari": "Сообщения группы",
+  "Hali xabar yo'q — birinchi bo'lib do'stlaringizni ruhlantiring 💬": "Сообщений пока нет — поддержите друзей первым 💬",
+  "Siz": "Вы",
+  "Do'stlaringizga yozing…": "Напишите друзьям…",
+  "Guruhga xabar": "Сообщение группе",
 };

@@ -10,6 +10,7 @@ from uuid import UUID
 
 from pit.modules.challenges.domain.challenge import Challenge
 from pit.modules.challenges.domain.group import Group
+from pit.modules.challenges.domain.group_message import GroupMessage
 from pit.modules.challenges.domain.participation import Participation
 from pit.modules.coaching.domain.notification import Notification
 from pit.modules.identity.application.ports import GoogleIdentity
@@ -43,6 +44,7 @@ class InMemoryStore:
     challenges: dict[UUID, Challenge] = field(default_factory=dict)
     participations: dict[UUID, Participation] = field(default_factory=dict)
     groups: dict[UUID, Group] = field(default_factory=dict)
+    group_messages: list[GroupMessage] = field(default_factory=list)
     reports: dict[UUID, Report] = field(default_factory=dict)
     push_subscriptions: dict[UUID, PushSubscription] = field(default_factory=dict)
     proofs: dict[UUID, Proof] = field(default_factory=dict)
@@ -204,6 +206,20 @@ class FakeNotifications(_Repo[Notification]):
             self._staged.pop(notification_id, None)
 
 
+class FakeGroupMessages:
+    def __init__(self, store: list[GroupMessage]) -> None:
+        self._store = store
+
+    async def add(self, message: GroupMessage) -> None:
+        self._store.append(message)
+
+    async def recent(self, group_id: UUID, limit: int) -> list[GroupMessage]:
+        return [m for m in self._store if m.group_id == group_id][-limit:]
+
+    async def delete_for_user(self, user_id: UUID) -> None:
+        self._store[:] = [m for m in self._store if m.user_id != user_id]
+
+
 class FakeLedger:
     def __init__(self, store: list[LedgerTransaction]) -> None:
         self._store = store
@@ -254,6 +270,7 @@ class FakeUnitOfWork(UnitOfWork):
         self.challenges = FakeChallenges(store.challenges, self._seen)
         self.participations = FakeParticipations(store.participations, self._seen)
         self.groups = FakeGroups(store.groups, self._seen)
+        self.group_messages = FakeGroupMessages(store.group_messages)
         self.reports = FakeReports(store.reports, self._seen)
         self.push_subscriptions = FakePushSubscriptions(store.push_subscriptions, self._seen)
         self.proofs = FakeProofs(store.proofs, self._seen)

@@ -8,6 +8,7 @@ import re
 from collections.abc import Callable
 
 ERRORS_RU: dict[str, str] = {
+    "Bu challenge'da hali guruh yo'q": "В этом челлендже пока нет группы",
     "Kun tartibini bugundan 2 hafta oldinga ko'rish mumkin": "Распорядок можно смотреть на две недели вперёд",
     "Bu challenge allaqachon tugagan": "Этот челлендж уже завершён",
     "Garovli challenge'dan chiqib bo'lmaydi — u oxirigacha davom etadi": "Из челленджа со ставкой нельзя выйти — он идёт до конца",
@@ -197,6 +198,7 @@ _TEMPLATES_RU: list[tuple[str, str]] = [
     ("{}: «{}» va «{}» vaqti ustma-ust tushdi", "{0}: «{1}» и «{2}» пересекаются по времени"),
     ("Band vaqt nomi 1-{} belgi bo'lsin", "Название занятого времени — от 1 до {0} символов"),
     ("Band vaqtlar {} tadan oshmasin", "Занятых промежутков — не больше {0}"),
+    ("Xabar 1-{} belgi bo'lsin", "Сообщение — от 1 до {0} символов"),
     (
         "Pauza jami {} kundan oshmasin (qolgani: {} kun)",
         "Пауза — не больше {0} дней всего (осталось: {1})",

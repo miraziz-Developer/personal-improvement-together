@@ -1,20 +1,26 @@
 """Together: invite friends to a challenge, see how the group is doing."""
 
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from sqlalchemy import select
 
 from pit.api import schemas as s
 from pit.api import views
 from pit.api.deps import ContainerDep, LocaleDep, UserId
 from pit.api.ratelimit import rate_limit
 from pit.catalog_ru import catalog_text
-from pit.modules.challenges.application.commands import CreateGroup, JoinGroup
+from pit.modules.challenges.application.commands import CreateGroup, JoinGroup, PostGroupMessage
 from pit.modules.challenges.domain.group import normalize_invite_code
 from pit.modules.coaching.application.commands import CheerFriend
+from pit.modules.identity.infrastructure.tables import users
 from pit.shared.application.clock import local_date
 from pit.shared.application.lookup import require
 from pit.shared.domain.errors import PermissionDenied
+
+MESSAGES_SHOWN = 50
 
 router = APIRouter(tags=["together"])
 
@@ -128,3 +134,60 @@ async def cheer(
             emoji=body.emoji,
         )
     )
+
+
+class MessageIn(BaseModel):
+    text: str
+
+
+class MessageOut(BaseModel):
+    id: UUID
+    username: str
+    text: str
+    created_at: datetime
+    is_me: bool
+
+
+@router.get("/me/participations/{participation_id}/group/messages", response_model=list[MessageOut])
+async def group_messages(
+    participation_id: UUID, user_id: UserId, container: ContainerDep
+) -> list[MessageOut]:
+    async with container.uow_factory() as uow:
+        participation = require(
+            await uow.participations.get(participation_id), "Challenge topilmadi"
+        )
+        if participation.user_id != user_id:
+            raise PermissionDenied("Bu sizning challenge'ingiz emas")
+        if participation.group_id is None:
+            return []
+        messages = await uow.group_messages.recent(participation.group_id, MESSAGES_SHOWN)
+        authors = {m.user_id for m in messages}
+        rows = await uow.session.execute(
+            select(users.c.id, users.c.username).where(users.c.id.in_(authors))
+        )
+        names = {uid: name for uid, name in rows.tuples()}
+        return [
+            MessageOut(
+                id=m.id,
+                username=names.get(m.user_id, "—"),
+                text=m.text,
+                created_at=m.created_at,
+                is_me=m.user_id == user_id,
+            )
+            for m in messages
+        ]
+
+
+@router.post(
+    "/me/participations/{participation_id}/group/messages",
+    response_model=s.IdOut,
+    status_code=201,
+    dependencies=[Depends(rate_limit("group-message", 20, 3600, per="user"))],
+)
+async def post_group_message(
+    participation_id: UUID, body: MessageIn, user_id: UserId, container: ContainerDep
+) -> s.IdOut:
+    message_id = await container.bus.handle(
+        PostGroupMessage(user_id=user_id, participation_id=participation_id, text=body.text)
+    )
+    return s.IdOut(id=message_id)

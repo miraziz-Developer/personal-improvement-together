@@ -15,6 +15,7 @@ from pit.modules.challenges.application.commands import (
     JoinGroup,
     LeaveChallenge,
     PauseChallenge,
+    PostGroupMessage,
     RecordTaskApproved,
     RefreshDay,
 )
@@ -200,6 +201,7 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         # challenges — the "pick a ready-made challenge" path, and the daily calendar
         LeaveChallenge: partial(challenges.leave_challenge, clock=clock),
         PauseChallenge: partial(challenges.pause_challenge, clock=clock),
+        PostGroupMessage: partial(challenges.post_group_message, clock=clock),
         JoinChallenge: partial(
             challenges.join_challenge,
             clock=clock,
@@ -259,6 +261,7 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
             partial(verification.forget_proofs, files=deps.files),
             coaching.forget_notifications,
             planning.forget_plans,
+            challenges.forget_group_messages,
             partial(ranking.drop_from_leaderboards, index=deps.leaderboard),
             partial(challenges.withdraw_participations, clock=clock),
         ],

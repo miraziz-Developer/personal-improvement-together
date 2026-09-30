@@ -13,12 +13,14 @@ from pit.modules.challenges.application.commands import (
     JoinGroup,
     LeaveChallenge,
     PauseChallenge,
+    PostGroupMessage,
     RecordTaskApproved,
     RefreshDay,
 )
 from pit.modules.challenges.application.ports import DayEvidenceReader, StakeEscrow
 from pit.modules.challenges.domain.challenge import Challenge, ParticipationMode
 from pit.modules.challenges.domain.group import INVITE_ALPHABET, Group, normalize_invite_code
+from pit.modules.challenges.domain.group_message import GroupMessage
 from pit.modules.challenges.domain.participation import (
     MAX_OPEN_STAKES,
     DayEvidence,
@@ -27,6 +29,7 @@ from pit.modules.challenges.domain.participation import (
 )
 from pit.modules.challenges.domain.repositories import (
     ChallengeRepository,
+    GroupMessageRepository,
     GroupRepository,
     ParticipationRepository,
 )
@@ -53,6 +56,9 @@ class ChallengesUoW(Transaction, Protocol):
 
     @property
     def groups(self) -> GroupRepository: ...
+
+    @property
+    def group_messages(self) -> GroupMessageRepository: ...
 
 
 type EscrowFactory = Callable[[Any], StakeEscrow]
@@ -277,6 +283,30 @@ async def join_group(
         )
         await uow.commit()
         return participation.id
+
+
+async def post_group_message(cmd: PostGroupMessage, uow: ChallengesUoW, *, clock: Clock) -> UUID:
+    """Only members write to (and read) a group."""
+    async with uow:
+        participation = await _owned(uow, cmd.participation_id, cmd.user_id)
+        if participation.group_id is None:
+            raise DomainError("Bu challenge'da hali guruh yo'q")
+        message = GroupMessage(
+            id=uuid4(),
+            group_id=participation.group_id,
+            user_id=cmd.user_id,
+            text=cmd.text.strip(),
+            created_at=clock.now(),
+        )
+        await uow.group_messages.add(message)
+        await uow.commit()
+        return message.id
+
+
+async def forget_group_messages(event: AccountErased, uow: ChallengesUoW) -> None:
+    async with uow:
+        await uow.group_messages.delete_for_user(event.user_id)
+        await uow.commit()
 
 
 async def withdraw_participations(

@@ -3,7 +3,8 @@ from datetime import date
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, insert, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from pit.modules.challenges.domain.challenge import (
     ApprovalStatus,
@@ -14,6 +15,7 @@ from pit.modules.challenges.domain.challenge import (
     StakePolicy,
 )
 from pit.modules.challenges.domain.group import Group
+from pit.modules.challenges.domain.group_message import GroupMessage
 from pit.modules.challenges.domain.participation import (
     OPEN_STATUSES,
     DayStatus,
@@ -28,12 +30,13 @@ from pit.modules.challenges.infrastructure.serialization import (
 )
 from pit.modules.challenges.infrastructure.tables import (
     challenges,
+    group_messages,
     groups,
     participation_days,
     participations,
 )
 from pit.shared.domain.money import Money
-from pit.shared.infrastructure.repository import Row, SqlRepository
+from pit.shared.infrastructure.repository import Row, SqlRepository, utc
 
 OPEN = [s.value for s in OPEN_STATUSES]
 
@@ -220,3 +223,42 @@ class SqlGroupRepository(SqlRepository[Group]):
             return pending[0]
         found = await self._select(groups.c.invite_code == invite_code)
         return found[0] if found else None
+
+
+class SqlGroupMessages:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, message: GroupMessage) -> None:
+        await self._session.execute(
+            insert(group_messages).values(
+                id=message.id,
+                group_id=message.group_id,
+                user_id=message.user_id,
+                text=message.text,
+                created_at=message.created_at,
+            )
+        )
+
+    async def recent(self, group_id: UUID, limit: int) -> list[GroupMessage]:
+        rows = await self._session.execute(
+            select(group_messages)
+            .where(group_messages.c.group_id == group_id)
+            .order_by(group_messages.c.created_at.desc())
+            .limit(limit)
+        )
+        return [
+            GroupMessage(
+                id=row["id"],
+                group_id=row["group_id"],
+                user_id=row["user_id"],
+                text=row["text"],
+                created_at=utc(row["created_at"]),
+            )
+            for row in reversed(rows.mappings().all())
+        ]
+
+    async def delete_for_user(self, user_id: UUID) -> None:
+        await self._session.execute(
+            delete(group_messages).where(group_messages.c.user_id == user_id)
+        )

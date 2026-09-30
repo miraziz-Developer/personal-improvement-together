@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from pit.modules.challenges.infrastructure.repositories import (
     SqlChallengeRepository,
+    SqlGroupMessages,
     SqlGroupRepository,
     SqlParticipationRepository,
 )
@@ -40,6 +41,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
     challenges: SqlChallengeRepository
     participations: SqlParticipationRepository
     groups: SqlGroupRepository
+    group_messages: SqlGroupMessages
     proofs: SqlProofRepository
     wallets: SqlWalletRepository
     ledger: SqlLedgerRepository
@@ -62,6 +64,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
         self.challenges = SqlChallengeRepository(self._session, self._seen)
         self.participations = SqlParticipationRepository(self._session, self._seen)
         self.groups = SqlGroupRepository(self._session, self._seen)
+        self.group_messages = SqlGroupMessages(self._session)
         self.proofs = SqlProofRepository(self._session, self._seen)
         self.wallets = SqlWalletRepository(self._session, self._seen)
         self.plans = SqlPlanRepository(self._session, self._seen)
