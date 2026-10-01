@@ -671,4 +671,10 @@ export const RU: Record<string, string> = {
   "Telegram'da botni oching va «Start» ni bosing — shu sahifa o'zi kiradi.": "Откройте бота в Telegram и нажмите «Start» — эта страница войдёт сама.",
   "Telegram'ni ochish": "Открыть Telegram",
   "Telegram orqali kirish": "Войти через Telegram",
+  "Hozircha guruhda faqat sizsiz. Havolani do'stlaringizga yuboring — ular qo'shilgach, shu yerda kim oldinda ekani ko'rinadi 🏁": "Пока в группе только вы. Отправьте ссылку друзьям — когда они присоединятся, здесь будет видно, кто впереди 🏁",
+  "Do'stlarim bilan birga": "Вместе с друзьями",
+  "Taklif havolasi beriladi: do'stlaringiz shu challenge'ga qo'shiladi, kim bugun bajarganini va kim oldinda ekanini ko'rasiz.": "Вы получите ссылку-приглашение: друзья присоединятся к этому челленджу, и вы увидите, кто сегодня справился и кто впереди.",
+  "Hali do'stlar bilan challenge yo'q": "Пока нет челленджей с друзьями",
+  "Challenge boshlaganda «👥 Do'stlarim bilan birga»ni tanlang yoki «Maqsadlarim»da «Taklif qilish»ni bosing. Do'stlaringiz qo'shilgach, shu yerda kim oldinda ekanini ko'rasiz.": "При старте челленджа выберите «👥 Вместе с друзьями» или нажмите «Пригласить» в «Мои цели». Когда друзья присоединятся, здесь будет видно, кто впереди.",
+  "Maqsadlarimga o'tish": "К моим целям",
 };

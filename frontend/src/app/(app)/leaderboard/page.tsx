@@ -6,11 +6,11 @@ import { Crown, Users } from "lucide-react";
 import { useState } from "react";
 import useSWR from "swr";
 
-import { Card, EmptyState, PageHeader, Segmented, Skeleton } from "@/components/ui";
+import { Button, Card, EmptyState, PageHeader, Segmented, Skeleton } from "@/components/ui";
 import type { Leaderboard } from "@/lib/types";
 import { useI18n } from "@/lib/i18n";
 
-type Scope = "global" | "age" | "region";
+type Scope = "friends" | "global" | "age" | "region";
 type Period = "week" | "season" | "all";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -31,6 +31,7 @@ export default function LeaderboardPage() {
           value={scope}
           onChange={setScope}
           options={[
+            { value: "friends", label: t("Do'stlar") },
             { value: "global", label: t("Umumiy") },
             { value: "age", label: t("Tengdoshlar") },
             { value: "region", label: t("Hudud") },
@@ -54,7 +55,16 @@ export default function LeaderboardPage() {
             <p className="text-sm text-mist">
               {data.title} · {t("{n} ishtirokchi", { n: data.size })}
             </p>
-            {data.hidden ? (
+            {scope === "friends" && !data.entries.some((entry) => !entry.is_me) ? (
+              <Card>
+                <EmptyState
+                  icon={<Users className="size-7 text-flame-400" />}
+                  title={t("Hali do'stlar bilan challenge yo'q")}
+                  body={t("Challenge boshlaganda «👥 Do'stlarim bilan birga»ni tanlang yoki «Maqsadlarim»da «Taklif qilish»ni bosing. Do'stlaringiz qo'shilgach, shu yerda kim oldinda ekanini ko'rasiz.")}
+                  action={<Button href="/challenges">{t("Maqsadlarimga o'tish")}</Button>}
+                />
+              </Card>
+            ) : data.hidden ? (
               <Card>
                 <EmptyState
                   icon={<Users className="size-7 text-flame-400" />}

@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, Clock } from "lucide-react";
+import { ArrowLeft, Clock, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import useSWR from "swr";
 
@@ -59,6 +60,8 @@ export function AddToRoutine({
   const [picked, setPicked] = useState<Challenge | null>(null);
   const [times, setTimes] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [together, setTogether] = useState(false);
+  const router = useRouter();
 
   const lines = picked ? taskLines(picked) : [];
   const clashes = selfClash(lines, times);
@@ -83,6 +86,7 @@ export function AddToRoutine({
   function close() {
     setPicked(null);
     setTimes({});
+    setTogether(false);
     onClose();
   }
 
@@ -90,13 +94,18 @@ export function AddToRoutine({
     if (!picked) return;
     setSaving(true);
     try {
-      await api("/me/routine/challenges", {
+      const { id } = await api<{ id: string }>("/me/routine/challenges", {
         method: "POST",
         json: { challenge_id: picked.id, times: Object.fromEntries(Object.entries(times).filter(([, at]) => at)) },
       });
       toast("success", t("Kun tartibiga qo'shildi 🎉"), picked.title);
       onAdded();
       close();
+      if (together) {
+        // The group exists right away; its page shows the invite link to send.
+        await api(`/me/participations/${id}/group`, { method: "POST" });
+        router.push(`/c/${id}?invite=1`);
+      }
     } catch (error) {
       toast("error", errorMessage(error));
     } finally {
@@ -160,6 +169,15 @@ export function AddToRoutine({
               {problems[task.key] && <span className="w-full text-xs text-danger">{problems[task.key]}</span>}
             </label>
           ))}
+          <label className="mt-1 flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+            <input type="checkbox" checked={together} onChange={(e) => setTogether(e.target.checked)} className="mt-1 size-4 accent-flame-500" />
+            <span className="text-sm">
+              <span className="flex items-center gap-1.5 font-semibold">
+                <Users className="size-4 text-flame-400" /> {t("Do'stlarim bilan birga")}
+              </span>
+              <span className="mt-0.5 block text-xs text-mist">{t("Taklif havolasi beriladi: do'stlaringiz shu challenge'ga qo'shiladi, kim bugun bajarganini va kim oldinda ekanini ko'rasiz.")}</span>
+            </span>
+          </label>
           <div className="mt-2 flex gap-2">
             <Button variant="ghost" onClick={() => setPicked(null)}>
               <ArrowLeft className="size-4" /> {t("Orqaga")}

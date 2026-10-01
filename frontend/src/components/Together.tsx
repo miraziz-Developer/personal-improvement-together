@@ -234,6 +234,9 @@ export function TogetherCard({ participationId, open }: { participationId: strin
 
       {open && (
         <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+          {board.members.length === 1 && (
+            <p className="mb-3 text-sm">{t("Hozircha guruhda faqat sizsiz. Havolani do'stlaringizga yuboring — ular qo'shilgach, shu yerda kim oldinda ekani ko'rinadi 🏁")}</p>
+          )}
           <p className="text-xs text-mist">{t("Taklif havolasi")}</p>
           <div className="mt-2 flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-xl bg-ink-900/70 px-3 py-2 text-sm">{link}</code>

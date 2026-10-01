@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
@@ -94,7 +95,7 @@ async def leaderboard(
     user_id: UserId,
     container: ContainerDep,
     locale: LocaleDep,
-    scope: Literal["global", "age", "region"] = "global",
+    scope: Literal["global", "age", "region", "friends"] = "global",
     period: Literal["week", "season", "all"] = "week",
     limit: int = Query(50, le=100),
 ) -> s.LeaderboardOut:
@@ -105,6 +106,7 @@ async def leaderboard(
     period_key = period_keys(today)[PERIOD_INDEX[period]]
     ru = locale is Locale.RU
     scope_key, title = {
+        "friends": ("", ""),  # handled below: no cohort of its own
         "global": ("global", "Вся платформа" if ru else "Butun platforma"),
         "age": (
             f"age:{user.birth_year}",
@@ -112,8 +114,10 @@ async def leaderboard(
         ),
         "region": (f"region:{user.region_id}", region or ("Ваш регион" if ru else "Hududingiz")),
     }[scope]
-    key = f"lb:{period_key}:{scope_key}"
     board = container.leaderboard
+    if scope == "friends":
+        return await _friends_board(container, user_id, period, f"lb:{period_key}:global", ru)
+    key = f"lb:{period_key}:{scope_key}"
     size = await board.size(key)
     position = await board.position(key, user_id)
     hidden = scope != "global" and size < MIN_COHORT_SIZE
@@ -230,3 +234,50 @@ async def unsubscribe_push(
 @router.put("/me/locale", status_code=204)
 async def change_locale(body: s.LocaleIn, user_id: UserId, container: ContainerDep) -> None:
     await container.bus.handle(ChangeLocale(user_id=user_id, locale=body.locale))
+
+
+async def _friends_board(
+    container: ContainerDep, user_id: UUID, period: str, key: str, ru: bool
+) -> s.LeaderboardOut:
+    """Everyone who has shared a group with me, by the points they earned in the period.
+    Small by nature and chosen by the users themselves, so it is never hidden."""
+    mine = participations.alias("mine")
+    theirs = participations.alias("theirs")
+    async with container.uow_factory() as uow:
+        rows = await uow.session.execute(
+            select(users.c.id, users.c.username)
+            .select_from(
+                mine.join(theirs, theirs.c.group_id == mine.c.group_id).join(
+                    users, users.c.id == theirs.c.user_id
+                )
+            )
+            .where(
+                mine.c.user_id == user_id,
+                mine.c.group_id.is_not(None),
+                users.c.deleted_at.is_(None),
+            )
+            .distinct()
+        )
+        people = dict(rows.tuples().all())
+    board = container.leaderboard
+    scored = []
+    for uid, name in people.items():
+        position = await board.position(key, uid)
+        scored.append((position[1] if position else 0, name, uid))
+    scored.sort(key=lambda row: (-row[0], row[1]))
+    entries = [
+        s.LeaderboardEntry(
+            rank=i + 1, user_id=uid, username=name, points=points, is_me=uid == user_id
+        )
+        for i, (points, name, uid) in enumerate(scored)
+    ]
+    me = next((e for e in entries if e.is_me), None)
+    return s.LeaderboardOut(
+        scope="friends",
+        period=period,
+        title="Друзья по челленджам" if ru else "Challenge'dagi do'stlaringiz",
+        entries=entries,
+        me=s.MyRank(rank=me.rank, points=me.points) if me else None,
+        size=len(entries),
+        hidden=False,
+    )

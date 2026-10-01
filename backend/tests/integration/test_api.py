@@ -518,6 +518,12 @@ async def test_together_invite_join_and_group_board(api: Api) -> None:
     notes = (await api.client.get("/api/v1/me/notifications", headers=owner)).json()
     assert any("vali_2009" in n["body"] for n in notes)
 
+    # The leaderboard among friends: everyone I share a group with, nobody else.
+    await api.register("begona_2010")
+    friends = (await api.client.get("/api/v1/leaderboard?scope=friends", headers=friend)).json()
+    assert sorted(e["username"] for e in friends["entries"]) == ["ali_2008", "vali_2009"]
+    assert friends["me"]["rank"] in (1, 2) and not friends["hidden"]
+
 
 async def test_export_then_erase_the_account(api: Api) -> None:
     auth = await api.register("ali_2008")
