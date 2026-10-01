@@ -3,21 +3,15 @@
 | Qism | Qayerda | Narxi |
 |---|---|---|
 | Sayt (Next.js) | Vercel | doim tekin |
-| Ma'lumotlar bazasi | Neon Postgres | doim tekin (0.5 GB) |
-| API + Telegram bot + eslatmalar + Redis + isbot rasmlari | Azure B1s server (`rg-pit` / `pit-vm`) | Azure for Students: 12 oy tekin |
+| API + Telegram bot + eslatmalar + Postgres + Redis + isbot rasmlari + kunlik zaxira | Azure B1s server (`rg-pit` / `pit-vm`) | Azure for Students: 12 oy tekin |
 | API manzili | `pit-uz.indiasouthcentral.cloudapp.azure.com` (Azure'ning tekin DNS nomi) + Caddy HTTPS | tekin |
 | Sayt manzili | `pit-uz.vercel.app` (Vercel loyiha nomi) | tekin |
 
-Server faqat API'ni ishlatadi (`docker-compose.lite.yml`): Celery yo'q, kunlik ishlar va AI
-tekshiruvi API ichida yuradi (`PIT_INLINE_TASKS=true`), sayt Vercel'da, baza Neon'da.
+Server `docker-compose.lite.yml` bilan ishlaydi: Celery yo'q, kunlik ishlar va AI tekshiruvi API
+ichida yuradi (`PIT_INLINE_TASKS=true`); Postgres ham shu serverda, 1 GB ga moslab sozlangan.
+Sayt Vercel'da.
 
-## 1. Neon (baza)
-
-1. https://neon.tech → GitHub bilan kiring → **New project** (region: Frankfurt yoki eng yaqini).
-2. **Connection string**ni nusxalang. Boshidagi `postgresql://` ni `postgresql+psycopg://`
-   ga almashtiring, oxirida `?sslmode=require` bo'lsin. Bu — `PIT_DATABASE_URL`.
-
-## 2. Server (Azure)
+## 1. Server (Azure)
 
 ```sh
 ssh -i ~/.ssh/pit_azure pit@<IP>
@@ -38,7 +32,7 @@ Serverda `~/pit/deploy/.env.lite` (namuna: `.env.lite.example`):
   (`az network public-ip update -g rg-pit -n pit-vmPublicIP --dns-name pit-uz`)
 - `PIT_PUBLIC_BASE_URL=https://<DOMAIN>`
 - `PIT_CORS_ORIGINS` va `PIT_WEB_URL` — Vercel manzili
-- maxfiy kalitlar: `python3 -c "import secrets; print(secrets.token_hex(32))"`
+- `POSTGRES_PASSWORD` va boshqa maxfiy kalitlar: `python3 -c "import secrets; print(secrets.token_hex(32))"`
 
 Ishga tushirish va yangilash (har safar kod yuborilgandan keyin):
 
@@ -47,7 +41,7 @@ cd ~/pit && docker compose -f docker-compose.lite.yml --env-file deploy/.env.lit
 curl https://<DOMAIN>/health
 ```
 
-## 3. Vercel (sayt)
+## 2. Vercel (sayt)
 
 1. https://vercel.com → GitHub bilan kiring → **Add New → Project** → repo'ni tanlang,
    **Project Name**: `pit-uz` (manzil `pit-uz.vercel.app` bo'ladi).
@@ -75,6 +69,10 @@ GitHub Student Developer Pack (https://education.github.com/pack) talabalarga 1 
 - Azure tekin tarifi: B1s server oyiga 750 soat, 64 GB P6 disk — 12 oy. Kredit ($100) tugasa,
   obuna to'xtaydi va bu server ham o'chadi: boshqa pullik resurslarni kerak bo'lmaganda
   to'xtatib qo'ying (Stop/Deallocate).
-- Baza Neon'da — server almashsa ham ma'lumot joyida qoladi. Isbot rasmlari serverning
-  `storage` volume'ida: serverni o'chirishdan oldin nusxa oling.
+- Zaxira: `backup` servisi har kuni baza (`db-<sana>.dump`) va rasmlarni (`storage-<sana>.tar.gz`)
+  `backups` volume'iga yozadi, 14 kun saqlaydi. Ular shu serverda turadi — vaqti-vaqti bilan
+  kompyuterga ham ko'chirib oling:
+  `ssh pit-vm 'docker run --rm -v pit-lite_backups:/b alpine tar -C /b -cf - .' > pit-backups.tar`
+- Serverni almashtirish: yangi serverda `up -d`, keyin oxirgi `db-*.dump` ni
+  `pg_restore -h postgres -U pit -d pit --clean` bilan tiklash.
 - AI kalitlari bepul tarifda bo'lsa, provayder ma'lumotdan o'qitish uchun foydalanishi mumkin.

@@ -1,5 +1,5 @@
-# The free setup: a 1 GB server runs only the API (with the bot and the daily jobs inside it),
-# Redis and Caddy. The website lives on Vercel, the database on Neon. See deploy/BEPUL.md.
+# The free setup: a 1 GB server runs the API (with the bot and the daily jobs inside it),
+# Postgres, Redis, Caddy and a daily backup. The website lives on Vercel. See deploy/BEPUL.md.
 #   cp deploy/.env.lite.example deploy/.env.lite   # fill in
 #   docker compose -f docker-compose.lite.yml --env-file deploy/.env.lite up -d --build
 name: pit-lite
@@ -9,16 +9,36 @@ x-backend: &backend
   image: pit-lite-backend # one image for migrate and api: built once
   env_file: ./deploy/.env.lite
   environment:
+    PIT_DATABASE_URL: postgresql+psycopg://pit:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/pit
     PIT_REDIS_URL: redis://redis:6379/0
     PIT_LOCAL_STORAGE_DIR: /app/.storage
     PIT_INLINE_TASKS: "true" # no Celery: proofs are checked and daily jobs run in the API
   volumes:
     - storage:/app/.storage
   depends_on:
+    postgres:
+      condition: service_healthy
     redis:
       condition: service_healthy
 
 services:
+  postgres:
+    image: postgres:17-alpine
+    # Sized for a 1 GB machine: a few connections, small buffers.
+    command: ["postgres", "-c", "shared_buffers=48MB", "-c", "max_connections=30", "-c", "work_mem=2MB"]
+    environment:
+      POSTGRES_USER: pit
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: pit
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pit -d pit"]
+      interval: 5s
+      retries: 20
+    mem_limit: 192m
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "48mb", "--maxmemory-policy", "allkeys-lru"]
@@ -41,6 +61,8 @@ services:
     mem_limit: 640m
     restart: unless-stopped
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
       migrate:
@@ -62,7 +84,26 @@ services:
       - api
     restart: unless-stopped
 
+  # Daily pg_dump + photo archive into the `backups` volume, 14 days kept. See deploy/BEPUL.md.
+  backup:
+    image: postgres:17-alpine
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./deploy/backup.sh:/backup.sh:ro
+      - storage:/storage:ro
+      - backups:/backups
+    mem_limit: 64m
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
+  pgdata:
+  backups:
   redisdata:
   storage:
   caddy_data:
