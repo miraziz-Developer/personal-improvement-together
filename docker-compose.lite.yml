@@ -6,6 +6,7 @@ name: pit-lite
 
 x-backend: &backend
   build: ./backend
+  image: pit-lite-backend # one image for migrate and api: built once
   env_file: ./deploy/.env.lite
   environment:
     PIT_REDIS_URL: redis://redis:6379/0
