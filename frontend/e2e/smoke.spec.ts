@@ -87,6 +87,20 @@ test("a free challenge can be paused", async ({ page, request }) => {
   await expect(page.getByText(/Pauza: .* 2 kun/)).toBeVisible();
 });
 
+test("a challenge page splits into today, plan and friends", async ({ page, request }) => {
+  const token = await user(request);
+  // The shared user already runs a challenge from the earlier tests.
+  const mine = await request.get(`${API}/me/participations`, { headers: { Authorization: `Bearer ${token}` } });
+  const [{ id }] = await mine.json();
+  await signIn(page, token);
+  await page.goto(`/c/${id}?invite=1`);
+  await expect(page.getByText(/Do'stlaringiz bilan bir xil rejada/)).toBeVisible();
+  await page.getByRole("button", { name: "Reja", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Kalendar" })).toBeVisible();
+  await page.getByRole("button", { name: "Bugun", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Pauza qilish" }).first()).toBeVisible();
+});
+
 test("a first visit explains how PIT works, once", async ({ page, request }) => {
   const token = await user(request);
   await page.addInitScript((value) => {

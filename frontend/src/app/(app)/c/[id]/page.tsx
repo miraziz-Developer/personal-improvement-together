@@ -3,7 +3,7 @@
 import confetti from "canvas-confetti";
 import { Coins, KeyRound, LogOut, Pause, Snowflake } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import useSWR from "swr";
 
 import { Calendar } from "@/components/Calendar";
@@ -12,12 +12,15 @@ import { ProofTask } from "@/components/ProofTask";
 import { FocusCard, RoadmapView } from "@/components/Roadmap";
 import { TogetherCard } from "@/components/Together";
 import { useToast } from "@/components/toast";
-import { Badge, Button, Card, Modal, ProgressRing, Skeleton, StreakFlame } from "@/components/ui";
+import { Badge, Button, Card, Modal, ProgressRing, Segmented, Skeleton, StreakFlame } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { CATEGORY, money, shortDate, STATUS_LABEL } from "@/lib/format";
 import type { ParticipationDetail } from "@/lib/types";
 import { useI18n } from "@/lib/i18n";
+
+type Section = "today" | "plan" | "friends";
+const noUpdates = () => () => {};
 
 const CHEERS = [
   "Bugungi kun yopildi! Siz o'zingizga bergan va'dada turdingiz. 🔥",
@@ -48,14 +51,10 @@ export default function ParticipationPage() {
       latest?.today.tasks.some((task) => task.proof_status === "pending") ? 2000 : 30_000,
   });
   const previous = useRef<string | null | undefined>(undefined);
-  const loaded = Boolean(p);
-
-  // Arriving from "start with friends": go straight to the invite link.
-  useEffect(() => {
-    if (!loaded || !window.location.search.includes("invite=1")) return;
-    const timer = setTimeout(() => document.getElementById("together")?.scrollIntoView({ behavior: "smooth" }), 400);
-    return () => clearTimeout(timer);
-  }, [loaded]);
+  // Arriving from "start with friends" opens the Friends section with the invite link.
+  const invited = useSyncExternalStore(noUpdates, () => window.location.search.includes("invite=1"), () => false);
+  const [chosen, setChosen] = useState<Section | null>(null);
+  const section: Section = chosen ?? (invited ? "friends" : "today");
 
   useEffect(() => {
     if (!p) return;
@@ -172,7 +171,17 @@ export default function ParticipationPage() {
         </div>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+      <Segmented<Section>
+        value={section}
+        onChange={setChosen}
+        options={[
+          { value: "today", label: t("Bugun") },
+          { value: "plan", label: t("Reja") },
+          { value: "friends", label: t("Do'stlar") },
+        ]}
+      />
+
+      {section === "today" && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <CoachAvatar className="size-10" />
@@ -211,10 +220,6 @@ export default function ParticipationPage() {
             </div>
           )}
 
-          <div id="together" className="scroll-mt-24">
-            <TogetherCard participationId={p.id} open={p.status === "active" || p.status === "scheduled"} />
-          </div>
-
           {p.can_cancel && (
             <Button variant="ghost" className="self-start" onClick={() => setCancelOpen(true)}>
               {t("Boshlanmasdan bekor qilish")}
@@ -231,15 +236,32 @@ export default function ParticipationPage() {
             </div>
           )}
         </div>
+      )}
 
-        <div className="flex flex-col gap-6">
-          <Card>
+      {section === "plan" && (
+        <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+          <Card className="h-fit">
             <h2 className="mb-4 font-display text-lg font-semibold">{t("Kalendar")}</h2>
             <Calendar start={p.start_date} end={p.end_date} days={p.calendar} today={p.today.date} />
           </Card>
-          {p.roadmap && <RoadmapView roadmap={p.roadmap} current={p.today.focus?.week} />}
+          {p.roadmap ? (
+            <RoadmapView roadmap={p.roadmap} current={p.today.focus?.week} />
+          ) : (
+            <Card className="h-fit">
+              <p className="text-sm text-mist">{t("Bu challenge'da bosqichli reja yo'q — har kuni bir xil vazifalar bajariladi.")}</p>
+            </Card>
+          )}
         </div>
-      </div>
+      )}
+
+      {section === "friends" && (
+        <div className="flex w-full max-w-2xl flex-col gap-3">
+          <p className="text-sm text-mist">
+            {t("Do'stlaringiz bilan bir xil rejada boring: kim bugun bajarganini ko'rasiz, bir-biringizni olqishlaysiz va qisqa xabar yozasiz.")}
+          </p>
+          <TogetherCard participationId={p.id} open={p.status === "active" || p.status === "scheduled"} />
+        </div>
+      )}
 
       <Modal open={pauseOpen} onClose={() => setPauseOpen(false)} title={t("Pauza qilish")}>
         <p className="text-mist">{t("Kasallik, safar yoki imtihon? Pauza kunlari streak'ni buzmaydi va hisobga kirmaydi — challenge shuncha kunga uzayadi.")}</p>

@@ -639,4 +639,8 @@ export const RU: Record<string, string> = {
   "Mening maqsadlarim": "Мои цели",
   "Hali maqsad yo'q": "Целей пока нет",
   "Maqsad qo'shing — AI reja tuzadi yoki tayyor challenge tanlaysiz. Har kuni nima qilish «Bugun» sahifasida chiqadi.": "Добавьте цель — ИИ составит план, или выберите готовый челлендж. Что делать каждый день — на странице «Сегодня».",
+  "Reja": "План",
+  "Do'stlar": "Друзья",
+  "Bu challenge'da bosqichli reja yo'q — har kuni bir xil vazifalar bajariladi.": "В этом челлендже нет плана по этапам — каждый день одни и те же задания.",
+  "Do'stlaringiz bilan bir xil rejada boring: kim bugun bajarganini ko'rasiz, bir-biringizni olqishlaysiz va qisqa xabar yozasiz.": "Идите по одному плану с друзьями: видно, кто сегодня справился, можно подбодрить друг друга и написать короткое сообщение.",
 };
