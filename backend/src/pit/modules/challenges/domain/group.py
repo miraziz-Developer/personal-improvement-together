@@ -12,7 +12,9 @@ from pit.modules.challenges.domain.schedule import Schedule
 from pit.shared.domain.aggregate import AggregateRoot
 from pit.shared.domain.errors import DomainError, InvariantViolation
 
-MAX_GROUP_MEMBERS = 20  # beyond this "friends" become a crowd and the feed turns into noise
+# No limit on members. Up to this size everyone hears about each friend's day; a bigger group
+# is followed on its board, or the pings would become noise.
+CLOSE_CIRCLE = 20
 # No 0/O or 1/I/L: invite codes get read aloud and typed from screenshots.
 INVITE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 INVITE_CODE_RE = re.compile(rf"^[{INVITE_ALPHABET}]{{8}}$")
@@ -52,15 +54,9 @@ class Group(AggregateRoot):
             member_ids=[owner_id],
         )
 
-    @property
-    def is_full(self) -> bool:
-        return len(self.member_ids) >= MAX_GROUP_MEMBERS
-
     def admit(self, user_id: UUID) -> None:
         if user_id in self.member_ids:
             raise DomainError("Siz allaqachon shu guruhdasiz")
-        if self.is_full:
-            raise DomainError(f"Guruh to'lgan ({MAX_GROUP_MEMBERS} kishi)")
         self.member_ids.append(user_id)
         self._record(
             GroupMemberJoined(group_id=self.id, user_id=user_id, challenge_id=self.challenge_id)

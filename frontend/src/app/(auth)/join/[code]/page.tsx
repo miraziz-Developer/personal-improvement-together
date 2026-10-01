@@ -90,9 +90,7 @@ export default function JoinPage() {
         <li>{t("📲 Do'stingiz bajarsa, murabbiy sizga ham xabar beradi")}</li>
       </ul>
 
-      {data.is_full ? (
-        <p className="rounded-2xl bg-white/5 p-4 text-center text-mist">{t("Bu guruh to'lgan. {owner}dan yangi guruh ochishini so'rang.", { owner: data.owner })}</p>
-      ) : token ? (
+      {token ? (
         <Button size="lg" loading={joining} onClick={join}>
           {t("Qo'shilish va boshlash 🚀")}
         </Button>

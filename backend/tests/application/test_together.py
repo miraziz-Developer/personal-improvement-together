@@ -11,7 +11,7 @@ from pit.modules.challenges.application.commands import (
     JoinGroup,
 )
 from pit.modules.challenges.domain.challenge import Challenge, ParticipationMode
-from pit.modules.challenges.domain.group import MAX_GROUP_MEMBERS, Group
+from pit.modules.challenges.domain.group import CLOSE_CIRCLE, Group
 from pit.modules.challenges.domain.schedule import Schedule, TaskSpec
 from pit.modules.coaching.domain.messages import Moment
 from pit.modules.identity.domain.user import User
@@ -69,7 +69,7 @@ async def test_friend_joins_with_the_owners_current_plan(world: World) -> None:
     assert group_of(world, pid).member_ids == [owner.id, friend.id]
 
 
-async def test_joining_twice_or_a_full_group_is_refused(world: World) -> None:
+async def test_joining_twice_is_refused_but_a_group_has_no_size_limit(world: World) -> None:
     owner = world.add_user()
     code = await invite(world, owner, await world.join(owner, world.add_challenge()))
     friend = world.add_user()
@@ -77,10 +77,17 @@ async def test_joining_twice_or_a_full_group_is_refused(world: World) -> None:
     with pytest.raises(DomainError, match="allaqachon"):
         await accept(world, friend, code)
 
-    for _ in range(MAX_GROUP_MEMBERS - 2):
+    for _ in range(CLOSE_CIRCLE + 5):  # bigger than a close circle: still welcome
         await accept(world, world.add_user(), code)
-    with pytest.raises(DomainError, match="to'lgan"):
-        await accept(world, world.add_user(), code)
+
+    def joined_pings() -> int:
+        return sum(
+            1 for n in world.store.notifications.values() if n.moment is Moment.FRIEND_JOINED
+        )
+
+    before = joined_pings()
+    await accept(world, world.add_user(), code)
+    assert joined_pings() == before  # a crowd is followed on the board, not by pings
 
 
 async def test_unknown_code_is_refused(world: World) -> None:

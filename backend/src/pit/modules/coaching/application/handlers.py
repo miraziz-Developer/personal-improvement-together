@@ -15,6 +15,7 @@ from pit.modules.challenges.domain.events import (
     ParticipationFailed,
     ParticipationStarted,
 )
+from pit.modules.challenges.domain.group import CLOSE_CIRCLE
 from pit.modules.challenges.domain.participation import (
     DayStatus,
     Participation,
@@ -293,7 +294,10 @@ async def on_friend_day_done(event: DayCompleted, uow: CoachingUoW, *, clock: Cl
         participation, name, _ = await _context(uow, event.participation_id)
         if participation.group_id is None:
             return
-        for mate in await _group_mates(uow, participation.group_id, participation.user_id):
+        mates = await _group_mates(uow, participation.group_id, participation.user_id)
+        if len(mates) >= CLOSE_CIRCLE:
+            return  # a big group: the board shows who is done, nobody gets dozens of pings
+        for mate in mates:
             await _notify(
                 uow,
                 clock,
@@ -318,7 +322,10 @@ async def on_friend_joined(
     async with uow:
         friend = require(await uow.users.get(event.user_id), "Foydalanuvchi topilmadi")
         challenge = require(await uow.challenges.get(event.challenge_id), "Challenge topilmadi")
-        for mate in await _group_mates(uow, event.group_id, event.user_id):
+        mates = await _group_mates(uow, event.group_id, event.user_id)
+        if len(mates) >= CLOSE_CIRCLE:
+            return  # a big group: newcomers show up on the board
+        for mate in mates:
             reader = await uow.users.get(mate.user_id)
             await _notify(
                 uow,

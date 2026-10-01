@@ -130,7 +130,6 @@ export const RU: Record<string, string> = {
   "🤝 Hammangiz bir xil reja bo'yicha harakat qilasiz": "🤝 Все идут по одному плану",
   "🔥 Kim bugun bajarganini guruhda ko'rib turasiz": "🔥 Видно, кто в группе уже справился сегодня",
   "📲 Do'stingiz bajarsa, murabbiy sizga ham xabar beradi": "📲 Когда друг выполнит план, коуч сообщит и вам",
-  "Bu guruh to'lgan. {owner}dan yangi guruh ochishini so'rang.": "Группа заполнена. Попросите {owner} создать новую.",
   "Qo'shilish va boshlash 🚀": "Присоединиться и начать 🚀",
   "Ro'yxatdan o'tib qo'shilish 🚀": "Зарегистрироваться и присоединиться 🚀",
   "Akkauntim bor — kirish": "У меня есть аккаунт — войти",
@@ -677,4 +676,6 @@ export const RU: Record<string, string> = {
   "Hali do'stlar bilan challenge yo'q": "Пока нет челленджей с друзьями",
   "Challenge boshlaganda «👥 Do'stlarim bilan birga»ni tanlang yoki «Maqsadlarim»da «Taklif qilish»ni bosing. Do'stlaringiz qo'shilgach, shu yerda kim oldinda ekanini ko'rasiz.": "При старте челленджа выберите «👥 Вместе с друзьями» или нажмите «Пригласить» в «Мои цели». Когда друзья присоединятся, здесь будет видно, кто впереди.",
   "Maqsadlarimga o'tish": "К моим целям",
+  "Hammasini ko'rish ({n})": "Показать всех ({n})",
+  "Eng yaxshi {n} tasi ko'rsatilgan": "Показаны лучшие {n}",
 };

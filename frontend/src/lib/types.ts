@@ -182,6 +182,7 @@ export interface ReviewItem {
 }
 
 export interface GroupMember {
+  rank: number; // place in the group
   username: string;
   is_me: boolean;
   is_owner: boolean;
@@ -195,6 +196,7 @@ export interface GroupMember {
 
 export interface GroupBoard {
   invite_code: string;
+  size: number; // everyone in the group; members may list only the top and me
   members: GroupMember[];
 }
 
@@ -206,7 +208,6 @@ export interface GroupPreview {
   duration_days: number;
   owner: string;
   members: number;
-  is_full: boolean;
   week: Week;
 }
 

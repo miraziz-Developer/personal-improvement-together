@@ -51,23 +51,13 @@ function CheerButton({ participationId, username }: { participationId: string; u
   );
 }
 
-function MemberRow({
-  member,
-  rank,
-  participationId,
-  open,
-}: {
-  member: GroupMember;
-  rank: number;
-  participationId: string;
-  open: boolean;
-}) {
+function MemberRow({ member, participationId, open }: { member: GroupMember; participationId: string; open: boolean }) {
   const { t } = useI18n();
   const today = member.today_status ? TODAY[member.today_status] : { icon: "🌿", label: "dam olish" };
   const progress = member.total_days ? member.days_completed / member.total_days : 0;
   return (
     <li className={clsx("flex items-center gap-3 rounded-2xl px-3 py-2.5", member.is_me ? "bg-flame-500/10" : "bg-white/[0.02]")}>
-      <span className="w-5 text-center font-display text-sm font-bold text-mist">{rank}</span>
+      <span className="w-6 shrink-0 text-center font-display text-sm font-bold text-mist">{member.rank}</span>
       <div className="bg-flame grid size-9 shrink-0 place-items-center rounded-xl font-display text-sm font-bold uppercase">
         {member.username[0]}
       </div>
@@ -98,6 +88,7 @@ function MemberRow({
 /** "Together": invite friends to the same plan and see how everyone is doing today. */
 type Message = { id: string; username: string; text: string; created_at: string; is_me: boolean };
 const MAX_MESSAGE = 280;
+const GROUP_TOP = 10; // rows shown before "see everyone"
 
 /** Short words between friends: "done for today", "don't give up". Members only. */
 function GroupChat({ participationId, open }: { participationId: string; open: boolean }) {
@@ -166,6 +157,7 @@ export function TogetherCard({ participationId, open }: { participationId: strin
   const origin = useSyncExternalStore(noSubscription, readOrigin, () => "");
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [everyone, setEveryone] = useState(false);
 
   async function createGroup() {
     setCreating(true);
@@ -221,20 +213,31 @@ export function TogetherCard({ participationId, open }: { participationId: strin
         <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
           <Users className="size-5 text-flame-400" /> {t("Guruh")}
         </h2>
-        <span className="text-sm text-mist">{t("{n} kishi", { n: board.members.length })}</span>
+        <span className="text-sm text-mist">{t("{n} kishi", { n: board.size })}</span>
       </div>
 
       <ul className="mt-4 flex flex-col gap-1.5">
-        {board.members.map((member, index) => (
-          <MemberRow key={member.username} member={member} rank={index + 1} participationId={participationId} open={open} />
-        ))}
+        {/* Any size of group: the top ten and me, the rest on request. */}
+        {board.members
+          .filter((member) => everyone || member.rank <= GROUP_TOP || member.is_me)
+          .map((member) => (
+            <MemberRow key={member.username} member={member} participationId={participationId} open={open} />
+          ))}
       </ul>
+      {!everyone && board.members.length > GROUP_TOP + 1 && (
+        <Button variant="ghost" size="sm" className="mt-2 w-full" onClick={() => setEveryone(true)}>
+          {t("Hammasini ko'rish ({n})", { n: board.size })}
+        </Button>
+      )}
+      {board.size > board.members.length && everyone && (
+        <p className="mt-2 text-center text-xs text-mist">{t("Eng yaxshi {n} tasi ko'rsatilgan", { n: board.members.length })}</p>
+      )}
 
-      {board.members.length > 1 && <GroupChat participationId={participationId} open={open} />}
+      {board.size > 1 && <GroupChat participationId={participationId} open={open} />}
 
       {open && (
         <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
-          {board.members.length === 1 && (
+          {board.size === 1 && (
             <p className="mb-3 text-sm">{t("Hozircha guruhda faqat sizsiz. Havolani do'stlaringizga yuboring — ular qo'shilgach, shu yerda kim oldinda ekani ko'rinadi 🏁")}</p>
           )}
           <p className="text-xs text-mist">{t("Taklif havolasi")}</p>

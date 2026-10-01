@@ -473,11 +473,11 @@ class GroupPreviewOut(BaseModel):
     duration_days: int
     owner: str
     members: int
-    is_full: bool
     week: Week
 
 
 class GroupMemberOut(BaseModel):
+    rank: int  # place in the group: most days done, then the longest streak
     username: str
     is_me: bool
     is_owner: bool
@@ -515,6 +515,7 @@ class CheerIn(BaseModel):
 
 class GroupBoardOut(BaseModel):
     invite_code: str
+    size: int  # everyone in the group; `members` may show only the top and me
     members: list[GroupMemberOut]  # best first: most days done, then the longest streak
 
 

@@ -22,6 +22,8 @@ from pit.shared.domain.errors import PermissionDenied
 
 MESSAGES_SHOWN = 50
 
+BOARD_TOP = 100  # rows of a group board; the rest is counted, not listed
+
 router = APIRouter(tags=["together"])
 
 
@@ -63,7 +65,6 @@ async def preview(
             duration_days=challenge.duration_days,
             owner=owner.username,
             members=len(group.member_ids),
-            is_full=group.is_full,
             week=views.localized_week(s.schedule_to_week(group.schedule), text),
         )
 
@@ -103,6 +104,7 @@ async def board(
             today = local_date(now, user.timezone)
             members.append(
                 s.GroupMemberOut(
+                    rank=0,
                     username=user.username,
                     is_me=user.id == user_id,
                     is_owner=user.id == group.owner_id,
@@ -115,7 +117,11 @@ async def board(
                 )
             )
         members.sort(key=lambda m: (m.days_completed, m.current_streak), reverse=True)
-        return s.GroupBoardOut(invite_code=group.invite_code, members=members)
+        for place, member in enumerate(members, 1):
+            member.rank = place
+        # A group can be any size: the top of the board, and me wherever I am.
+        shown = [m for m in members if m.rank <= BOARD_TOP or m.is_me]
+        return s.GroupBoardOut(invite_code=group.invite_code, size=len(members), members=shown)
 
 
 @router.post(

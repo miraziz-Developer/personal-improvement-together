@@ -159,7 +159,6 @@ _TEMPLATES_RU: list[tuple[str, str]] = [
     ),
     ("Davomiylik {} kunlardan biri bo'lsin", "Длительность должна быть одной из: {0} дн."),
     ("Garov {} dan {} gacha bo'lishi kerak", "Ставка должна быть от {0} до {1}"),
-    ("Guruh to'lgan ({} kishi)", "Группа заполнена ({0} человек)"),
     ("Har bir javob {} belgidan oshmasin", "Каждый ответ — не больше {0} символов"),
     (
         "Juda ko'p urinish. {} daqiqadan so'ng qayta urinib ko'ring",

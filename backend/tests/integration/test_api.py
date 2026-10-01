@@ -515,6 +515,7 @@ async def test_together_invite_join_and_group_board(api: Api) -> None:
     board = (await api.client.get(f"/api/v1/me/participations/{pid}/group", headers=owner)).json()
     assert [m["username"] for m in board["members"]] == ["ali_2008", "vali_2009"]
     assert board["members"][0]["is_me"] and board["members"][0]["is_owner"]
+    assert board["size"] == 2 and [m["rank"] for m in board["members"]] == [1, 2]
     notes = (await api.client.get("/api/v1/me/notifications", headers=owner)).json()
     assert any("vali_2009" in n["body"] for n in notes)
 
