@@ -1,0 +1,68 @@
+# The free setup: a 1 GB server runs only the API (with the bot and the daily jobs inside it),
+# Redis and Caddy. The website lives on Vercel, the database on Neon. See deploy/BEPUL.md.
+#   cp deploy/.env.lite.example deploy/.env.lite   # fill in
+#   docker compose -f docker-compose.lite.yml --env-file deploy/.env.lite up -d --build
+name: pit-lite
+
+x-backend: &backend
+  build: ./backend
+  env_file: ./deploy/.env.lite
+  environment:
+    PIT_REDIS_URL: redis://redis:6379/0
+    PIT_LOCAL_STORAGE_DIR: /app/.storage
+    PIT_INLINE_TASKS: "true" # no Celery: proofs are checked and daily jobs run in the API
+  volumes:
+    - storage:/app/.storage
+  depends_on:
+    redis:
+      condition: service_healthy
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "48mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+    mem_limit: 64m
+    restart: unless-stopped
+
+  migrate: # once per deploy: migrations + catalog seed + Telegram webhook (all idempotent)
+    <<: *backend
+    command: ["sh", "-c", "alembic upgrade head && python -m pit.cli seed && (python -m pit.cli telegram-setup || echo 'WARNING: Telegram setup failed')"]
+    restart: "no"
+
+  api:
+    <<: *backend
+    mem_limit: 640m
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  caddy: # HTTPS (Let's Encrypt) in front of the API
+    image: caddy:2-alpine
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile.api:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    mem_limit: 96m
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  redisdata:
+  storage:
+  caddy_data:
+  caddy_config:
