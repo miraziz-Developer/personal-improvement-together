@@ -5,7 +5,8 @@
 | Sayt (Next.js) | Vercel | doim tekin |
 | Ma'lumotlar bazasi | Neon Postgres | doim tekin (0.5 GB) |
 | API + Telegram bot + eslatmalar + Redis + isbot rasmlari | Azure B1s server (`rg-pit` / `pit-vm`) | Azure for Students: 12 oy tekin |
-| HTTPS va manzil | Caddy + sslip.io | tekin |
+| API manzili | `pit-uz.indiasouthcentral.cloudapp.azure.com` (Azure'ning tekin DNS nomi) + Caddy HTTPS | tekin |
+| Sayt manzili | `pit-uz.vercel.app` (Vercel loyiha nomi) | tekin |
 
 Server faqat API'ni ishlatadi (`docker-compose.lite.yml`): Celery yo'q, kunlik ishlar va AI
 tekshiruvi API ichida yuradi (`PIT_INLINE_TASKS=true`), sayt Vercel'da, baza Neon'da.
@@ -33,7 +34,8 @@ rsync -az --delete -e "ssh -i ~/.ssh/pit_azure" \
 
 Serverda `~/pit/deploy/.env.lite` (namuna: `.env.lite.example`):
 
-- `DOMAIN` — IP'ning nuqtalari chiziqcha bilan: `20.1.2.3` → `20-1-2-3.sslip.io`
+- `DOMAIN=pit-uz.indiasouthcentral.cloudapp.azure.com` — server IP'siga Azure bergan tekin nom
+  (`az network public-ip update -g rg-pit -n pit-vmPublicIP --dns-name pit-uz`)
 - `PIT_PUBLIC_BASE_URL=https://<DOMAIN>`
 - `PIT_CORS_ORIGINS` va `PIT_WEB_URL` — Vercel manzili
 - maxfiy kalitlar: `python3 -c "import secrets; print(secrets.token_hex(32))"`
@@ -47,13 +49,26 @@ curl https://<DOMAIN>/health
 
 ## 3. Vercel (sayt)
 
-1. https://vercel.com → GitHub bilan kiring → **Add New → Project** → repo'ni tanlang.
+1. https://vercel.com → GitHub bilan kiring → **Add New → Project** → repo'ni tanlang,
+   **Project Name**: `pit-uz` (manzil `pit-uz.vercel.app` bo'ladi).
 2. **Root Directory**: `frontend`.
 3. **Environment Variables**: `NEXT_PUBLIC_API_URL=https://<DOMAIN>`.
 4. **Deploy**. Manzil (masalan `https://pit-app.vercel.app`) serverdagi `PIT_CORS_ORIGINS` va
    `PIT_WEB_URL` ga yoziladi, keyin serverda `up -d` qayta.
 
 `main` ga har push'da Vercel saytni o'zi yangilaydi.
+
+## Telegram Mini App
+
+Bot tugmalari va pastdagi «PIT» menyu tugmasi saytni Telegram ichida ochadi (`/tg`).
+Har deploy'da `migrate` webhook'ni va menyu tugmasini `PIT_WEB_URL` ga qarab o'zi sozlaydi —
+BotFather'da hech narsa qilish shart emas. `PIT_WEB_URL` https bo'lishi shart.
+
+## Haqiqiy domen (ixtiyoriy)
+
+GitHub Student Developer Pack (https://education.github.com/pack) talabalarga 1 yilga tekin
+`.me` (Namecheap) yoki `.tech` domen beradi. Olingach: domenni Vercel'ga ulang, API uchun
+`api.<domen>` A-yozuvini server IP'siga yo'naltiring va `.env.lite` dagi manzillarni almashtiring.
 
 ## Bilish kerak
 
