@@ -164,6 +164,16 @@ class TelegramOut(BaseModel):
     user_id: UUID | None = None
     signup_token: str | None = None
     suggested_username: str | None = None
+    pending: bool = False  # "Sign in with Telegram": the bot has not confirmed yet
+
+
+class TelegramLoginOut(BaseModel):
+    token: str
+    url: str  # t.me/<bot>?start=login_<token>
+
+
+class TelegramLoginCheckIn(BaseModel):
+    token: str = Field(repr=False)
 
 
 class LocaleIn(BaseModel):

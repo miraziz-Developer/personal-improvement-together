@@ -42,6 +42,7 @@ from pit.modules.telegram.application.ports import TelegramApi
 from pit.modules.telegram.infrastructure.client import HttpTelegramApi
 from pit.modules.telegram.infrastructure.runtime import (
     RedisConversation,
+    RedisTelegramLogins,
     StoredProofFiles,
     TelegramGateway,
 )
@@ -118,6 +119,7 @@ class Container:
     http: httpx.AsyncClient
     telegram: TelegramGateway | None = None  # None = no bot configured
     telegram_api: HttpTelegramApi | None = None
+    telegram_logins: RedisTelegramLogins | None = None
 
     async def close(self) -> None:
         if isinstance(self.queue, InlineVerificationQueue):
@@ -297,6 +299,7 @@ def build_container(
         )
     )
     gateway = None
+    telegram_logins = RedisTelegramLogins(redis)
     if telegram_api is not None:
         bot = TelegramBot(
             bus=bus,
@@ -308,6 +311,7 @@ def build_container(
             code_secret=code_secret,
             web_url=settings.web_url,
             texts=CatalogTexts(),
+            logins=telegram_logins,
         )
         gateway = TelegramGateway(
             bot, telegram_api, redis, rate_limits=settings.rate_limits_enabled
@@ -328,4 +332,5 @@ def build_container(
         http=http,
         telegram=gateway,
         telegram_api=http_telegram,
+        telegram_logins=telegram_logins,
     )

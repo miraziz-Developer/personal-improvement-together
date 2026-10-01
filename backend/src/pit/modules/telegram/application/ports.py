@@ -55,6 +55,7 @@ class Incoming:
     contact_phone: str | None = None
     contact_is_own: bool = False  # the sender's own number, not someone else's contact card
     language: str | None = None  # the Telegram app's language ("ru", "uz", "en"...)
+    sender: str | None = None  # @username, else first name: a hint for a new account's name
 
 
 class ChatUnavailable(Exception):
@@ -91,3 +92,22 @@ class Conversation(Protocol):
     async def update(self, chat_id: int, **values: str) -> None: ...
 
     async def clear(self, chat_id: int) -> None: ...
+
+
+@dataclass(frozen=True, slots=True)
+class ConfirmedLogin:
+    chat_id: int
+    name: str | None
+
+
+class TelegramLogins(Protocol):
+    """ "Sign in with Telegram" on the website: the site starts a login and waits; the bot,
+    opened with t.me/<bot>?start=login_<token>, confirms which chat it was. Short-lived."""
+
+    async def start(self) -> str: ...
+
+    async def confirm(self, token: str, chat_id: int, name: str | None) -> bool: ...
+
+    async def pending(self, token: str) -> bool: ...
+
+    async def take(self, token: str) -> ConfirmedLogin | None: ...

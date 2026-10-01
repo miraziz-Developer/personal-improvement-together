@@ -43,6 +43,7 @@ from pit.modules.telegram.application.ports import (
     ProofFiles,
     ShareContact,
     TelegramApi,
+    TelegramLogins,
     TelegramUnavailable,
 )
 from pit.modules.telegram.application.texts import LABELS, label, label_action, pick, tr
@@ -88,6 +89,7 @@ def phone_menu_for(locale: str) -> Menu:
 MENU: Menu = menu_for("uz")
 PHONE_MENU: Menu = phone_menu_for("uz")
 PHONE_DEEP_LINK = "phone"  # t.me/<bot>?start=phone — from the website's phone card
+LOGIN_DEEP_LINK = "login_"  # t.me/<bot>?start=login_<token> — "Sign in with Telegram"
 
 
 class Callback:
@@ -145,6 +147,7 @@ class TelegramBot:
         code_secret: bytes,
         web_url: str,
         texts: ChallengeTexts | None = None,
+        logins: TelegramLogins | None = None,
     ) -> None:
         self._texts: ChallengeTexts = texts or OwnTexts()
         self._bus = bus
@@ -155,6 +158,7 @@ class TelegramBot:
         self._clock = clock
         self._code_secret = code_secret
         self._web_url = web_url
+        self._logins = logins
 
     async def handle(self, message: Incoming) -> None:
         try:
@@ -175,7 +179,11 @@ class TelegramBot:
         text = (message.text or "").strip()
         guest = pick(message.language)  # Telegram's app language, until we know the user
         if text.startswith("/start"):
-            await self._start(chat_id, text.removeprefix("/start").strip(), guest)
+            token = text.removeprefix("/start").strip()
+            if token.startswith(LOGIN_DEEP_LINK):
+                await self._confirm_login(chat_id, token.removeprefix(LOGIN_DEEP_LINK), message)
+                return
+            await self._start(chat_id, token, guest)
             return
         user = await self._user(chat_id)
         if user is None:
@@ -246,6 +254,16 @@ class TelegramBot:
             await self._say(chat_id, again, menu=self._main_menu(lang))
         else:
             await self._not_linked(chat_id, guest)
+
+    async def _confirm_login(self, chat_id: int, token: str, message: Incoming) -> None:
+        """The website waits for this: the person who pressed Start owns this chat."""
+        user = await self._user(chat_id)
+        lang = user.locale.value if user else pick(message.language)
+        confirmed = self._logins is not None and await self._logins.confirm(
+            token, chat_id, message.sender
+        )
+        text = tr(lang, "login_ok" if confirmed else "login_expired")
+        await self._say(chat_id, text, menu=self._main_menu(lang) if user else None)
 
     async def _not_linked(self, chat_id: int, lang: str) -> None:
         site = keyboard(site_row(self._web_url, "/profile", tr(lang, "btn_site")))

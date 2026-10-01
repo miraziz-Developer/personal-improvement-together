@@ -668,4 +668,7 @@ export const RU: Record<string, string> = {
   "Saytda akkauntim bor — kirish": "У меня есть аккаунт на сайте — войти",
   "Kirilmoqda…": "Входим…",
   "Telegram akkauntingiz": "Ваш аккаунт Telegram",
+  "Telegram'da botni oching va «Start» ni bosing — shu sahifa o'zi kiradi.": "Откройте бота в Telegram и нажмите «Start» — эта страница войдёт сама.",
+  "Telegram'ni ochish": "Открыть Telegram",
+  "Telegram orqali kirish": "Войти через Telegram",
 };

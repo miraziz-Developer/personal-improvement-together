@@ -2,7 +2,9 @@
 local long-polling loop."""
 
 import asyncio
+import json
 import logging
+import secrets
 from contextlib import suppress
 from typing import Any
 from uuid import UUID, uuid4
@@ -10,6 +12,7 @@ from uuid import UUID, uuid4
 from pit.modules.telegram.application.bot import TelegramBot
 from pit.modules.telegram.application.ports import (
     ChatUnavailable,
+    ConfirmedLogin,
     TelegramApi,
     TelegramUnavailable,
 )
@@ -128,3 +131,40 @@ class TelegramPoller:
             for update in updates:
                 offset = int(update["update_id"]) + 1
                 await self._gateway.process(update)
+
+
+class RedisTelegramLogins:
+    """tglogin:<token> -> "" while waiting, then {"chat", "name"} once the bot confirms;
+    five minutes to finish, and the result is read once."""
+
+    TTL_SECONDS = 300
+
+    def __init__(self, redis: Any) -> None:
+        self._redis = redis
+
+    @staticmethod
+    def _key(token: str) -> str:
+        return f"tglogin:{token}"
+
+    async def start(self) -> str:
+        token = secrets.token_urlsafe(18)  # [A-Za-z0-9_-], what Telegram allows in /start
+        await self._redis.set(self._key(token), "", ex=self.TTL_SECONDS)
+        return token
+
+    async def confirm(self, token: str, chat_id: int, name: str | None) -> bool:
+        if not token or len(token) > 64 or await self._redis.get(self._key(token)) != "":
+            return False  # unknown, expired or already confirmed
+        value = json.dumps({"chat": chat_id, "name": name})
+        return bool(await self._redis.set(self._key(token), value, xx=True, keepttl=True))
+
+    async def pending(self, token: str) -> bool:
+        return bool(token) and len(token) <= 64 and await self._redis.get(self._key(token)) == ""
+
+    async def take(self, token: str) -> ConfirmedLogin | None:
+        if not token or len(token) > 64 or not await self._redis.get(self._key(token)):
+            return None
+        value = await self._redis.getdel(self._key(token))
+        if not value:
+            return None
+        data = json.loads(value)
+        return ConfirmedLogin(chat_id=int(data["chat"]), name=data.get("name"))

@@ -183,4 +183,6 @@ def parse_update(update: dict[str, Any]) -> Incoming | None:
         contact_phone=contact.get("phone_number"),
         contact_is_own=sender is not None and contact.get("user_id") == sender,
         language=(message.get("from") or {}).get("language_code"),
+        sender=(message.get("from") or {}).get("username")
+        or (message.get("from") or {}).get("first_name"),
     )

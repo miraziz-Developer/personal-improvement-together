@@ -437,6 +437,58 @@ async def test_inside_telegram_the_site_signs_in_without_a_password(api: Api) ->
     assert back.json()["user_id"] == (await api.client.get("/api/v1/me", headers=site)).json()["id"]
 
 
+async def test_the_website_signs_in_with_telegram_through_the_bot(api: Api) -> None:
+    async def start_login() -> str:
+        started = await api.client.post("/api/v1/auth/telegram/login")
+        assert started.json()["url"].startswith("https://t.me/pit_test_bot?start=login_")
+        return started.json()["token"]
+
+    async def check(token: str) -> Any:
+        return await api.client.post("/api/v1/auth/telegram/login/check", json={"token": token})
+
+    async def press_start(token: str, chat: int) -> None:
+        message = {
+            "chat": {"id": chat, "type": "private"},
+            "from": {"id": chat, "username": "vali_tg"},
+            "text": f"/start login_{token}",
+        }
+        await api.client.post(
+            "/api/v1/telegram/webhook",
+            json={"update_id": 1, "message": message},
+            headers={"X-Telegram-Bot-Api-Secret-Token": "hook-secret-0123456789"},
+        )
+
+    token = await start_login()
+    assert (await check(token)).json()["pending"]  # still in Telegram
+    await press_start(token, 4242)
+    assert "Tasdiqlandi" in api.telegram.to(4242)[-1].text
+    new = (await check(token)).json()
+    assert new["signup_token"] and new["suggested_username"] == "vali_tg"
+    assert (await check(token)).status_code == 410  # read once
+
+    regions = (await api.client.get("/api/v1/regions")).json()
+    created = await api.client.post(
+        "/api/v1/auth/telegram/register",
+        json={
+            "signup_token": new["signup_token"],
+            "username": "vali_tg",
+            "birth_date": "2003-03-03",
+            "region_id": regions[0]["id"],
+            "accepted_terms_version": CURRENT_TERMS_VERSION,
+        },
+    )
+    assert created.status_code == 201, created.text
+
+    again = await start_login()  # next time: straight in
+    await press_start(again, 4242)
+    assert (await check(again)).json()["user_id"] == created.json()["user_id"]
+
+    stale = await start_login()
+    await press_start("not-a-token", 4242)
+    assert "eskirgan" in api.telegram.to(4242)[-1].text
+    assert (await check(stale)).json()["pending"]
+
+
 async def test_together_invite_join_and_group_board(api: Api) -> None:
     owner = await api.register("ali_2008")
     friend = await api.register("vali_2009")

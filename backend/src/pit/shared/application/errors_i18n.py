@@ -83,6 +83,7 @@ ERRORS_RU: dict[str, str] = {
     "Telegram bot ulanmagan": "Telegram-бот не подключён",
     "Telegram ma'lumoti tasdiqlanmadi. Ilovani qayta oching": "Не удалось подтвердить данные Telegram. Откройте приложение заново",
     "Vaqt tugadi. Ilovani qayta oching": "Время вышло. Откройте приложение заново",
+    "Vaqt tugadi. «Telegram orqali kirish»ni qayta bosing": "Время вышло. Нажмите «Войти через Telegram» ещё раз",
     "Hisob topilmadi": "Счёт не найден",
     "Iltimos, tizimga kiring": "Пожалуйста, войдите в систему",
     "Isbot allaqachon tekshirilgan": "Доказательство уже проверено",

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
 import { GoogleButton } from "@/components/GoogleButton";
+import { TelegramButton } from "@/components/TelegramButton";
 import { useToast } from "@/components/toast";
 import { Button, Input, Label } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
@@ -44,6 +45,7 @@ function LoginForm() {
         <h1 className="font-display text-3xl font-bold">{t("Qaytganingizdan xursandmiz 👋")}</h1>
         <p className="mt-2 text-mist">{t("Streak'ingiz sizni kutyapti.")}</p>
       </div>
+      <TelegramButton next={next} />
       <GoogleButton next={next} />
       <label>
         <Label>Username</Label>

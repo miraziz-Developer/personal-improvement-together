@@ -217,16 +217,23 @@ async def telegram_sign_in(body: s.TelegramIn, container: ContainerDep) -> s.Tel
     """Inside the Telegram app: a linked chat is signed in at once; a new one finishes a
     short profile (birth date and region are required and Telegram does not provide them)."""
     tg = _telegram_user(container, body.init_data)
+    return await _telegram_outcome(container, tg.id, tg.username or tg.first_name)
+
+
+async def _telegram_outcome(
+    container: ContainerDep, chat_id: int, name: str | None
+) -> s.TelegramOut:
+    """A chat Telegram vouched for: its account signs in, or a new one is started."""
     now = container.clock.now()
     async with container.uow_factory() as uow:
-        user = await uow.users.get_by_telegram_chat(tg.id)
+        user = await uow.users.get_by_telegram_chat(chat_id)
     if user is not None:
         return s.TelegramOut(
             access_token=issue_token(user.id, container.settings, now), user_id=user.id
         )
     return s.TelegramOut(
-        signup_token=issue_telegram_signup_token(tg.id, container.settings, now),
-        suggested_username=await _suggest_username(container, tg.username or tg.first_name),
+        signup_token=issue_telegram_signup_token(chat_id, container.settings, now),
+        suggested_username=await _suggest_username(container, name),
     )
 
 
@@ -267,3 +274,37 @@ async def link_telegram_webapp(
     """An existing account signed in inside Telegram: its chat gets linked, no code needed."""
     tg = _telegram_user(container, body.init_data)
     await container.bus.handle(LinkTelegramChat(user_id=user_id, chat_id=tg.id))
+
+
+@router.post(
+    "/auth/telegram/login",
+    response_model=s.TelegramLoginOut,
+    dependencies=[Depends(rate_limit("telegram-login", 30, 900))],
+)
+async def telegram_login_start(container: ContainerDep) -> s.TelegramLoginOut:
+    """ "Sign in with Telegram" on the website: open the bot, press Start, come back."""
+    bot = container.settings.telegram_bot_username
+    if container.telegram is None or container.telegram_logins is None or not bot:
+        raise HTTPException(404, "Telegram bot ulanmagan")
+    token = await container.telegram_logins.start()
+    return s.TelegramLoginOut(token=token, url=f"https://t.me/{bot}?start=login_{token}")
+
+
+@router.post(
+    "/auth/telegram/login/check",
+    response_model=s.TelegramOut,
+    dependencies=[Depends(rate_limit("telegram-login-check", 300, 900))],
+)
+async def telegram_login_check(
+    body: s.TelegramLoginCheckIn, container: ContainerDep
+) -> s.TelegramOut:
+    """Polled by the website while the user is in Telegram."""
+    logins = container.telegram_logins
+    if logins is None:
+        raise HTTPException(404, "Telegram bot ulanmagan")
+    confirmed = await logins.take(body.token)
+    if confirmed is not None:
+        return await _telegram_outcome(container, confirmed.chat_id, confirmed.name)
+    if await logins.pending(body.token):
+        return s.TelegramOut(pending=True)
+    raise HTTPException(410, "Vaqt tugadi. «Telegram orqali kirish»ni qayta bosing")
