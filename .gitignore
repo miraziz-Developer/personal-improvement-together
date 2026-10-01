@@ -21,3 +21,5 @@ next-env.d.ts
 
 .DS_Store
 deploy/.env.lite
+.vercel
+.env.local

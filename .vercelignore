@@ -1,0 +1,9 @@
+# Vercel builds only the website (Root Directory: frontend); nothing else needs uploading.
+backend
+deploy
+docker
+docs
+frontend/node_modules
+frontend/.next
+frontend/test-results
+frontend/playwright-report
