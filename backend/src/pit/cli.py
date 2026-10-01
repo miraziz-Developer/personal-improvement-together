@@ -30,6 +30,7 @@ from pit.modules.planning.infrastructure.generators import (
     LlmPlanGenerator,
     TemplatePlanGenerator,
 )
+from pit.modules.telegram.application.common import app_url
 from pit.modules.verification.application.ports import VerificationRequest
 from pit.modules.verification.infrastructure.ai import LlmProofVerifier
 from pit.modules.verification.infrastructure.storage import InMemoryStorage
@@ -70,8 +71,9 @@ async def telegram_setup(container: Container) -> str:
     if not secret:
         raise SystemExit("Set PIT_TELEGRAM_WEBHOOK_SECRET before registering the webhook")
     url = f"{settings.public_base_url.rstrip('/')}/api/v1/telegram/webhook"
-    await container.telegram_api.configure(webhook_url=url, secret=secret)
-    return f"Webhook registered: {url}"
+    app = app_url(settings.web_url) if settings.web_url.startswith("https://") else None
+    await container.telegram_api.configure(webhook_url=url, secret=secret, app_url=app)
+    return f"Webhook registered: {url}" + (f"; menu button opens {app}" if app else "")
 
 
 async def ai_check(settings: Settings) -> None:

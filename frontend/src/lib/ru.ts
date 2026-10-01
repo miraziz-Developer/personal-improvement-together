@@ -661,4 +661,11 @@ export const RU: Record<string, string> = {
   "zaxira kun (freeze)": "запасной день (freeze)",
   "Hali yo'q": "Пока нет",
   "Birinchi kun yopilgach hisoblanadi": "Посчитаем после первого дня",
+  "Qayta urinish": "Попробовать снова",
+  "Xush kelibsiz! 👋": "Добро пожаловать! 👋",
+  "PIT — maqsadlaringizni har kungi odatga aylantiradigan murabbiy. Telegram'ingiz bilan bir daqiqada boshlaysiz.": "PIT — коуч, который превращает цели в ежедневные привычки. Начните за минуту со своим Telegram.",
+  "Yangi akkaunt ochish": "Создать аккаунт",
+  "Saytda akkauntim bor — kirish": "У меня есть аккаунт на сайте — войти",
+  "Kirilmoqda…": "Входим…",
+  "Telegram akkauntingiz": "Ваш аккаунт Telegram",
 };

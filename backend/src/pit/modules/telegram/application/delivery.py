@@ -69,7 +69,7 @@ def notification_keyboard(notification: Notification, web_url: str, lang: str = 
     if notification.moment is Moment.FRIEND_DAY_DONE and notification.subject_id:
         cheer_data = f"{CHEER_CALLBACK}:{notification.id.hex}"
         cheer = [Button(tr(lang, "btn_cheer"), callback=cheer_data)]
-    return keyboard(cheer, action, site_row(web_url, "/dashboard", tr(lang, "btn_site")))
+    return keyboard(cheer, action, site_row(web_url, "/routine", tr(lang, "btn_site")))
 
 
 async def deliver_notification(

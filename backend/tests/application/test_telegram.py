@@ -86,8 +86,8 @@ async def test_start_link_connects_the_chat_once(world: World, bot: TelegramBot)
 async def test_unknown_chat_is_invited_to_link(world: World, bot: TelegramBot) -> None:
     await say(bot, "/bugun")
     message = world.telegram.last(CHAT)
-    assert "Telegram'ni ulash" in message.text
-    assert message.urls == ["https://pit.uz/profile"]
+    assert "Ilovani ochish" in message.text  # the app opens right inside Telegram
+    assert message.apps == ["https://pit.uz/tg?next=/profile"]
 
 
 async def test_a_chat_follows_the_latest_account(world: World, bot: TelegramBot) -> None:
@@ -128,7 +128,7 @@ async def test_coach_messages_reach_the_linked_chat(world: World, bot: TelegramB
     message = world.telegram.last(CHAT)
     assert message.text == f"<b>{html(started.title)}</b>\n\n{html(started.body)}"
     assert "today" in message.callbacks
-    assert message.urls == ["https://pit.uz/dashboard"]
+    assert message.apps == ["https://pit.uz/tg?next=/routine"]
 
 
 async def test_nothing_is_sent_to_users_without_telegram(world: World) -> None:

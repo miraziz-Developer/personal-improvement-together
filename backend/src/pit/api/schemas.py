@@ -153,6 +153,19 @@ class GoogleRegisterIn(BaseModel):
     accepted_terms_version: str = ""
 
 
+class TelegramIn(BaseModel):
+    init_data: str = Field(repr=False)  # Telegram.WebApp.initData, signed with the bot token
+
+
+class TelegramOut(BaseModel):
+    """Either signed in (access_token) or a new user who must finish their profile."""
+
+    access_token: str | None = None
+    user_id: UUID | None = None
+    signup_token: str | None = None
+    suggested_username: str | None = None
+
+
 class LocaleIn(BaseModel):
     locale: Literal["uz", "ru"]
 

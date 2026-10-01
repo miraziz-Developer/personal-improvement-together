@@ -91,6 +91,26 @@ class RegisterWithGoogle(Command):
 
 
 @dataclass(frozen=True, kw_only=True)
+class RegisterWithTelegram(Command):
+    """A new account from inside the Telegram app; its chat is linked from the start."""
+
+    chat_id: int
+    username: str
+    birth_date: date
+    region_id: UUID
+    accepted_terms_version: str = ""
+    timezone: str = DEFAULT_TIMEZONE
+
+
+@dataclass(frozen=True, kw_only=True)
+class LinkTelegramChat(Command):
+    """A signed-in user opened the site inside Telegram: Telegram vouched for the chat."""
+
+    user_id: UUID
+    chat_id: int
+
+
+@dataclass(frozen=True, kw_only=True)
 class EraseAccount(Command):
     """Typing the username again guards against a stray click."""
 

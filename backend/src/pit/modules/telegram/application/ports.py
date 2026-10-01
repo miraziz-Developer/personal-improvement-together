@@ -10,11 +10,13 @@ from uuid import UUID
 
 @dataclass(frozen=True, slots=True)
 class Button:
-    """An inline button: either sends `callback` data back to the bot or opens `url`."""
+    """An inline button: sends `callback` data back to the bot, opens `url` in the browser
+    or opens `app` — a page of the site — inside Telegram as a Mini App."""
 
     text: str
     callback: str | None = None
     url: str | None = None
+    app: str | None = None
 
 
 type Keyboard = Sequence[Sequence[Button]]

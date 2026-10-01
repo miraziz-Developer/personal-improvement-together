@@ -48,8 +48,10 @@ from pit.modules.identity.application.commands import (
     EraseAccount,
     IssueTelegramLink,
     LinkTelegram,
+    LinkTelegramChat,
     RegisterUser,
     RegisterWithGoogle,
+    RegisterWithTelegram,
     RequestPasswordReset,
     RequestPhoneCode,
     ResetPassword,
@@ -166,6 +168,8 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         EraseAccount: partial(identity.erase_account, clock=clock),
         ChangeLocale: identity.change_locale,
         RegisterWithGoogle: partial(identity.register_with_google, clock=clock),
+        RegisterWithTelegram: partial(identity.register_with_telegram, clock=clock),
+        LinkTelegramChat: identity.link_telegram_chat,
         # coaching
         SendDailyNudges: partial(
             coaching.send_daily_nudges, clock=clock, texts=deps.challenge_texts

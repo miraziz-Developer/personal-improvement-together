@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
+from urllib.parse import urlencode
 from uuid import UUID
 
 from pit.modules.challenges.domain.challenge import Challenge
@@ -457,6 +461,11 @@ class SentMessage:
     def urls(self) -> list[str]:
         return [b.url for row in self.keyboard for b in row if b.url]
 
+    @property
+    def apps(self) -> list[str]:
+        """Pages opened inside Telegram (Mini App buttons)."""
+        return [b.app for row in self.keyboard for b in row if b.app]
+
 
 class FakeTelegram:
     def __init__(self) -> None:
@@ -530,3 +539,16 @@ class FakeGoogle:
         if credential not in self.accounts:
             raise DomainError("Google orqali kirish amalga oshmadi. Qayta urinib ko'ring")
         return self.accounts[credential]
+
+
+def signed_init_data(bot_token: str, user_id: int, at: datetime) -> str:
+    """What Telegram hands a Mini App: the fields plus their HMAC with the bot token."""
+    fields = {
+        "auth_date": str(int(at.timestamp())),
+        "query_id": "AAH",
+        "user": json.dumps({"id": user_id, "first_name": "Ali", "username": "ali_tg"}),
+    }
+    check = "\n".join(f"{key}={value}" for key, value in sorted(fields.items()))
+    secret = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
+    fields["hash"] = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
+    return urlencode(fields)

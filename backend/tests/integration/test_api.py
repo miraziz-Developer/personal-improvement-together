@@ -25,7 +25,7 @@ from pit.modules.identity.application.ports import GoogleIdentity
 from pit.modules.identity.domain.user import CURRENT_TERMS_VERSION
 from pit.modules.telegram.application.ports import ShareContact
 from pit.modules.verification.infrastructure.storage import InMemoryStorage
-from tests.fakes import FakeGoogle, FakeSms, FakeTelegram
+from tests.fakes import FakeGoogle, FakeSms, FakeTelegram, signed_init_data
 
 
 @dataclass
@@ -70,6 +70,7 @@ async def api(migrated_database: str) -> AsyncIterator[Api]:
         env="local",
         stakes_enabled=True,
         telegram_bot_username="pit_test_bot",
+        telegram_bot_token=SecretStr("123456:test-bot-token"),
         telegram_webhook_secret=SecretStr("hook-secret-0123456789"),
         google_client_id="test-client.apps.googleusercontent.com",
     )
@@ -394,6 +395,46 @@ async def test_google_sign_up_then_sign_in(api: Api) -> None:
     assert login.status_code == 422
     forged = await api.client.post("/api/v1/auth/google", json={"credential": "forged"})
     assert forged.status_code == 422
+
+
+async def test_inside_telegram_the_site_signs_in_without_a_password(api: Api) -> None:
+    def init_data(user_id: int) -> str:
+        return signed_init_data("123456:test-bot-token", user_id, api.container.clock.now())
+
+    # A new Telegram user finishes a short profile; the chat is linked from the start.
+    first = await api.client.post("/api/v1/auth/telegram", json={"init_data": init_data(777)})
+    assert first.status_code == 200 and first.json()["access_token"] is None
+    regions = (await api.client.get("/api/v1/regions")).json()
+    created = await api.client.post(
+        "/api/v1/auth/telegram/register",
+        json={
+            "signup_token": first.json()["signup_token"],
+            "username": first.json()["suggested_username"],
+            "birth_date": "2005-05-05",
+            "region_id": regions[0]["id"],
+            "accepted_terms_version": CURRENT_TERMS_VERSION,
+        },
+    )
+    assert created.status_code == 201, created.text
+    auth = {"Authorization": f"Bearer {created.json()['access_token']}"}
+    assert (await api.client.get("/api/v1/me", headers=auth)).json()["telegram_linked"]
+
+    # Next launch: straight in. A forged signature gets nothing.
+    again = await api.client.post("/api/v1/auth/telegram", json={"init_data": init_data(777)})
+    assert again.json()["user_id"] == created.json()["user_id"]
+    forged = init_data(777).replace("hash=", "hash=0")
+    assert (
+        await api.client.post("/api/v1/auth/telegram", json={"init_data": forged})
+    ).status_code == 401
+
+    # An account made on the website links its chat by opening the app once while signed in.
+    site = await api.register("web_user")
+    linked = await api.client.post(
+        "/api/v1/me/telegram/webapp", json={"init_data": init_data(888)}, headers=site
+    )
+    assert linked.status_code == 204
+    back = await api.client.post("/api/v1/auth/telegram", json={"init_data": init_data(888)})
+    assert back.json()["user_id"] == (await api.client.get("/api/v1/me", headers=site)).json()["id"]
 
 
 async def test_together_invite_join_and_group_board(api: Api) -> None:

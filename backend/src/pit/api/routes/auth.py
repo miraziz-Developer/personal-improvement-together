@@ -9,12 +9,21 @@ from sqlalchemy import select
 from pit.api import schemas as s
 from pit.api.deps import ContainerDep, UserId
 from pit.api.ratelimit import client_ip, enforce, rate_limit
-from pit.api.security import issue_signup_token, issue_token, read_signup_token
+from pit.api.security import (
+    issue_signup_token,
+    issue_telegram_signup_token,
+    issue_token,
+    read_signup_token,
+    read_telegram_signup_token,
+)
+from pit.api.telegram_webapp import InvalidInitData, TelegramUser, verify_init_data
 from pit.modules.coaching.domain.messages import quote_of_the_day
 from pit.modules.identity.application.commands import (
     ConfirmPhone,
+    LinkTelegramChat,
     RegisterUser,
     RegisterWithGoogle,
+    RegisterWithTelegram,
     RequestPasswordReset,
     RequestPhoneCode,
     ResetPassword,
@@ -187,3 +196,74 @@ async def quote(
 ) -> s.QuoteOut:
     text, author = quote_of_the_day(local_date(container.clock.now(), "Asia/Tashkent"), lang)
     return s.QuoteOut(text=text, author=author)
+
+
+def _telegram_user(container: ContainerDep, init_data: str) -> TelegramUser:
+    if container.telegram is None:
+        raise HTTPException(404, "Telegram bot ulanmagan")
+    token = container.settings.telegram_bot_token.get_secret_value()
+    try:
+        return verify_init_data(init_data, token, container.clock.now())
+    except InvalidInitData:
+        raise HTTPException(401, "Telegram ma'lumoti tasdiqlanmadi. Ilovani qayta oching") from None
+
+
+@router.post(
+    "/auth/telegram",
+    response_model=s.TelegramOut,
+    dependencies=[Depends(rate_limit("telegram-auth", 60, 900))],
+)
+async def telegram_sign_in(body: s.TelegramIn, container: ContainerDep) -> s.TelegramOut:
+    """Inside the Telegram app: a linked chat is signed in at once; a new one finishes a
+    short profile (birth date and region are required and Telegram does not provide them)."""
+    tg = _telegram_user(container, body.init_data)
+    now = container.clock.now()
+    async with container.uow_factory() as uow:
+        user = await uow.users.get_by_telegram_chat(tg.id)
+    if user is not None:
+        return s.TelegramOut(
+            access_token=issue_token(user.id, container.settings, now), user_id=user.id
+        )
+    return s.TelegramOut(
+        signup_token=issue_telegram_signup_token(tg.id, container.settings, now),
+        suggested_username=await _suggest_username(container, tg.username or tg.first_name),
+    )
+
+
+@router.post(
+    "/auth/telegram/register",
+    response_model=s.TokenOut,
+    status_code=201,
+    dependencies=[Depends(rate_limit("register", 5, 3600))],
+)
+async def telegram_register(body: s.GoogleRegisterIn, container: ContainerDep) -> s.TokenOut:
+    try:
+        chat_id = read_telegram_signup_token(body.signup_token, container.settings)
+    except (jwt.PyJWTError, KeyError, ValueError):
+        raise HTTPException(422, "Vaqt tugadi. Ilovani qayta oching") from None
+    user_id = await container.bus.handle(
+        RegisterWithTelegram(
+            chat_id=chat_id,
+            username=body.username,
+            birth_date=body.birth_date,
+            region_id=body.region_id,
+            accepted_terms_version=body.accepted_terms_version,
+        )
+    )
+    return s.TokenOut(
+        access_token=issue_token(user_id, container.settings, container.clock.now()),
+        user_id=user_id,
+    )
+
+
+@router.post(
+    "/me/telegram/webapp",
+    status_code=204,
+    dependencies=[Depends(rate_limit("telegram-link", 30, 3600, per="user"))],
+)
+async def link_telegram_webapp(
+    body: s.TelegramIn, user_id: UserId, container: ContainerDep
+) -> None:
+    """An existing account signed in inside Telegram: its chat gets linked, no code needed."""
+    tg = _telegram_user(container, body.init_data)
+    await container.bus.handle(LinkTelegramChat(user_id=user_id, chat_id=tg.id))

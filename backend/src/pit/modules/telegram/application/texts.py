@@ -40,7 +40,8 @@ TEXTS: Final[dict[str, dict[str, str]]] = {
             "👋 Assalomu alaykum! Men <b>PIT murabbiyi</b>man.\n\n"
             "Har kuni rejangizni eslatib turaman, isbotlaringizni qabul qilaman va har bir "
             "g'alabangizni nishonlayman 🔥\n\n"
-            "Boshlash uchun saytda <b>Profil → Telegram'ni ulash</b> tugmasini bosing."
+            "Boshlash uchun pastdagi <b>📱 Ilovani ochish</b> tugmasini bosing — PIT shu "
+            "yerning o'zida, Telegram ichida ochiladi."
         ),
         "welcome": (
             "🎉 Salom, <b>{name}</b>! Telegram ulandi.\n\n"
@@ -85,7 +86,7 @@ TEXTS: Final[dict[str, dict[str, str]]] = {
         "phone_ok": "📱 Telefon: {phone} ✅",
         "phone_missing": "📱 Telefon: tasdiqlanmagan",
         "btn_verify_phone": "📱 Telefonni tasdiqlash",
-        "btn_site": "🌐 Saytda ochish",
+        "btn_site": "📱 Ilovani ochish",
         "btn_help": "❓ Yordam",
         "btn_stop": "🔕 Eslatmalarni o'chirish",
         "no_photo_tasks": "Bugun rasm kutayotgan vazifa yo'q 🙂 Ro'yxat: {today}",
@@ -143,7 +144,8 @@ TEXTS: Final[dict[str, dict[str, str]]] = {
             "👋 Здравствуйте! Я <b>коуч PIT</b>.\n\n"
             "Каждый день напоминаю о плане, принимаю доказательства и отмечаю каждую "
             "вашу победу 🔥\n\n"
-            "Чтобы начать, на сайте нажмите <b>Профиль → Подключить Telegram</b>."
+            "Чтобы начать, нажмите <b>📱 Открыть приложение</b> ниже — PIT откроется "
+            "прямо здесь, в Telegram."
         ),
         "welcome": (
             "🎉 Привет, <b>{name}</b>! Telegram подключён.\n\n"
@@ -188,7 +190,7 @@ TEXTS: Final[dict[str, dict[str, str]]] = {
         "phone_ok": "📱 Телефон: {phone} ✅",
         "phone_missing": "📱 Телефон: не подтверждён",
         "btn_verify_phone": "📱 Подтвердить телефон",
-        "btn_site": "🌐 Открыть сайт",
+        "btn_site": "📱 Открыть приложение",
         "btn_help": "❓ Помощь",
         "btn_stop": "🔕 Отключить напоминания",
         "no_photo_tasks": "Сегодня нет задач, ждущих фото 🙂 Список: {today}",

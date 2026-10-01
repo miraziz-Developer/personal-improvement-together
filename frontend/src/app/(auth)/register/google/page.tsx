@@ -53,7 +53,7 @@ export default function GoogleRegisterPage() {
     if (!signup) return;
     setLoading(true);
     try {
-      const { access_token } = await api<{ access_token: string }>("/auth/google/register", {
+      const { access_token } = await api<{ access_token: string }>(`/auth/${signup.provider ?? "google"}/register`, {
         method: "POST",
         json: {
           signup_token: signup.token,
@@ -79,7 +79,8 @@ export default function GoogleRegisterPage() {
       <div>
         <h1 className="font-display text-3xl font-bold">{t("Oxirgi qadam ✨")}</h1>
         <p className="mt-2 text-mist">
-          {signup.email ? <b className="text-white">{signup.email}</b> : t("Google akkauntingiz")} {t("ulandi. Reyting uchun yoshingiz va hududingiz kerak.")}
+          {signup.email ? <b className="text-white">{signup.email}</b> : signup.provider === "telegram" ? t("Telegram akkauntingiz") : t("Google akkauntingiz")}{" "}
+          {t("ulandi. Reyting uchun yoshingiz va hududingiz kerak.")}
         </p>
       </div>
       <label>
@@ -102,7 +103,11 @@ export default function GoogleRegisterPage() {
       </Button>
       <p className="text-center text-sm text-mist">
         {t("Boshqa akkaunt?")}{" "}
-        <Link href="/login" className="font-semibold text-flame-400 hover:text-flame-300">
+        {/* Inside Telegram, signing in goes back through /tg so the chat gets linked. */}
+        <Link
+          href={signup.provider === "telegram" ? `/login?next=${encodeURIComponent(`/tg?next=${signup.next}`)}` : "/login"}
+          className="font-semibold text-flame-400 hover:text-flame-300"
+        >
           {t("Kirish")}
         </Link>
       </p>

@@ -8,8 +8,10 @@ from pit.modules.identity.application.commands import (
     EraseAccount,
     IssueTelegramLink,
     LinkTelegram,
+    LinkTelegramChat,
     RegisterUser,
     RegisterWithGoogle,
+    RegisterWithTelegram,
     RequestPasswordReset,
     RequestPhoneCode,
     ResetPassword,
@@ -232,6 +234,43 @@ async def register_with_google(cmd: RegisterWithGoogle, uow: IdentityUoW, *, clo
         uow.users.add(user)
         await uow.commit()
         return user.id
+
+
+async def register_with_telegram(
+    cmd: RegisterWithTelegram, uow: IdentityUoW, *, clock: Clock
+) -> UUID:
+    _ensure_terms(cmd.accepted_terms_version)
+    async with uow:
+        if await uow.users.get_by_telegram_chat(cmd.chat_id):
+            raise DomainError("Bu Telegram akkaunt allaqachon ro'yxatdan o'tgan")
+        if await uow.users.get_by_username(cmd.username.strip().lower()):
+            raise DomainError("Bu username band, boshqasini tanlang")
+        user = User.register(
+            user_id=uuid4(),
+            username=cmd.username,
+            birth_date=cmd.birth_date,
+            region_id=cmd.region_id,
+            today=local_date(clock.now(), cmd.timezone),
+            timezone=cmd.timezone,
+        )
+        user.link_telegram(cmd.chat_id)
+        user.accept_terms(cmd.accepted_terms_version, clock.now())
+        uow.users.add(user)
+        await uow.commit()
+        return user.id
+
+
+async def link_telegram_chat(cmd: LinkTelegramChat, uow: IdentityUoW) -> None:
+    async with uow:
+        user = require(await uow.users.get(cmd.user_id), "Foydalanuvchi topilmadi")
+        if user.telegram_chat_id == cmd.chat_id:
+            return
+        # One chat follows one account: linking elsewhere moves it.
+        previous = await uow.users.get_by_telegram_chat(cmd.chat_id)
+        if previous is not None and previous.id != user.id:
+            previous.unlink_telegram()
+        user.link_telegram(cmd.chat_id)
+        await uow.commit()
 
 
 async def erase_account(cmd: EraseAccount, uow: IdentityUoW, *, clock: Clock) -> None:

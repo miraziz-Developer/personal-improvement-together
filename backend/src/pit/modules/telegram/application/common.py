@@ -1,6 +1,7 @@
 from datetime import date
 from html import escape
 from typing import Protocol
+from urllib.parse import quote
 
 from pit.modules.challenges.domain.repositories import ChallengeRepository, ParticipationRepository
 from pit.modules.coaching.domain.repositories import NotificationRepository
@@ -42,11 +43,16 @@ def human_date(day: date, locale: str = "uz") -> str:
     return f"{weekday}, {day.day} {month}" if lang == "ru" else f"{weekday}, {day.day}-{month}"
 
 
-def site_row(web_url: str, path: str, text: str = "🌐 Saytda ochish") -> list[Button]:
-    # Telegram rejects URL buttons that point to localhost, so they appear only in production.
+def app_url(web_url: str, path: str = "/routine") -> str:
+    """The site's Telegram entrance: it signs the user in from Telegram, then goes to `path`."""
+    return f"{web_url.rstrip('/')}/tg?next={quote(path, safe='/')}"
+
+
+def site_row(web_url: str, path: str, text: str = "📱 Ilovani ochish") -> list[Button]:
+    # Telegram accepts Mini App buttons only for https pages, so they appear only in production.
     if not web_url.startswith("https://"):
         return []
-    return [Button(text, url=f"{web_url.rstrip('/')}{path}")]
+    return [Button(text, app=app_url(web_url, path))]
 
 
 def keyboard(*rows: list[Button]) -> Keyboard:

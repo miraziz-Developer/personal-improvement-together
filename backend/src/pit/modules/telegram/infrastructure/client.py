@@ -32,12 +32,14 @@ DESCRIPTION = (
     "☀️ Ertalab bugungi rejani eslataman\n"
     "📸 Isbotni shu yerda qabul qilaman\n"
     "🏆 Har bir g'alabangizni nishonlayman\n\n"
-    "Boshlash: saytda Profil → Telegram'ni ulash."
+    "Boshlash: pastdagi «PIT» tugmasini bosing — ilova shu yerda, Telegram ichida ochiladi."
 )
 SHORT_DESCRIPTION = "Har kungi reja, eslatma va isbot — PIT murabbiyi 🔥"
 
 
-def _button(button: Button) -> dict[str, str]:
+def _button(button: Button) -> dict[str, Any]:
+    if button.app:
+        return {"text": button.text, "web_app": {"url": button.app}}
     if button.url:
         return {"text": button.text, "url": button.url}
     return {"text": button.text, "callback_data": button.callback or ""}
@@ -119,8 +121,11 @@ class HttpTelegramApi:
             raise TelegramUnavailable("download failed") from None
         return response.content
 
-    async def configure(self, *, webhook_url: str | None, secret: str) -> None:
-        """Webhook (production) or none (local polling), plus the command menu."""
+    async def configure(
+        self, *, webhook_url: str | None, secret: str, app_url: str | None = None
+    ) -> None:
+        """Webhook (production) or none (local polling), the command menu and the menu button
+        that opens the site inside Telegram (`app_url`, https only)."""
         if webhook_url:
             await self.call(
                 "setWebhook",
@@ -131,6 +136,9 @@ class HttpTelegramApi:
         await self.call("setMyCommands", {"commands": COMMANDS})
         await self.call("setMyDescription", {"description": DESCRIPTION})
         await self.call("setMyShortDescription", {"short_description": SHORT_DESCRIPTION})
+        if app_url:
+            button = {"type": "web_app", "text": "PIT", "web_app": {"url": app_url}}
+            await self.call("setChatMenuButton", {"menu_button": button})
 
     async def updates(self, offset: int) -> list[dict[str, Any]]:
         """Long polling for local development (no public URL for a webhook)."""

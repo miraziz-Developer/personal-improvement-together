@@ -12,7 +12,8 @@ import { useI18n } from "@/lib/i18n";
 
 export const GOOGLE_SIGNUP_KEY = "pit.google-signup";
 
-export type GoogleSignup = { token: string; email: string | null; username: string; next: string };
+// The same "finish your profile" step serves a new Google account and a new Telegram user.
+export type GoogleSignup = { token: string; email: string | null; username: string; next: string; provider?: "google" | "telegram" };
 
 type GoogleOut = {
   access_token: string | null;
