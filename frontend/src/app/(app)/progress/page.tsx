@@ -153,7 +153,11 @@ export default function ProgressPage() {
       ) : (
         <div className="flex flex-col gap-6">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Tile label={t("Shu hafta")} value={percent(data.this_week)} sub={<Change now={data.this_week} before={data.last_week} />} />
+            {data.this_week === null ? (
+              <Tile label={t("Shu hafta")} value={t("Hali yo'q")} sub={t("Birinchi kun yopilgach hisoblanadi")} />
+            ) : (
+              <Tile label={t("Shu hafta")} value={percent(data.this_week)} sub={<Change now={data.this_week} before={data.last_week} />} />
+            )}
             <Tile label={t("Bajarilgan kunlar")} value={data.days_done} sub={t("barcha challenge'lar bo'yicha")} />
             <Tile label={t("Eng uzun streak")} value={<StreakFlame streak={data.best_streak} />} />
           </div>

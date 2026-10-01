@@ -12,7 +12,7 @@ import { ProofTask } from "@/components/ProofTask";
 import { FocusCard, RoadmapView } from "@/components/Roadmap";
 import { TogetherCard } from "@/components/Together";
 import { useToast } from "@/components/toast";
-import { Badge, Button, Card, Modal, ProgressRing, Segmented, Skeleton, StreakFlame } from "@/components/ui";
+import { Button, Card, Modal, ProgressRing, Segmented, Skeleton, StreakFlame } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { CATEGORY, money, shortDate, STATUS_LABEL } from "@/lib/format";
@@ -119,51 +119,46 @@ export default function ParticipationPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Card className="relative overflow-hidden">
+      <Card className="relative overflow-hidden p-4 sm:p-6">
         <div className={`absolute -top-24 -left-24 size-72 rounded-full bg-gradient-to-br ${meta.gradient} opacity-20 blur-3xl`} />
-        <div className="relative flex flex-col items-center gap-6 sm:flex-row">
-          <ProgressRing value={p.total_days ? p.days_completed / p.total_days : 0} size={132}>
+        <div className="relative flex items-center gap-4 sm:gap-6">
+          <ProgressRing value={p.total_days ? p.days_completed / p.total_days : 0} size={88}>
             <div>
-              <p className="font-display text-2xl font-bold">
+              <p className="font-display text-lg font-bold">
                 {p.days_completed}
-                <span className="text-base text-mist">/{p.total_days}</span>
+                <span className="text-sm text-mist">/{p.total_days}</span>
               </p>
-              <p className="text-xs text-mist">{t("kun")}</p>
+              <p className="text-[10px] text-mist">{t("kun")}</p>
             </div>
           </ProgressRing>
-          <div className="flex-1 text-center sm:text-left">
-            <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-              <Badge>
+          <div className="min-w-0 flex-1">
+            <h1 className="font-display text-xl font-bold sm:text-2xl">{p.title}</h1>
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-mist">
+              <span className="flex items-center gap-1">
                 <Icon className="size-3.5" /> {t(meta.label)}
-              </Badge>
-              <Badge>{t(STATUS_LABEL[p.status])}</Badge>
-              <Badge>
-                {shortDate(p.start_date)} — {shortDate(p.end_date)}
-              </Badge>
-            </div>
-            <h1 className="mt-3 font-display text-2xl font-bold sm:text-3xl">{p.title}</h1>
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-5 sm:justify-start">
-              <div>
-                <p className="text-xs text-mist">{t("Streak")}</p>
+              </span>
+              · <span>{t(STATUS_LABEL[p.status])}</span>· <span>{shortDate(p.start_date)} — {shortDate(p.end_date)}</span>
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-4">
+              <div title={t("Streak — ketma-ket bajarilgan kunlar soni.")}>
                 <StreakFlame streak={p.current_streak} size="md" />
+                <p className="text-[11px] text-mist">{t("ketma-ket kun")}</p>
               </div>
-              <div>
-                <p className="text-xs text-mist" title={t("Freeze o'tkazib yuborilgan kunda streak'ni saqlaydi. 7 kun ketma-ket bajarsangiz, sarflangani qaytadi.")}>
-                  {t("Freeze")} <span className="text-mist/60">ⓘ</span>
-                </p>
-                <p className="flex items-center gap-1 pt-1">
+              <div title={t("Freeze o'tkazib yuborilgan kunda streak'ni saqlaydi. 7 kun ketma-ket bajarsangiz, sarflangani qaytadi.")}>
+                <p className="flex h-7 items-center gap-1">
                   {Array.from({ length: Math.max(p.freezes_left, 0) }).map((_, i) => (
                     <Snowflake key={i} className="size-5 text-ice" />
                   ))}
-                  {p.freezes_left === 0 && <span className="text-sm text-mist">{t("qolmadi")}</span>}
+                  {p.freezes_left === 0 && <span className="text-sm text-mist">0</span>}
                 </p>
+                <p className="text-[11px] text-mist">{t("zaxira kun (freeze)")}</p>
               </div>
               {p.mode === "stake" && (
                 <div>
-                  <p className="text-xs text-mist">{t("Garov")}</p>
-                  <p className="flex items-center gap-1.5 pt-1 font-semibold text-amberish">
+                  <p className="flex h-7 items-center gap-1.5 font-semibold text-amberish">
                     <Coins className="size-4" /> {money(p.stake)}
                   </p>
+                  <p className="text-[11px] text-mist">{t("Garov")}</p>
                 </div>
               )}
             </div>

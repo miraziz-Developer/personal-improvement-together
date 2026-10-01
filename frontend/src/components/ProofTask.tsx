@@ -17,10 +17,12 @@ export function ProofTask({
   participationId,
   task,
   onSubmitted,
+  showTime = true,
 }: {
   participationId: string;
   task: TodayTask;
   onSubmitted: () => void;
+  showTime?: boolean; // the day's timeline already prints the time beside the card
 }) {
   const toast = useToast();
   const { t } = useI18n();
@@ -77,7 +79,7 @@ export function ProofTask({
         </div>
         <div className="min-w-[9rem] flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            {task.at && (
+            {showTime && task.at && (
               <span className="rounded-lg bg-white/10 px-1.5 py-0.5 text-xs font-semibold tabular-nums">{task.at}</span>
             )}
             <p className="font-semibold">{task.title}</p>

@@ -2,6 +2,7 @@ from datetime import time
 
 import pytest
 
+from pit.modules.challenges.domain.schedule import Schedule, TaskSpec
 from pit.modules.coaching.application.commands import SendDailyNudges, SendTaskReminders
 from pit.modules.coaching.domain.moments import Moment
 from pit.modules.identity.application.commands import EraseAccount
@@ -229,6 +230,16 @@ async def test_without_a_routine_a_challenge_still_gets_a_time(world: World) -> 
     b = world.participation(second).tasks_on(world.today)[0]
     assert a.at is not None and b.at is not None
     assert time(7, 0) <= a.at < b.at < time(23, 0)  # an ordinary day, one after the other
+
+
+async def test_a_challenge_keeps_the_time_it_is_about(world: World) -> None:
+    user = world.add_user()
+    early = world.add_challenge(
+        duration_days=21,
+        schedule=Schedule.every_day(TaskSpec(key="wake", title="Rise", minutes=5, at=time(6, 25))),
+    )
+    joined = await world.bus.handle(AddToRoutine(user_id=user.id, challenge_id=early.id))
+    assert world.participation(joined).tasks_on(world.today)[0].at == time(6, 25)
 
 
 async def test_the_morning_comes_at_wake_up_and_the_day_closes_with_a_summary(

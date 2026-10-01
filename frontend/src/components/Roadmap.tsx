@@ -29,7 +29,7 @@ export function FocusCard({ focus }: { focus: Focus }) {
             </>
           ) : (
             // A roadmap without daily lessons: the week's goal is what today works towards.
-            <p className="mt-1 font-display text-lg font-semibold">{t("Shu hafta: {goal}", { goal: focus.goal })}</p>
+            <p className="mt-1 font-display text-base font-semibold">{t("Shu hafta: {goal}", { goal: focus.goal })}</p>
           )}
           {focus.month_goal && <p className="mt-1 text-sm text-mist">{t("{n}-oy marrasi: {goal}", { n: focus.month, goal: focus.month_goal })}</p>}
         </div>

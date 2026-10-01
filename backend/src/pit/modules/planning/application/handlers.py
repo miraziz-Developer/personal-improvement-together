@@ -287,7 +287,9 @@ async def add_to_routine(
             raise PermissionDenied(
                 "Bu shaxsiy challenge — unga faqat taklif havolasi orqali qo'shilish mumkin"
             )
-        chosen = {key: at for key, at in cmd.times.items() if at is not None}
+        # The challenge's own times (rise by 06:30) count as picked, unless the user moved them.
+        preset = {t.key: t.at for day in challenge.default_schedule.week for t in day if t.at}
+        chosen = preset | {key: at for key, at in cmd.times.items() if at is not None}
         schedule = Schedule(
             week=tuple(
                 tuple(replace(t, at=chosen.get(t.key)) for t in day)

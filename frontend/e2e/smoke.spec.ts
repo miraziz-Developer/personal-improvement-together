@@ -51,8 +51,10 @@ test("a challenge goes straight into the routine at the chosen time", async ({ p
   await page.getByText("14 kun ichki xotirjamlik").click();
   await page.getByLabel("Boshlanish vaqti").fill("21:00");
   await page.getByRole("button", { name: "Kun tartibiga qo'shish" }).click();
-  await expect(page.getByText("10 daqiqa meditatsiya")).toBeVisible();
+  await expect(page.getByText("10 daqiqa meditatsiya").first()).toBeVisible();
   await expect(page.getByText("21:00").first()).toBeVisible();
+  // The one thing to do next sits on top of the day.
+  await expect(page.getByText(/Keyingisi · \d\d:\d\d da|Hozir · \d\d:\d\d gacha|da edi — hali ulgurasiz/)).toBeVisible();
 });
 
 test("the wizard waits until a commitment is described", async ({ page, request }) => {

@@ -12,7 +12,7 @@ import { useI18n } from "@/lib/i18n";
 import { type FrameLike, timeProblem, toMinutes } from "@/lib/routine";
 import type { Challenge, Participation } from "@/lib/types";
 
-type TaskLine = { key: string; title: string; minutes: number; weekdays: number[] };
+type TaskLine = { key: string; title: string; minutes: number; weekdays: number[]; at?: string | null };
 
 /** The challenge's tasks once each, with the days they happen on. */
 function taskLines(challenge: Challenge): TaskLine[] {
@@ -21,7 +21,7 @@ function taskLines(challenge: Challenge): TaskLine[] {
     day.forEach((task) => {
       const line = lines.get(task.key);
       if (line) line.weekdays.push(weekday);
-      else lines.set(task.key, { key: task.key, title: task.title, minutes: task.minutes, weekdays: [weekday] });
+      else lines.set(task.key, { key: task.key, title: task.title, minutes: task.minutes, weekdays: [weekday], at: task.at });
     }),
   );
   return Array.from(lines.values());
@@ -74,6 +74,12 @@ export function AddToRoutine({
   const running = new Set(mine?.filter((p) => p.status === "active" || p.status === "scheduled").map((p) => p.challenge_id));
   const available = catalog?.filter((c) => !running.has(c.id)) ?? [];
 
+  function pick(challenge: Challenge) {
+    setPicked(challenge);
+    // A time that is the point of the task ("rise by 06:30") comes filled in.
+    setTimes(Object.fromEntries(taskLines(challenge).flatMap((line) => (line.at ? [[line.key, line.at]] : []))));
+  }
+
   function close() {
     setPicked(null);
     setTimes({});
@@ -106,11 +112,13 @@ export function AddToRoutine({
           {catalog && available.length === 0 && <p className="text-sm text-mist">{t("Katalogdagi hamma challenge'larda allaqachon qatnashyapsiz 💪")}</p>}
           {available.map((challenge) => {
             const meta = CATEGORY[challenge.category];
+            const days = challenge.week.filter((day) => day.length > 0).length;
+            const perDay = Math.round(challenge.minutes_per_week / Math.max(days, 1));
             const Icon = meta.icon;
             return (
               <button
                 key={challenge.id}
-                onClick={() => setPicked(challenge)}
+                onClick={() => pick(challenge)}
                 className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-3 text-left transition hover:border-white/25"
               >
                 <div className={`grid size-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${meta.gradient}`}>
@@ -119,7 +127,8 @@ export function AddToRoutine({
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{challenge.title}</p>
                   <p className="text-xs text-mist">
-                    {t("{n} kun", { n: challenge.duration_days })} · {t("{time}/hafta", { time: minutes(challenge.minutes_per_week) })}
+                    {t("{n} kun", { n: challenge.duration_days })} · {t("kuniga ~{time}", { time: minutes(perDay) })}
+                    {days < 7 && ` · ${t("haftada {d} kun", { d: days })}`}
                   </p>
                 </div>
               </button>

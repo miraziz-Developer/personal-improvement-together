@@ -1,6 +1,7 @@
 """Ready-made challenges for the catalog. Ids are stable (uuid5 of a slug), so seeding twice
 never duplicates anything."""
 
+from datetime import time
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pit.catalog_roadmaps import ROADMAPS
@@ -16,8 +17,12 @@ def catalog_id(slug: str) -> UUID:
     return uuid5(NAMESPACE_URL, f"pit:challenge:{slug}")
 
 
-def task(key: str, title: str, minutes: int, *, required: bool = True) -> TaskSpec:
-    return TaskSpec(key=key, title=title, minutes=minutes, required=required)
+def task(
+    key: str, title: str, minutes: int, *, required: bool = True, at: time | None = None
+) -> TaskSpec:
+    """`at` only where the time is the point of the task (rising early); elsewhere the
+    person picks it, or the routine finds a free slot."""
+    return TaskSpec(key=key, title=title, minutes=minutes, required=required, at=at)
 
 
 def build_catalog() -> list[Challenge]:
@@ -117,8 +122,8 @@ def build_catalog() -> list[Challenge]:
             "ekani yoki yozilgan kun rejasi ko'rinsin.",
             stake_policy=StakePolicy(allowed=True),
             default_schedule=Schedule.every_day(
-                task("wake", "06:30 gacha turish", 5),
-                task("plan", "Kun rejasini yozish", 10),
+                task("wake", "06:30 gacha turish", 5, at=time(6, 25)),
+                task("plan", "Kun rejasini yozish", 10, at=time(6, 35)),
             ),
         ),
         Challenge.create_template(

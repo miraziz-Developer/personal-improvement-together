@@ -53,7 +53,7 @@ function TimeField({ item, onSaved, frame }: { item: RoutineItem; onSaved: () =>
   return (
     <div className="flex flex-wrap items-center gap-2 px-1">
       <label className="flex items-center gap-1.5 rounded-xl bg-white/5 px-2 py-1 text-xs text-mist focus-within:text-white">
-        <Clock className="size-3.5" />
+        <Clock className="size-3.5" /> {t("Vaqti")}
         <input
           type="time"
           value={value}
@@ -79,6 +79,7 @@ function TaskEntry({
   showLesson,
   frame,
   preview,
+  label = true,
 }: {
   item: RoutineItem;
   onSubmitted: () => void;
@@ -86,15 +87,13 @@ function TaskEntry({
   showLesson: boolean;
   frame: FrameLike | null;
   preview: boolean; // another day than today: nothing to prove yet
+  label?: boolean; // the challenge's name above the card (a group may print it once instead)
 }) {
   const { t } = useI18n();
   if (!item.task || !item.participation_id) return null;
   return (
     <div className="flex flex-col gap-1.5">
-      <p className="px-1 text-xs text-mist">
-        {item.challenge_title}
-        {item.end && ` · ${t("{time} gacha", { time: item.end })}`}
-      </p>
+      {label && <p className="px-1 text-xs text-mist">{item.challenge_title}</p>}
       {editing && <TimeField key={item.task.at ?? ""} item={item} onSaved={onSubmitted} frame={frame} />}
       {showLesson && item.lesson && (
         <p className="flex items-center gap-1.5 px-1 text-xs text-iris">
@@ -103,14 +102,78 @@ function TaskEntry({
       )}
       {preview ? (
         <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-white/10 bg-white/[0.02] p-4">
-          {item.task.at && <span className="rounded-lg bg-white/10 px-1.5 py-0.5 text-xs font-semibold tabular-nums">{item.task.at}</span>}
+          {!label && item.task.at && <span className="rounded-lg bg-white/10 px-1.5 py-0.5 text-xs font-semibold tabular-nums">{item.task.at}</span>}
           <p className="font-semibold">{item.task.title}</p>
           <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs text-mist">{t("{m} daq", { m: item.task.minutes })}</span>
           {!item.task.required && <span className="text-xs text-mist">{t("qo'shimcha")}</span>}
         </div>
       ) : (
-        <ProofTask participationId={item.participation_id} task={item.task} onSubmitted={onSubmitted} />
+        <ProofTask participationId={item.participation_id} task={item.task} onSubmitted={onSubmitted} showTime={false} />
       )}
+    </div>
+  );
+}
+
+const open = (item: RoutineItem) => item.kind === "task" && !!item.task && (!item.task.proof_status || item.task.proof_status === "rejected");
+
+/** The one thing to do now: the current or next task not done yet, else the earliest missed one. */
+function NextUp({ items, untimed, now, onSubmitted }: { items: RoutineItem[]; untimed: RoutineItem[]; now: string; onSubmitted: () => void }) {
+  const { t } = useI18n();
+  const todo = items.filter(open);
+  const next = todo.find((item) => (item.end ?? item.start) >= now) ?? todo[0] ?? untimed.find(open);
+  const all = [...items, ...untimed].filter((item) => item.kind === "task" && item.task?.required);
+  if (!next?.task || !next.participation_id) {
+    if (all.length === 0 || all.some((item) => item.task?.proof_status !== "approved")) return null;
+    return (
+      <Card className="mb-4 border-mint/30 bg-mint/[0.06] text-center">
+        <p className="font-display text-lg font-semibold">{t("Bugungi hamma vazifalar bajarildi 🎉")}</p>
+        <p className="mt-1 text-sm text-mist">{t("Streak saqlandi. Ertaga yana davom etamiz!")}</p>
+      </Card>
+    );
+  }
+  const late = next.task.at && (next.end ?? next.start) < now;
+  const heading = !next.task.at
+    ? t("Navbatdagi vazifa")
+    : late
+      ? t("{time} da edi — hali ulgurasiz", { time: next.task.at })
+      : next.start <= now
+        ? t("Hozir · {time} gacha", { time: next.end ?? "" })
+        : t("Keyingisi · {time} da", { time: next.task.at });
+  return (
+    <Card className="mb-4 border-flame-500/30 bg-flame-500/[0.05] px-4 py-4 sm:p-5">
+      <p className={`text-xs font-semibold tracking-wide uppercase ${late ? "text-amberish" : "text-flame-400"}`}>{heading}</p>
+      <p className="mt-0.5 mb-3 text-sm text-mist">{next.challenge_title}</p>
+      {next.lesson && (
+        <p className="mb-3 flex items-center gap-1.5 text-sm text-iris">
+          <BookOpen className="size-4" /> {next.lesson}
+        </p>
+      )}
+      <ProofTask participationId={next.participation_id} task={next.task} onSubmitted={onSubmitted} showTime={false} />
+    </Card>
+  );
+}
+
+/** Tasks without a time, one block per challenge: give each a time and it joins the day. */
+function Untimed({ items, onSubmitted, frame, preview }: { items: RoutineItem[]; onSubmitted: () => void; frame: FrameLike | null; preview: boolean }) {
+  const { t } = useI18n();
+  const groups = new Map<string, RoutineItem[]>();
+  items.forEach((item) => groups.set(item.participation_id ?? "", [...(groups.get(item.participation_id ?? "") ?? []), item]));
+  return (
+    <div className="mt-6 rounded-3xl border border-dashed border-white/15 p-3 sm:p-4">
+      <h2 className="flex items-center gap-2 text-sm font-semibold">
+        <Clock className="size-4 text-flame-400" /> {t("Bu vazifalarga vaqt belgilang")}
+      </h2>
+      <p className="mt-1 mb-3 text-xs text-mist">{t("Vaqt qo'ysangiz, vazifa jadvalga tushadi va o'z vaqtida eslataman.")}</p>
+      <div className="flex flex-col gap-4">
+        {Array.from(groups.values()).map((group) => (
+          <div key={group[0].participation_id} className="flex flex-col gap-2">
+            <p className="px-1 text-xs font-semibold text-mist">{group[0].challenge_title}</p>
+            {group.map((item) => (
+              <TaskEntry key={item.task?.key} item={item} onSubmitted={onSubmitted} editing showLesson={false} frame={frame} preview={preview} label={false} />
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -251,6 +314,7 @@ export default function RoutinePage() {
       )}
 
       <Welcome />
+      {data.is_today && !nothing && !editing && now && <NextUp items={data.items} untimed={data.untimed} now={now} onSubmitted={refresh} />}
       {editing && data.frame && <FrameCard frame={data.frame} onSaved={refresh} />}
       {editing && !data.frame && (
         <Card className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -311,24 +375,14 @@ export default function RoutinePage() {
       ) : (
         <Card className="px-2.5 py-4 sm:p-6">
           <Timeline entries={entries} now={data.is_today ? now || undefined : undefined} />
-          {data.untimed.length > 0 && (
-            <div className="mt-6">
-              <h2 className="text-sm font-semibold text-mist">{t("Vaqtsiz vazifalar")}</h2>
-              <p className="mt-1 mb-3 text-xs text-mist">{t("Vaqt qo'ying — vazifa kun tartibiga tushadi va vaqtida eslataman.")}</p>
-              <div className="flex flex-col gap-3">
-                {data.untimed.map((item) => (
-                  <TaskEntry key={`${item.participation_id}-${item.task?.key}`} item={item} onSubmitted={refresh} editing showLesson frame={data.frame} preview={!data.is_today} />
-                ))}
-              </div>
-            </div>
-          )}
+          {data.untimed.length > 0 && <Untimed items={data.untimed} onSubmitted={refresh} frame={data.frame} preview={!data.is_today} />}
         </Card>
       )}
 
       {data.is_today && (
         <div className="mt-6 flex flex-col gap-4">
           <TelegramNudge />
-          <CoachFeed limit={3} />
+          <CoachFeed limit={1} />
         </div>
       )}
     </div>
