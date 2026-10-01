@@ -63,7 +63,7 @@ export default function Landing() {
       ? { icon: Gift, title: "Hammasi bepul", body: "Reja, isbot, murabbiy va reyting — barchasi bepul. Faqat boshlash kerak." }
       : f,
   );
-  const cta = token ? { href: "/dashboard", label: t("Davom etish") } : { href: "/register", label: t("Bepul boshlash") };
+  const cta = token ? { href: "/routine", label: t("Davom etish") } : { href: "/register", label: t("Bepul boshlash") };
 
   return (
     <div className="overflow-x-clip">

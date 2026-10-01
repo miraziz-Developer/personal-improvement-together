@@ -28,6 +28,7 @@ async function signIn(page: Page, token: string) {
   await page.addInitScript((value) => {
     localStorage.setItem("pit.token", value);
     localStorage.setItem("pit.locale", "uz");
+    localStorage.setItem("pit.welcome.v1", "1"); // the first-visit tour is not what these tests check
   }, token);
 }
 
@@ -46,7 +47,7 @@ test("the landing speaks both languages", async ({ page }) => {
 test("a challenge goes straight into the routine at the chosen time", async ({ page, request }) => {
   await signIn(page, await user(request));
   await page.goto("/routine");
-  await page.getByRole("button", { name: "Challenge qo'shish" }).first().click();
+  await page.getByRole("button", { name: "Tayyor challenge" }).first().click();
   await page.getByText("14 kun ichki xotirjamlik").click();
   await page.getByLabel("Boshlanish vaqti").fill("21:00");
   await page.getByRole("button", { name: "Kun tartibiga qo'shish" }).click();
@@ -84,4 +85,20 @@ test("a free challenge can be paused", async ({ page, request }) => {
   await page.getByRole("button", { name: "2 kun" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Pauza qilish" }).click();
   await expect(page.getByText(/Pauza: .* 2 kun/)).toBeVisible();
+});
+
+test("a first visit explains how PIT works, once", async ({ page, request }) => {
+  const token = await user(request);
+  await page.addInitScript((value) => {
+    localStorage.setItem("pit.token", value);
+    localStorage.setItem("pit.locale", "uz");
+  }, token);
+  await page.goto("/routine");
+  const tour = page.getByRole("dialog", { name: "PIT qanday ishlaydi?" });
+  await expect(tour).toBeVisible();
+  await tour.getByRole("button", { name: "O'tkazib yuborish" }).click();
+  await expect(tour).toBeHidden();
+  await page.reload();
+  await page.waitForTimeout(800);
+  await expect(page.getByRole("dialog", { name: "PIT qanday ishlaydi?" })).toHaveCount(0);
 });

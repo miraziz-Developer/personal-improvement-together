@@ -8,11 +8,11 @@ import { useState } from "react";
 import useSWR from "swr";
 
 import { useToast } from "@/components/toast";
-import { Badge, Button, Card, EmptyState, PageHeader, Segmented, Skeleton } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, PageHeader, Segmented, Skeleton, StreakFlame } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { useFeatures } from "@/lib/auth";
 import { CATEGORY, minutes, STATUS_LABEL } from "@/lib/format";
-import type { Category, Challenge, CreatedChallenge } from "@/lib/types";
+import type { Category, Challenge, Participation } from "@/lib/types";
 import { useI18n } from "@/lib/i18n";
 
 export function Difficulty({ level }: { level: number }) {
@@ -26,18 +26,18 @@ export function Difficulty({ level }: { level: number }) {
   );
 }
 
-function CreatedCard({ item, onChanged }: { item: CreatedChallenge; onChanged: () => void }) {
+function GoalCard({ run }: { run: Participation }) {
   const { t } = useI18n();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
-  const meta = CATEGORY[item.challenge.category];
+  const meta = CATEGORY[run.category];
   const Icon = meta.icon;
-  const canInvite = item.participation_id && (item.status === "active" || item.status === "scheduled");
+  const open = run.status === "active" || run.status === "scheduled";
+  const share = run.total_days ? run.days_completed / run.total_days : 0;
 
   async function inviteLink(): Promise<string> {
-    const code = item.invite_code ?? (await api<{ invite_code: string }>(`/me/participations/${item.participation_id}/group`, { method: "POST" })).invite_code;
-    if (!item.invite_code) onChanged();
-    return `${window.location.origin}/join/${code}`;
+    const { invite_code } = await api<{ invite_code: string }>(`/me/participations/${run.id}/group`, { method: "POST" });
+    return `${window.location.origin}/join/${invite_code}`;
   }
 
   async function copy() {
@@ -66,64 +66,77 @@ function CreatedCard({ item, onChanged }: { item: CreatedChallenge; onChanged: (
   }
 
   return (
-    <Card className="flex flex-col gap-4">
-      <div className="flex items-start gap-4">
+    <Card className={clsx("flex flex-col gap-4", !open && "opacity-70")}>
+      <Link href={`/c/${run.id}`} className="flex items-start gap-4">
         <div className={`grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${meta.gradient}`}>
           <Icon className="size-6" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-display text-lg font-semibold">{item.challenge.title}</p>
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {item.status && <Badge>{t(STATUS_LABEL[item.status])}</Badge>}
-            <Badge>{t("{n} kun", { n: item.challenge.duration_days })}</Badge>
-            <Badge>
-              <Users className="size-3" /> {item.members > 0 ? t("{n} kishi", { n: item.members }) : t("hali yolg'iz")}
-            </Badge>
+          <div className="flex items-center justify-between gap-2">
+            <p className="truncate font-display text-lg font-semibold">{run.title}</p>
+            <StreakFlame streak={run.current_streak} size="sm" />
+          </div>
+          <p className="mt-0.5 text-sm text-mist">
+            {t(STATUS_LABEL[run.status])} · {t("{done}/{total} kun", { done: run.days_completed, total: run.total_days })}
+          </p>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/5">
+            <div className="bg-flame h-full rounded-full" style={{ width: `${share * 100}%` }} />
           </div>
         </div>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {item.participation_id && (
-          <Button href={`/c/${item.participation_id}`} size="sm" variant="secondary">
+      </Link>
+      {open && (
+        <div className="flex flex-wrap gap-2">
+          <Button href={`/c/${run.id}`} size="sm" variant="secondary">
             {t("Ochish")}
           </Button>
-        )}
-        {canInvite && (
-          <>
-            <Button size="sm" loading={busy} onClick={copy}>
-              <Users className="size-4" /> {t("Do'stlarni taklif qilish")}
-            </Button>
-            <Button size="sm" variant="sky" onClick={telegram} disabled={busy}>
-              <Send className="size-4" /> Telegram
-            </Button>
-          </>
-        )}
-      </div>
+          <Button size="sm" variant="ghost" loading={busy} onClick={copy}>
+            <Users className="size-4" /> {t("Do'stlarni taklif qilish")}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={telegram} disabled={busy} aria-label={t("Telegram'da ulashish")}>
+            <Send className="size-4" />
+          </Button>
+        </div>
+      )}
     </Card>
   );
 }
 
-function CreatedList() {
+/** Everything I am on (open first), and what I finished. */
+function MyGoals() {
   const { t } = useI18n();
-  const { data, mutate } = useSWR<CreatedChallenge[]>("/me/created-challenges");
+  const { data } = useSWR<Participation[]>("/me/participations");
   if (!data) return <Skeleton className="h-64" />;
   if (data.length === 0) {
     return (
       <Card>
         <EmptyState
-          icon="✨"
-          title={t("Hali o'zingiz yaratgan challenge yo'q")}
-          body={t("AI bilan reja yoki kun tartibi tuzing — ular shu yerda chiqadi va do'stlaringizni taklif qila olasiz.")}
-          action={<Button href="/onboarding">{t("✨ O'zimga moslab tuzish")}</Button>}
+          icon="🎯"
+          title={t("Hali maqsad yo'q")}
+          body={t("Maqsad qo'shing — AI reja tuzadi yoki tayyor challenge tanlaysiz. Har kuni nima qilish «Bugun» sahifasida chiqadi.")}
+          action={<Button href="/onboarding">{t("＋ Yangi maqsad")}</Button>}
         />
       </Card>
     );
   }
+  const open = data.filter((run) => run.status === "active" || run.status === "scheduled");
+  const finished = data.filter((run) => !open.includes(run));
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {data.map((item) => (
-        <CreatedCard key={item.challenge.id} item={item} onChanged={() => mutate()} />
-      ))}
+    <div className="flex flex-col gap-6">
+      <div className="grid gap-4 lg:grid-cols-2">
+        {open.map((run) => (
+          <GoalCard key={run.id} run={run} />
+        ))}
+      </div>
+      {finished.length > 0 && (
+        <div>
+          <h2 className="mb-3 text-sm font-semibold text-mist">{t("Tarix")}</h2>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {finished.map((run) => (
+              <GoalCard key={run.id} run={run} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -133,28 +146,28 @@ export default function Catalog() {
   const [filter, setFilter] = useState<Category | "all">("all");
   const { stakesEnabled } = useFeatures();
   const { t } = useI18n();
-  const [tab, setTab] = useState<"catalog" | "mine">("catalog");
+  const [tab, setTab] = useState<"catalog" | "mine">("mine");
   const shown = data?.filter((c) => filter === "all" || c.category === filter);
   const categories = Array.from(new Set(data?.map((c) => c.category) ?? []));
 
   return (
     <div>
       <PageHeader
-        title={t("Challenge'lar")}
-        subtitle={t("Sinalgan dasturlar. Har biri — yangi odat sari aniq yo'l.")}
-        action={<Button href="/onboarding">{t("✨ O'zimga moslab tuzish")}</Button>}
+        title={t("Maqsadlarim")}
+        subtitle={t("Siz qatnashayotgan challenge'lar va tanlash uchun katalog.")}
+        action={<Button href="/onboarding">{t("＋ Yangi maqsad")}</Button>}
       />
       <Segmented<"catalog" | "mine">
         value={tab}
         onChange={setTab}
         options={[
+          { value: "mine", label: t("Mening maqsadlarim") },
           { value: "catalog", label: t("Katalog") },
-          { value: "mine", label: t("Yaratganlarim") },
         ]}
       />
       <div className="h-6" />
       {tab === "mine" ? (
-        <CreatedList />
+        <MyGoals />
       ) : (
         <>
           <div className="mb-6 flex flex-wrap gap-2">

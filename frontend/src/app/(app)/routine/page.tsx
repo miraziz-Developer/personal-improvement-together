@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, CalendarClock, Check, Clock, Flag, Pencil, Plus } from "lucide-react";
+import { BookOpen, CalendarClock, Check, Clock, Flag, Pencil, Plus, Sparkles } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 import useSWR from "swr";
 
@@ -9,9 +9,13 @@ import { DayFrameEditor, type DayFrameValue, frameIsValid } from "@/components/D
 import { ProofTask } from "@/components/ProofTask";
 import { useToast } from "@/components/toast";
 import { Timeline, type TimelineEntry } from "@/components/Timeline";
-import { Button, Card, EmptyState, PageHeader, Skeleton } from "@/components/ui";
+import { CoachFeed } from "@/components/coach";
+import { TelegramNudge } from "@/components/Telegram";
+import { Welcome } from "@/components/Welcome";
+import { Button, Card, EmptyState, PageHeader, Skeleton, StreakFlame } from "@/components/ui";
+import { useAuth } from "@/lib/auth";
 import { api, errorMessage } from "@/lib/api";
-import { shortDate, WEEKDAYS_SHORT } from "@/lib/format";
+import { greeting, shortDate, WEEKDAYS_SHORT } from "@/lib/format";
 import { type FrameLike, timeProblem } from "@/lib/routine";
 import { useI18n } from "@/lib/i18n";
 import type { Routine, RoutineItem } from "@/lib/types";
@@ -20,6 +24,7 @@ const everyMinute = (callback: () => void) => {
   const timer = setInterval(callback, 60_000);
   return () => clearInterval(timer);
 };
+const noUpdates = () => () => {};
 const clockNow = () => new Date().toTimeString().slice(0, 5);
 
 /** Moves a task on the timeline. The time holds on every day the task happens. */
@@ -176,6 +181,7 @@ function FrameCard({ frame, onSaved }: { frame: DayFrameValue; onSaved: () => vo
 
 export default function RoutinePage() {
   const { t } = useI18n();
+  const { me } = useAuth();
   const [offset, setOffset] = useState(0);
   const { data, mutate } = useSWR<Routine>(offset ? `/me/routine?day=${isoDay(offset)}` : "/me/routine", {
     refreshInterval: 60_000,
@@ -184,6 +190,9 @@ export default function RoutinePage() {
   const now = useSyncExternalStore(everyMinute, clockNow, () => "");
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
+  // "New goal → ready challenge" lands here with ?add=1: the picker opens straight away.
+  const asked = useSyncExternalStore(noUpdates, () => window.location.search.includes("add=1"), () => false);
+  const [pickerClosed, setPickerClosed] = useState(false);
 
   if (!data) return <Skeleton className="h-96" />;
 
@@ -203,32 +212,56 @@ export default function RoutinePage() {
     };
   });
   const nothing = data.items.every((i) => i.kind !== "task") && data.untimed.length === 0;
+  const tasksToday = [...data.items, ...data.untimed].filter((i) => i.kind === "task" && i.task?.required);
+  const doneToday = tasksToday.filter((i) => i.task?.proof_status === "approved").length;
 
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        title={t("Kun tartibi")}
-        subtitle={shortDate(data.date)}
+        title={me ? greeting(me.username) : t("Bugun")}
+        subtitle={data.is_today ? t("Bugun, {date}", { date: shortDate(data.date) }) : shortDate(data.date)}
         action={
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => setAdding(true)}>
-              <Plus className="size-4" /> {t("Challenge qo'shish")}
+          !nothing || data.has_life_plan ? (
+            <Button size="sm" variant={editing ? "primary" : "secondary"} onClick={() => setEditing((v) => !v)}>
+              {editing ? <Check className="size-4" /> : <Pencil className="size-4" />} {editing ? t("Tayyor") : t("Tahrirlash")}
             </Button>
-            {(data.items.some((i) => i.kind === "task") || data.has_life_plan) && (
-              <Button size="sm" variant={editing ? "primary" : "secondary"} onClick={() => setEditing((v) => !v)}>
-                {editing ? <Check className="size-4" /> : <Pencil className="size-4" />} {editing ? t("Tayyor") : t("Tahrirlash")}
-              </Button>
-            )}
-            <Button href="/routine/new" size="sm" variant="secondary">
-              <CalendarClock className="size-4" /> {data.has_life_plan ? t("Yangi kun tartibi") : t("Kun tartibini tuzish")}
-            </Button>
-          </div>
+          ) : undefined
         }
       />
 
+      {data.is_today && !nothing && (
+        <div className="mb-4 grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-2xl bg-white/[0.04] px-2 py-3">
+            <p className="font-display text-xl font-bold tabular-nums">
+              {doneToday}/{tasksToday.length}
+            </p>
+            <p className="text-xs text-mist">{t("bugun bajarildi")}</p>
+          </div>
+          <div className="rounded-2xl bg-white/[0.04] px-2 py-3" title={t("Streak — ketma-ket bajarilgan kunlar. Bir kun o'tkazsangiz, freeze uni saqlab qoladi.")}>
+            <div className="flex justify-center">
+              <StreakFlame streak={me?.best_streak ?? 0} />
+            </div>
+            <p className="text-xs text-mist">{t("eng uzun streak")}</p>
+          </div>
+          <div className="rounded-2xl bg-white/[0.04] px-2 py-3">
+            <p className="font-display text-xl font-bold tabular-nums">{me?.points ?? 0}</p>
+            <p className="text-xs text-mist">{t("ball")}</p>
+          </div>
+        </div>
+      )}
+
+      <Welcome />
       {editing && data.frame && <FrameCard frame={data.frame} onSaved={refresh} />}
       <DayStrip offset={offset} onChange={setOffset} />
-      <AddToRoutine open={adding} onClose={() => setAdding(false)} onAdded={refresh} frame={data.frame} />
+      <AddToRoutine
+        open={adding || (asked && !pickerClosed)}
+        onClose={() => {
+          setAdding(false);
+          setPickerClosed(true);
+        }}
+        onAdded={refresh}
+        frame={data.frame}
+      />
 
       {data.months.length > 0 && (
         <Card className="mb-4 flex flex-col gap-2">
@@ -247,22 +280,20 @@ export default function RoutinePage() {
         <Card>
           <EmptyState
             icon={<CalendarClock className="size-7 text-flame-400" />}
-            title={data.has_life_plan ? t("Bugun dam olish kuni 🌿") : t("Kun tartibi hali yo'q")}
+            title={data.has_life_plan ? t("Bugun dam olish kuni 🌿") : t("Birinchi maqsadingizni qo'shing")}
             body={
               data.has_life_plan
                 ? t("Tiklanish ham rejaning bir qismi. Ertaga yana davom etamiz.")
-                : t("Bir nechta maqsadingizni ayting — AI ularni bitta, soatma-soat kun tartibiga joylaydi.")
+                : t("Maqsad qo'shsangiz, har kuni nima qilish kerakligi shu yerda soatma-soat chiqadi.")
             }
             action={
               <div className="flex flex-wrap justify-center gap-2">
-                <Button onClick={() => setAdding(true)}>
-                  <Plus className="size-4" /> {t("Challenge qo'shish")}
+                <Button href="/routine/new">
+                  <Sparkles className="size-4" /> {t("AI menga reja tuzsin")}
                 </Button>
-                {!data.has_life_plan && (
-                  <Button href="/routine/new" variant="secondary">
-                    {t("Kun tartibini tuzish")}
-                  </Button>
-                )}
+                <Button variant="secondary" onClick={() => setAdding(true)}>
+                  <Plus className="size-4" /> {t("Tayyor challenge")}
+                </Button>
               </div>
             }
           />
@@ -282,6 +313,13 @@ export default function RoutinePage() {
             </div>
           )}
         </Card>
+      )}
+
+      {data.is_today && (
+        <div className="mt-6 flex flex-col gap-4">
+          <TelegramNudge />
+          <CoachFeed limit={3} />
+        </div>
       )}
     </div>
   );

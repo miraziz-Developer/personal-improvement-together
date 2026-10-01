@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "PIT",
     description: "Maqsadlarni har kungi odatga aylantiring: AI reja, isbot, murabbiy va do'stlar bilan.",
     lang: "uz",
-    start_url: "/dashboard",
+    start_url: "/routine",
     scope: "/",
     display: "standalone",
     background_color: "#06060b",

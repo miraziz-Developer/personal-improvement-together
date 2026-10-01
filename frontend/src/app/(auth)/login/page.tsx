@@ -14,7 +14,7 @@ import { useI18n } from "@/lib/i18n";
 function LoginForm() {
   const { signIn } = useAuth();
   const router = useRouter();
-  const next = safeNext(useSearchParams().get("next")) ?? "/dashboard";
+  const next = safeNext(useSearchParams().get("next")) ?? "/routine";
   const toast = useToast();
   const { t } = useI18n();
   const [username, setUsername] = useState("");
@@ -61,7 +61,7 @@ function LoginForm() {
       </Button>
       <p className="text-center text-mist">
         {t("Akkauntingiz yo'qmi?")}{" "}
-        <Link href={next === "/dashboard" ? "/register" : `/register?next=${encodeURIComponent(next)}`} className="font-semibold text-flame-400 hover:text-flame-300">
+        <Link href={next === "/routine" ? "/register" : `/register?next=${encodeURIComponent(next)}`} className="font-semibold text-flame-400 hover:text-flame-300">
           {t("Ro'yxatdan o'ting")}
         </Link>
       </p>

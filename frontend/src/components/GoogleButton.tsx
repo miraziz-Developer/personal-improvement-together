@@ -38,7 +38,7 @@ declare global {
 }
 
 /** "Continue with Google". Known accounts sign in; new ones go on to finish their profile. */
-export function GoogleButton({ next = "/dashboard" }: { next?: string }) {
+export function GoogleButton({ next = "/routine" }: { next?: string }) {
   const { googleClientId } = useFeatures();
   const { signIn } = useAuth();
   const router = useRouter();

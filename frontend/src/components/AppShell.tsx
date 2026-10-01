@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Bell, CalendarClock, Compass, Flame, Home, LogOut, Plus, Shield, TrendingUp, Trophy, User, Wallet } from "lucide-react";
+import { Bell, Flame, Home, LogOut, Plus, Shield, Target, TrendingUp, Trophy, User, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -11,10 +11,10 @@ import { Spinner } from "@/components/ui";
 import { useAuth, useFeatures } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 
-const NAV = [
-  { href: "/dashboard", label: "Bosh sahifa", short: "Bosh", icon: Home },
-  { href: "/routine", label: "Kun tartibi", short: "Kun", icon: CalendarClock },
-  { href: "/challenges", label: "Challenge'lar", short: "Challenge", icon: Compass },
+// Five places, one idea each: today's tasks, my goals, how it goes, others, me.
+const NAV: { href: string; label: string; short: string; icon: typeof Home; also?: string[] }[] = [
+  { href: "/routine", label: "Bugun", short: "Bugun", icon: Home, also: ["/dashboard"] },
+  { href: "/challenges", label: "Maqsadlarim", short: "Maqsadlar", icon: Target, also: ["/c", "/plans", "/life-plans", "/onboarding"] },
   { href: "/progress", label: "Progress", short: "Progress", icon: TrendingUp },
   { href: "/leaderboard", label: "Reyting", short: "Reyting", icon: Trophy },
   { href: "/wallet", label: "Hamyon", short: "Hamyon", icon: Wallet },
@@ -67,7 +67,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const base = stakesEnabled ? NAV : NAV.filter((item) => item.href !== "/wallet");
   const nav = me && me.role !== "user" ? [...base, { href: "/admin", label: "Moderator", short: "Moderator", icon: Shield }] : base;
-  const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const under = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const active = (href: string) => {
+    const item = nav.find((entry) => entry.href === href);
+    return under(href) || Boolean(item && "also" in item && item.also?.some(under));
+  };
 
   return (
     <div className="min-h-dvh lg:flex">
