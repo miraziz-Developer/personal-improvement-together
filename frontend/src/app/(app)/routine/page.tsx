@@ -309,7 +309,7 @@ export default function RoutinePage() {
           />
         </Card>
       ) : (
-        <Card>
+        <Card className="px-2.5 py-4 sm:p-6">
           <Timeline entries={entries} now={data.is_today ? now || undefined : undefined} />
           {data.untimed.length > 0 && (
             <div className="mt-6">

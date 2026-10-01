@@ -70,11 +70,12 @@ export function ProofTask({
 
   return (
     <div className={clsx("rounded-3xl border p-4 transition", status === "approved" ? "border-mint/30 bg-mint/[0.06]" : "border-white/10 bg-white/[0.02]")}>
-      <div className="flex items-start gap-3">
-        <div className={clsx("grid size-10 shrink-0 place-items-center rounded-2xl", status === "approved" ? "bg-mint/20 text-mint" : "bg-white/5 text-mist")}>
+      {/* In a narrow column (the day's timeline on a phone) the button wraps below the title. */}
+      <div className="flex flex-wrap items-start gap-3">
+        <div className={clsx("hidden size-10 shrink-0 place-items-center rounded-2xl sm:grid", status === "approved" ? "bg-mint/20 text-mint" : "bg-white/5 text-mist")}>
           {Icon ? <Icon className={clsx("size-5", status === "pending" && "animate-spin")} /> : <Upload className="size-5" />}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[9rem] flex-1">
           <div className="flex flex-wrap items-center gap-2">
             {task.at && (
               <span className="rounded-lg bg-white/10 px-1.5 py-0.5 text-xs font-semibold tabular-nums">{task.at}</span>
@@ -87,7 +88,7 @@ export function ProofTask({
           {status === "rejected" && task.reason && <p className="mt-1 text-sm text-mist">{t("Sabab: {reason}. Qayta urinib ko'ring — hali vaqt bor 💪", { reason: task.reason })}</p>}
         </div>
         {canSubmit && !open && (
-          <Button size="sm" variant={status === "rejected" ? "secondary" : "primary"} onClick={() => setOpen(true)}>
+          <Button size="sm" className="ml-auto" variant={status === "rejected" ? "secondary" : "primary"} onClick={() => setOpen(true)}>
             {status === "rejected" ? <RotateCcw className="size-4" /> : <Camera className="size-4" />}
             {status === "rejected" ? t("Qayta") : t("Isbot")}
           </Button>
