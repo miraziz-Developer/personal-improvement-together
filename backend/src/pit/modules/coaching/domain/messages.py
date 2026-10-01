@@ -166,14 +166,28 @@ LIBRARY: dict[Moment, tuple[tuple[str, str], ...]] = {
             "«{title}»: o'tgan oy marrasi — {done_goal}. Bu oyning marrasi: {goal}. Davom etamiz!",
         ),
     ),
-    Moment.TASK_DUE: (
+    Moment.TASK_SOON: (
         (
-            "⏰ {task} vaqti",
-            "{name}, soat {at} — «{task}», {minutes} daqiqa. {focus_line}Boshladik!",
+            "⏳ 10 daqiqadan keyin: {task}",
+            "{name}, soat {at} da «{task}» — {minutes} daqiqa. {focus_line}"
+            "Hozirdan tayyorlaning: keraklilarni yoningizga oling, telefonni chetga qo'ying.",
         ),
         (
-            "Vaqt keldi: {task}",
-            "Rejadagi vaqt — {at}. {focus_line}Kichik qadam aynan hozir qo'yiladi 💪",
+            "Tayyorlaning: {task} ⏳",
+            "{at} da boshlanadi, {minutes} daqiqa. {focus_line}"
+            "10 daqiqa bor — joyingizni tayyorlab qo'ying, keyin bemalol boshlaysiz.",
+        ),
+    ),
+    Moment.TASK_DUE: (
+        (
+            "⏰ Vaqti bo'ldi: {task}",
+            "{name}, soat {at} — endi «{task}» qilish vaqti, {minutes} daqiqa. {focus_line}"
+            "Tugatgach, isbot yuboring 📸",
+        ),
+        (
+            "Hozir: {task} 🔥",
+            "Soat {at} — boshlang, {minutes} daqiqa. {focus_line}"
+            "Kichik qadam aynan hozir qo'yiladi 💪 Bajargach — isbot 📸",
         ),
     ),
     Moment.REST_DAY: (
@@ -305,7 +319,10 @@ def compose(moment: Moment, *, seed: str, locale: str = "uz", **facts: object) -
     library, phrases, _ = _BY_LOCALE.get(locale, _BY_LOCALE["uz"])
     title, body = library[moment][_index(seed, len(library[moment]))]
     values = {**_derived(phrases, facts), **facts}
-    return title.format(**values), body.format(**values)
+    text = body.format(**values)
+    if facts.get("plan"):  # the morning lists the whole day under the greeting
+        text = f"{text}\n\n{facts['plan']}"
+    return title.format(**values), text
 
 
 def quote_of_the_day(day: date, locale: str = "uz") -> tuple[str, str]:

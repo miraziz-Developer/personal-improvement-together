@@ -27,6 +27,7 @@ from pit.modules.telegram.application.common import (
     CHEER_CALLBACK,
     TODAY_CALLBACK,
     TelegramUoW,
+    app_url,
     html,
     human_date,
     keyboard,
@@ -38,6 +39,7 @@ from pit.modules.telegram.application.ports import (
     Incoming,
     Keyboard,
     Menu,
+    OpenApp,
     ProofFiles,
     ShareContact,
     TelegramApi,
@@ -69,11 +71,14 @@ class Label:
     LATER = LABELS["uz"]["later"]
 
 
-def menu_for(locale: str) -> Menu:
-    return [
+def menu_for(locale: str, web_url: str = "") -> Menu:
+    rows: list[list[str | ShareContact | OpenApp]] = [
         [label(locale, "today"), label(locale, "proof")],
         [label(locale, "status"), label(locale, "settings")],
     ]
+    if web_url.startswith("https://"):  # Telegram opens Mini Apps only from https pages
+        rows.append([OpenApp(label(locale, "app"), app_url(web_url))])
+    return rows
 
 
 def phone_menu_for(locale: str) -> Menu:
@@ -202,9 +207,9 @@ class TelegramBot:
                 await self._settings(user, chat_id)
             case "later":
                 later = tr(lang, "later_ok", settings=label(lang, "settings"))
-                await self._say(chat_id, later, menu=menu_for(lang))
+                await self._say(chat_id, later, menu=self._main_menu(lang))
             case _ if text.startswith("/"):
-                await self._say(chat_id, help_text(lang), menu=menu_for(lang))
+                await self._say(chat_id, help_text(lang), menu=self._main_menu(lang))
             case _:
                 return False
         return True
@@ -217,7 +222,7 @@ class TelegramBot:
             elif user.phone_verified:
                 lang = user.locale.value
                 done = tr(lang, "phone_already", phone=user.phone)
-                await self._say(chat_id, done, menu=menu_for(lang))
+                await self._say(chat_id, done, menu=self._main_menu(lang))
             else:
                 await self._ask_phone(chat_id, user.locale.value)
             return
@@ -228,7 +233,9 @@ class TelegramBot:
                 user = await uow.users.get(user_id)
             lang = user.locale.value if user else guest
             name = html(user.username) if user else ""
-            await self._say(chat_id, tr(lang, "welcome", name=name), menu=menu_for(lang))
+            await self._say(
+                chat_id, tr(lang, "welcome", name=name), menu=menu_for(lang, self._web_url)
+            )
             if user is not None and not user.phone_verified:
                 await self._ask_phone(chat_id, lang)
             return
@@ -236,7 +243,7 @@ class TelegramBot:
         if linked is not None:
             lang = linked.locale.value
             again = tr(lang, "already_linked", help=help_text(lang))
-            await self._say(chat_id, again, menu=menu_for(lang))
+            await self._say(chat_id, again, menu=self._main_menu(lang))
         else:
             await self._not_linked(chat_id, guest)
 
@@ -252,7 +259,7 @@ class TelegramBot:
                 await self._today(user, chat_id)
                 return
             case Callback.HELP:
-                await self._say(chat_id, help_text(lang), menu=menu_for(lang))
+                await self._say(chat_id, help_text(lang), menu=self._main_menu(lang))
                 return
             case Callback.PHONE:
                 await self._ask_phone(chat_id, lang)
@@ -354,7 +361,9 @@ class TelegramBot:
         verified: str = await self._bus.handle(
             VerifyPhoneFromTelegram(chat_id=chat_id, phone=phone)
         )
-        await self._say(chat_id, tr(lang, "phone_verified", phone=verified), menu=menu_for(lang))
+        await self._say(
+            chat_id, tr(lang, "phone_verified", phone=verified), menu=menu_for(lang, self._web_url)
+        )
 
     async def _settings(self, user: User, chat_id: int) -> None:
         lang = user.locale.value
@@ -616,6 +625,9 @@ class TelegramBot:
         uow = self._uow()
         async with uow:
             return await uow.users.get_by_telegram_chat(chat_id)
+
+    def _main_menu(self, lang: str) -> Menu:
+        return menu_for(lang, self._web_url)
 
     async def _say(
         self, chat_id: int, text: str, buttons: Keyboard = (), *, menu: Menu | None = None

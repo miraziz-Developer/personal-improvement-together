@@ -12,6 +12,7 @@ from pit.modules.telegram.application.ports import (
     Incoming,
     Keyboard,
     Menu,
+    OpenApp,
     ShareContact,
     TelegramUnavailable,
 )
@@ -45,7 +46,9 @@ def _button(button: Button) -> dict[str, Any]:
     return {"text": button.text, "callback_data": button.callback or ""}
 
 
-def _menu_button(button: str | ShareContact) -> dict[str, Any]:
+def _menu_button(button: str | ShareContact | OpenApp) -> dict[str, Any]:
+    if isinstance(button, OpenApp):
+        return {"text": button.text, "web_app": {"url": button.url}}
     if isinstance(button, ShareContact):
         return {"text": button.text, "request_contact": True}
     return {"text": button}

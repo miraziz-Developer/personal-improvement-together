@@ -29,9 +29,17 @@ class ShareContact:
     text: str
 
 
+@dataclass(frozen=True, slots=True)
+class OpenApp:
+    """A menu button that opens a page of the site inside Telegram (a Mini App)."""
+
+    text: str
+    url: str
+
+
 # The persistent menu under the input field: rows of button labels; tapping one sends its text.
 # An empty menu removes it.
-type Menu = Sequence[Sequence[str | ShareContact]]
+type Menu = Sequence[Sequence[str | ShareContact | OpenApp]]
 
 
 @dataclass(frozen=True, slots=True)

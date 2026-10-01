@@ -69,6 +69,8 @@ class CoachingUoW(Transaction, Protocol):
 
 
 REMINDER_WINDOW = timedelta(minutes=30)  # a reminder later than this would only nag
+GET_READY = timedelta(minutes=10)  # "in ten minutes: …" before each timed task
+PLAN_BEFORE_WAKE = timedelta(minutes=5)  # the day's plan is waiting when the alarm rings
 _OWN_TEXTS = OwnTexts()
 
 
@@ -413,6 +415,22 @@ async def _morning_for(
         return sent + 1
     focus = next((f for p, c in working if (f := _focus_text(texts, c, p, today, locale))), None)
     tasks = [t for p, _ in working for t in p.tasks_on(today)]
+    # The whole day at a glance: timed tasks in order, then the ones without a time.
+    timed = sorted(
+        (t.at, texts.task_title(c, t, locale))
+        for p, c in working
+        for t in p.tasks_on(today)
+        if t.at
+    )
+    plan = "\n".join(
+        [f"{at:%H:%M} — {title}" for at, title in timed]
+        + [
+            f"• {texts.task_title(c, t, locale)}"
+            for p, c in working
+            for t in p.tasks_on(today)
+            if not t.at
+        ]
+    )
     if len(working) == 1:
         participation = working[0][0]
         await _notify(
@@ -427,6 +445,7 @@ async def _morning_for(
             minutes=sum(t.minutes for t in tasks),
             streak=participation.current_streak,
             focus=focus,
+            plan=plan,
         )
     else:
         await _notify(
@@ -442,6 +461,7 @@ async def _morning_for(
             minutes=sum(t.minutes for t in tasks),
             first=_first_task(texts, working, today, locale),
             focus=focus,
+            plan=plan,
         )
     return sent + 1
 
@@ -455,8 +475,11 @@ async def _send_mornings(uow: CoachingUoW, clock: Clock, texts: ChallengeTexts) 
             user = require(await uow.users.get(user_id), "Foydalanuvchi topilmadi")
             now = clock.now().astimezone(ZoneInfo(user.timezone))
             routine = await uow.life_plans.latest_started(user_id)
-            if routine is not None and routine.frame.wake > now.time():
-                continue  # still asleep: the message comes at wake-up time
+            if routine is not None and (
+                datetime.combine(now.date(), routine.frame.wake) - PLAN_BEFORE_WAKE
+                > now.replace(tzinfo=None)
+            ):
+                continue  # still asleep: the plan comes just before the alarm
             sent += await _morning_for(uow, clock, texts, user, mine, now.date())
         await uow.commit()
     return sent
@@ -477,9 +500,9 @@ async def _routine_moments(uow: CoachingUoW, clock: Clock, texts: ChallengeTexts
         user = require(await uow.users.get(user_id), "Foydalanuvchi topilmadi")
         now = clock.now().astimezone(ZoneInfo(user.timezone))
         today, clock_now = now.date(), now.replace(tzinfo=None)
-        wake = datetime.combine(today, routine.frame.wake)
-        if wake <= clock_now < wake + WAKE_WINDOW:
-            sent += await _morning_for(uow, clock, texts, user, mine, today)
+        plan_at = datetime.combine(today, routine.frame.wake) - PLAN_BEFORE_WAKE
+        if plan_at <= clock_now < plan_at + WAKE_WINDOW:
+            sent += await _morning_for(uow, clock, texts, user, mine, plan_at.date())
         sleep = datetime.combine(today, routine.frame.sleep)
         if routine.frame.sleeps_after_midnight:
             sleep += timedelta(days=1)
@@ -571,15 +594,19 @@ async def send_task_reminders(
             today = now.date()
             if participation.days.get(today) is not DayStatus.PENDING:
                 continue
+            local = now.replace(tzinfo=None)
+            timed = [t for t in participation.tasks_on(today) if t.at is not None]
             due = [
                 t
-                for t in participation.tasks_on(today)
-                if t.at is not None
-                and timedelta(0)
-                <= now.replace(tzinfo=None) - datetime.combine(today, t.at)
-                < REMINDER_WINDOW
+                for t in timed
+                if t.at and timedelta(0) <= local - datetime.combine(today, t.at) < REMINDER_WINDOW
             ]
-            if not due:
+            soon = [
+                t
+                for t in timed
+                if t.at and timedelta(0) < datetime.combine(today, t.at) - local <= GET_READY
+            ]
+            if not due and not soon:
                 continue
             proofs = await uow.proofs.list_for_day(participation_id, today)
             handled = {p.task_key for p in proofs if p.status is not ProofStatus.REJECTED}
@@ -587,6 +614,24 @@ async def send_task_reminders(
                 await uow.challenges.get(participation.challenge_id), "Challenge topilmadi"
             )
             locale = user.locale.value
+            focus = _focus_text(texts, challenge, participation, today, locale)
+            for task in soon:
+                if task.key in handled:
+                    continue
+                await _notify(
+                    uow,
+                    clock,
+                    key=f"soon:{participation_id}:{today.isoformat()}:{task.key}",
+                    user_id=user.id,
+                    participation_id=participation_id,
+                    moment=Moment.TASK_SOON,
+                    name=user.username,
+                    task=texts.task_title(challenge, task, locale),
+                    at=task.at.strftime("%H:%M") if task.at else "",
+                    minutes=task.minutes,
+                    focus=focus,
+                )
+                sent += 1
             for task in due:
                 if task.key in handled:
                     continue
@@ -601,7 +646,7 @@ async def send_task_reminders(
                     task=texts.task_title(challenge, task, locale),
                     at=task.at.strftime("%H:%M") if task.at else "",
                     minutes=task.minutes,
-                    focus=_focus_text(texts, challenge, participation, today, locale),
+                    focus=focus,
                 )
                 sent += 1
         sent += await _routine_moments(uow, clock, texts)

@@ -1,3 +1,4 @@
+import re
 from datetime import time
 
 import pytest
@@ -242,6 +243,36 @@ async def test_a_challenge_keeps_the_time_it_is_about(world: World) -> None:
     assert world.participation(joined).tasks_on(world.today)[0].at == time(6, 25)
 
 
+async def test_ten_minutes_before_a_task_then_at_its_time(world: World) -> None:
+    user = world.add_user()  # the clock says 09:00
+    joined = await world.bus.handle(
+        AddToRoutine(
+            user_id=user.id,
+            challenge_id=world.add_challenge(duration_days=30).id,
+            times={"main": time(10, 0)},
+        )
+    )
+
+    def sent(moment: Moment) -> list[str]:
+        return [
+            n.title
+            for n in world.store.notifications.values()
+            if n.moment is moment and n.participation_id == joined
+        ]
+
+    world.clock.advance(minutes=45)  # 09:45 — too early for anything
+    await world.bus.handle(SendTaskReminders())
+    assert not sent(Moment.TASK_SOON)
+    world.clock.advance(minutes=6)  # 09:51 — get ready
+    await world.bus.handle(SendTaskReminders())
+    world.clock.advance(minutes=5)  # 09:56 — the next tick does not repeat it
+    await world.bus.handle(SendTaskReminders())
+    assert len(sent(Moment.TASK_SOON)) == 1 and not sent(Moment.TASK_DUE)
+    world.clock.advance(minutes=5)  # 10:01 — now
+    await world.bus.handle(SendTaskReminders())
+    assert len(sent(Moment.TASK_DUE)) == 1
+
+
 async def test_the_morning_comes_at_wake_up_and_the_day_closes_with_a_summary(
     world: World,
 ) -> None:
@@ -262,11 +293,13 @@ async def test_the_morning_comes_at_wake_up_and_the_day_closes_with_a_summary(
 
     await world.bus.handle(SendDailyNudges(kind="morning"))  # 09:00 — still asleep
     assert Moment.MORNING not in moments()
-    world.clock.advance(minutes=35)  # 09:35
+    world.clock.advance(minutes=26)  # 09:26: the plan waits when the 09:30 alarm rings
     await world.bus.handle(SendTaskReminders())
     assert moments().count(Moment.MORNING) == 1
+    morning = next(n for n in world.store.notifications.values() if n.moment is Moment.MORNING)
+    assert re.search(r"\d\d:\d\d — ", morning.body)  # the whole day, hour by hour
 
-    world.clock.advance(hours=12, minutes=45)  # 22:20, sleep at 23:00
+    world.clock.advance(hours=12, minutes=54)  # 22:20, sleep at 23:00
     await world.bus.handle(SendTaskReminders())
     await world.bus.handle(SendTaskReminders())
     summaries = [n for n in world.store.notifications.values() if n.moment is Moment.DAY_SUMMARY]

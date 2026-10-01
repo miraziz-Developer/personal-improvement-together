@@ -8,7 +8,6 @@ from pit.modules.coaching.domain.messages import Moment
 from pit.modules.identity.application.commands import IssueTelegramLink, RequestPasswordReset
 from pit.modules.identity.domain.user import Locale, User
 from pit.modules.telegram.application.bot import (
-    MENU,
     PHONE_MENU,
     Callback,
     Label,
@@ -25,6 +24,8 @@ from tests.application.conftest import World
 from tests.fakes import FakeConversation, FakeProofFiles, FakeUnitOfWork
 
 CHAT = 7001
+
+MAIN_MENU = menu_for("uz", "https://pit.uz")  # with the button that opens the app
 
 
 @pytest.fixture
@@ -98,7 +99,7 @@ async def test_a_chat_follows_the_latest_account(world: World, bot: TelegramBot)
 
 async def test_welcome_brings_the_button_menu(world: World, bot: TelegramBot) -> None:
     await linked_user(world, bot)
-    assert world.telegram.last(CHAT).menu == MENU
+    assert world.telegram.last(CHAT).menu == MAIN_MENU
 
 
 async def test_notifications_can_be_turned_off_from_settings(
@@ -356,7 +357,9 @@ async def test_new_link_offers_phone_verification(world: World, bot: TelegramBot
 
     await contact(bot, "998901234567")
     assert user.phone_verified and user.phone == "+998901234567"
-    assert world.telegram.last(CHAT).menu == MENU  # back to the normal buttons
+    assert world.telegram.last(CHAT).menu == menu_for(
+        "uz", "https://pit.uz"
+    )  # back to the normal buttons
     assert not world.sms.sent  # no SMS was needed
 
 
@@ -369,7 +372,7 @@ async def test_someone_elses_contact_does_not_verify(world: World, bot: Telegram
 async def test_later_brings_the_menu_back(world: World, bot: TelegramBot) -> None:
     user = await linked_user(world, bot, phone=False)
     await say(bot, Label.LATER)
-    assert world.telegram.last(CHAT).menu == MENU and not user.phone_verified
+    assert world.telegram.last(CHAT).menu == MAIN_MENU and not user.phone_verified
 
 
 async def test_website_deep_link_and_settings_ask_for_the_phone(
@@ -407,7 +410,7 @@ async def test_a_russian_speaker_gets_a_russian_bot(world: World, bot: TelegramB
     await say(bot, f"/start {token}")
     welcome = world.telegram.last(CHAT)
     assert "Telegram подключён" in welcome.text
-    assert welcome.menu == menu_for("ru")
+    assert welcome.menu == menu_for("ru", "https://pit.uz")
 
     await world.join(user, world.add_challenge())
     await say(bot, LABELS["ru"]["today"])

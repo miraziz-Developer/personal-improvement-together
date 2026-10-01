@@ -21,6 +21,7 @@ class Moment(StrEnum):
     WEEKLY_OK = "weekly_ok"
     WEEKLY_TOUGH = "weekly_tough"
     CHEER = "cheer"
+    TASK_SOON = "task_soon"  # ten minutes before a timed task: get ready
     TASK_DUE = "task_due"
     MORNING_ROUTINE = "morning_routine"
     MONTH_STARTED = "month_started"
