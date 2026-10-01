@@ -94,7 +94,7 @@ test("a challenge page splits into today, plan and friends", async ({ page, requ
   const [{ id }] = await mine.json();
   await signIn(page, token);
   await page.goto(`/c/${id}?invite=1`);
-  await expect(page.getByText(/Do'stlaringiz bilan bir xil rejada/)).toBeVisible();
+  await expect(page.getByText("Birga kuchliroq")).toBeVisible();
   await page.getByRole("button", { name: "Reja", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Kalendar" })).toBeVisible();
   await page.getByRole("button", { name: "Bugun", exact: true }).click();

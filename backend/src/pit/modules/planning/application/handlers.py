@@ -28,10 +28,10 @@ from pit.modules.planning.application.ports import LifePlanGenerator, PlanGenera
 from pit.modules.planning.domain.life_plan import ExistingRun, LifePlan
 from pit.modules.planning.domain.plan import Plan
 from pit.modules.planning.domain.repositories import LifePlanRepository, PlanRepository
-from pit.modules.planning.domain.routine import check_clashes, pack
+from pit.modules.planning.domain.routine import USUAL_DAY, check_clashes, pack
 from pit.shared.application.clock import Clock, local_date
 from pit.shared.application.lookup import require
-from pit.shared.domain.errors import NotFound, PermissionDenied
+from pit.shared.domain.errors import DomainError, NotFound, PermissionDenied
 from pit.shared.domain.money import Money
 
 
@@ -278,7 +278,8 @@ async def add_to_routine(
     stakes_enabled: bool = True,
 ) -> UUID:
     """The times the user picked are kept as they are; tasks left without one get the first
-    free slot of the routine. Nothing is shortened: it is the challenge's own plan."""
+    free slot of the routine — or of an ordinary 07:00-23:00 day for someone without one.
+    Nothing is shortened: it is the challenge's own plan."""
     async with uow:
         user = require(await uow.users.get(cmd.user_id), "Foydalanuvchi topilmadi")
         challenge = require(await uow.challenges.get(cmd.challenge_id), "Challenge topilmadi")
@@ -297,15 +298,21 @@ async def add_to_routine(
         frame = routine.frame if routine else None
         others = await _running_schedules(uow, user.id)
         check_clashes(frame, [*others, schedule])  # the user's own picks must fit as picked
-        if frame is not None and any(t.at is None for day in schedule.week for t in day):
-            placed = pack(frame, [*others, schedule], fixed=len(others) + 1)[-1]
-            schedule = Schedule(
-                week=tuple(
-                    tuple(replace(t, at=chosen[t.key]) if t.key in chosen else t for t in day)
-                    for day in placed.week
+        if any(t.at is None for day in schedule.week for t in day):
+            try:
+                placed = pack(frame or USUAL_DAY, [*others, schedule], fixed=len(others) + 1)[-1]
+                timed = Schedule(
+                    week=tuple(
+                        tuple(replace(t, at=chosen[t.key]) if t.key in chosen else t for t in day)
+                        for day in placed.week
+                    )
                 )
-            )
-            check_clashes(frame, [*others, schedule])
+                check_clashes(frame, [*others, timed])
+                schedule = timed
+            except DomainError:
+                if frame is not None:
+                    raise
+                # No routine and no room in a usual day: the tasks stay untimed for now.
         today = local_date(clock.now(), user.timezone)
         participation = await start_participation(
             uow,

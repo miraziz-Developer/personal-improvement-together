@@ -90,7 +90,7 @@ function GoalCard({ run }: { run: Participation }) {
             {t("Ochish")}
           </Button>
           <Button size="sm" variant="ghost" loading={busy} onClick={copy}>
-            <Users className="size-4" /> {t("Do'stlarni taklif qilish")}
+            <Users className="size-4" /> {t("Taklif qilish")}
           </Button>
           <Button size="sm" variant="ghost" onClick={telegram} disabled={busy} aria-label={t("Telegram'da ulashish")}>
             <Send className="size-4" />

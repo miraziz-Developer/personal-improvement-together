@@ -14,7 +14,7 @@ import { useI18n } from "@/lib/i18n";
 // Five places, one idea each: today's tasks, my goals, how it goes, others, me.
 const NAV: { href: string; label: string; short: string; icon: typeof Home; also?: string[] }[] = [
   { href: "/routine", label: "Bugun", short: "Bugun", icon: Home, also: ["/dashboard"] },
-  { href: "/challenges", label: "Maqsadlarim", short: "Maqsadlar", icon: Target, also: ["/c", "/plans", "/life-plans", "/onboarding"] },
+  { href: "/challenges", label: "Maqsadlarim", short: "Maqsadlar", icon: Target, also: ["/c", "/plans", "/life-plans", "/onboarding", "/routine/new"] },
   { href: "/progress", label: "Progress", short: "Progress", icon: TrendingUp },
   { href: "/leaderboard", label: "Reyting", short: "Reyting", icon: Trophy },
   { href: "/wallet", label: "Hamyon", short: "Hamyon", icon: Wallet },
@@ -68,10 +68,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const base = stakesEnabled ? NAV : NAV.filter((item) => item.href !== "/wallet");
   const nav = me && me.role !== "user" ? [...base, { href: "/admin", label: "Moderator", short: "Moderator", icon: Shield }] : base;
   const under = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
-  const active = (href: string) => {
-    const item = nav.find((entry) => entry.href === href);
-    return under(href) || Boolean(item && "also" in item && item.also?.some(under));
-  };
+  // The longest matching prefix wins: /routine/new is a new goal, not today's page.
+  const depth = (item: (typeof nav)[number]) =>
+    Math.max(-1, ...[item.href, ...("also" in item ? (item.also ?? []) : [])].filter(under).map((path) => path.length));
+  const current = nav.reduce<(typeof nav)[number] | null>((best, item) => (depth(item) > (best ? depth(best) : -1) ? item : best), null);
+  const active = (href: string) => current?.href === href;
 
   return (
     <div className="min-h-dvh lg:flex">

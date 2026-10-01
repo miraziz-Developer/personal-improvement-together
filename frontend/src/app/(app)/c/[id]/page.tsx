@@ -255,10 +255,7 @@ export default function ParticipationPage() {
       )}
 
       {section === "friends" && (
-        <div className="flex w-full max-w-2xl flex-col gap-3">
-          <p className="text-sm text-mist">
-            {t("Do'stlaringiz bilan bir xil rejada boring: kim bugun bajarganini ko'rasiz, bir-biringizni olqishlaysiz va qisqa xabar yozasiz.")}
-          </p>
+        <div className="w-full max-w-2xl">
           <TogetherCard participationId={p.id} open={p.status === "active" || p.status === "scheduled"} />
         </div>
       )}

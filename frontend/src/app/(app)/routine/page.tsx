@@ -252,6 +252,16 @@ export default function RoutinePage() {
 
       <Welcome />
       {editing && data.frame && <FrameCard frame={data.frame} onSaved={refresh} />}
+      {editing && !data.frame && (
+        <Card className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <p className="flex-1 text-sm text-mist">
+            {t("Uyg'onish, uxlash va band vaqtlaringizni hali kiritmagansiz. Hozircha vazifalar odatiy kunga (07:00–23:00) joylanadi.")}
+          </p>
+          <Button size="sm" href="/routine/new">
+            <Sparkles className="size-4" /> {t("Kunimni tasvirlash")}
+          </Button>
+        </Card>
+      )}
       <DayStrip offset={offset} onChange={setOffset} />
       <AddToRoutine
         open={adding || (asked && !pickerClosed)}

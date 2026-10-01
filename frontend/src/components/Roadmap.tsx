@@ -22,8 +22,15 @@ export function FocusCard({ focus }: { focus: Focus }) {
           <p className="text-xs font-semibold tracking-wide text-iris uppercase">
             {t("{week}-hafta / {weeks}", { week: focus.week, weeks: focus.weeks })} · {focus.theme}
           </p>
-          <p className="mt-1 font-display text-lg font-semibold">{focus.lesson ?? t("Bugun — hafta mavzusini mustahkamlash")}</p>
-          <p className="mt-1 text-sm text-mist">{t("Hafta maqsadi: {goal}", { goal: focus.goal })}</p>
+          {focus.lesson ? (
+            <>
+              <p className="mt-1 font-display text-lg font-semibold">{focus.lesson}</p>
+              <p className="mt-1 text-sm text-mist">{t("Hafta maqsadi: {goal}", { goal: focus.goal })}</p>
+            </>
+          ) : (
+            // A roadmap without daily lessons: the week's goal is what today works towards.
+            <p className="mt-1 font-display text-lg font-semibold">{t("Shu hafta: {goal}", { goal: focus.goal })}</p>
+          )}
           {focus.month_goal && <p className="mt-1 text-sm text-mist">{t("{n}-oy marrasi: {goal}", { n: focus.month, goal: focus.month_goal })}</p>}
         </div>
       </div>

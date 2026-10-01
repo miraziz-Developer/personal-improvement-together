@@ -107,6 +107,10 @@ class DayFrame:
         return int(self.free_minutes(weekday) * LOAD_SHARE)
 
 
+# Someone who has not described their day yet: an ordinary waking day, nothing busy.
+USUAL_DAY = DayFrame(wake=time(7, 0), sleep=time(23, 0))
+
+
 def check_fits(frame: DayFrame, schedules: Sequence[Schedule], *, fixed: int = 0) -> None:
     """Every task has a time, lies in free time, and no two tasks of any goal clash. The first
     `fixed` schedules are challenges already running: they may use more than the 80% on

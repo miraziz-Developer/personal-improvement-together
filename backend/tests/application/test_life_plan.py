@@ -217,6 +217,20 @@ async def test_a_challenge_joins_the_routine_at_the_chosen_time(world: World) ->
         )
 
 
+async def test_without_a_routine_a_challenge_still_gets_a_time(world: World) -> None:
+    user = world.add_user()
+    first = await world.bus.handle(
+        AddToRoutine(user_id=user.id, challenge_id=world.add_challenge(duration_days=30).id)
+    )
+    second = await world.bus.handle(
+        AddToRoutine(user_id=user.id, challenge_id=world.add_challenge(duration_days=30).id)
+    )
+    a = world.participation(first).tasks_on(world.today)[0]
+    b = world.participation(second).tasks_on(world.today)[0]
+    assert a.at is not None and b.at is not None
+    assert time(7, 0) <= a.at < b.at < time(23, 0)  # an ordinary day, one after the other
+
+
 async def test_the_morning_comes_at_wake_up_and_the_day_closes_with_a_summary(
     world: World,
 ) -> None:

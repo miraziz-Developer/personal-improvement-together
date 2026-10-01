@@ -25,7 +25,7 @@ const DURATIONS = [
 ];
 type Step = "goals" | "runs" | "day" | "duration";
 const COACH_LINES: Record<Step, string> = {
-  goals: "Bir vaqtda 3 tagacha yangi maqsad. Har biri o'z streak'iga ega bo'ladi — birida qoqilsangiz, boshqasi buzilmaydi.",
+  goals: "Nimaga erishmoqchisiz? Oddiy so'zlar bilan yozing — men uni haftama-hafta rejaga va har kunlik aniq vazifalarga aylantiraman. 3 tagacha maqsad qo'shsa bo'ladi.",
   runs: "Sizda allaqachon faol challenge'lar bor — ular ham kun tartibiga kiradi. Har vazifani qachon qilasiz? Bo'sh qoldirsangiz, vaqtni o'zim topaman.",
   day: "Kuningiz qanday o'tadi? Men vazifalarni faqat bo'sh vaqtingizga, bir-biriga to'qnashmasdan joylayman.",
   duration: "Qancha muddatga? Uzoqroq reja — oylik marralar bilan.",
