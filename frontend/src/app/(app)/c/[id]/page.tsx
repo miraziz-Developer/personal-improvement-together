@@ -10,6 +10,7 @@ import { Calendar } from "@/components/Calendar";
 import { CoachAvatar } from "@/components/coach";
 import { ProofTask } from "@/components/ProofTask";
 import { FocusCard, RoadmapView } from "@/components/Roadmap";
+import { ShareButton } from "@/components/ShareButton";
 import { TogetherCard } from "@/components/Together";
 import { useToast } from "@/components/toast";
 import { Button, Card, Modal, ProgressRing, Segmented, Skeleton, StreakFlame } from "@/components/ui";
@@ -132,7 +133,10 @@ export default function ParticipationPage() {
             </div>
           </ProgressRing>
           <div className="min-w-0 flex-1">
-            <h1 className="font-display text-xl font-bold sm:text-2xl">{p.title}</h1>
+            <div className="flex items-start justify-between gap-2">
+              <h1 className="font-display text-xl font-bold sm:text-2xl">{p.title}</h1>
+              {p.status !== "cancelled" && <ShareButton participationId={p.id} />}
+            </div>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-mist">
               <span className="flex items-center gap-1">
                 <Icon className="size-3.5" /> {t(meta.label)}

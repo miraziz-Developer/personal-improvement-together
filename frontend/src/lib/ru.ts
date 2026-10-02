@@ -678,4 +678,11 @@ export const RU: Record<string, string> = {
   "Maqsadlarimga o'tish": "К моим целям",
   "Hammasini ko'rish ({n})": "Показать всех ({n})",
   "Eng yaxshi {n} tasi ko'rsatilgan": "Показаны лучшие {n}",
+  "Men PIT'da maqsadim sari har kuni harakat qilyapman 🔥 Qo'shil!": "Каждый день двигаюсь к цели в PIT 🔥 Присоединяйся!",
+  "Ulashish": "Поделиться",
+  "Natijangizni ulashing": "Поделитесь результатом",
+  "Ulashish kartasi": "Карточка для публикации",
+  "Story uchun rasm (Instagram, Telegram)": "Картинка для сторис (Instagram, Telegram)",
+  "Havolani nusxalash": "Скопировать ссылку",
+  "Boshqa ilovalar": "Другие приложения",
 };

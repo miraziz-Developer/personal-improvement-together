@@ -526,6 +526,25 @@ async def test_together_invite_join_and_group_board(api: Api) -> None:
     assert friends["me"]["rank"] in (1, 2) and not friends["hidden"]
 
 
+async def test_a_shared_link_shows_only_that_run(api: Api) -> None:
+    owner = await api.register("ali_2008")
+    other = await api.register("vali_2009")
+    running = str(catalog_id("reading-30"))
+    joined = await api.client.post(
+        f"/api/v1/challenges/{running}/join", json={"mode": "free"}, headers=owner
+    )
+    pid = joined.json()["id"]
+    refused = await api.client.post(f"/api/v1/me/participations/{pid}/share", headers=other)
+    assert refused.status_code == 403  # only the owner shares
+    shared = await api.client.post(f"/api/v1/me/participations/{pid}/share", headers=owner)
+    token = shared.json()["token"]
+    card = (await api.client.get(f"/api/v1/share/{token}")).json()  # no account needed
+    assert card["username"] == "ali_2008" and card["title"] == "Har kuni kitob"
+    assert (await api.client.get(f"/api/v1/share/{token}x")).status_code == 404
+    login = owner["Authorization"].removeprefix("Bearer ")
+    assert (await api.client.get(f"/api/v1/share/{login}")).status_code == 404  # not a share
+
+
 async def test_export_then_erase_the_account(api: Api) -> None:
     auth = await api.register("ali_2008")
     reading = str(catalog_id("reading-30"))

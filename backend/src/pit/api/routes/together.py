@@ -3,7 +3,8 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+import jwt
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -11,6 +12,7 @@ from pit.api import schemas as s
 from pit.api import views
 from pit.api.deps import ContainerDep, LocaleDep, UserId
 from pit.api.ratelimit import rate_limit
+from pit.api.security import issue_share_token, read_share_token
 from pit.catalog_ru import catalog_text
 from pit.modules.challenges.application.commands import CreateGroup, JoinGroup, PostGroupMessage
 from pit.modules.challenges.domain.group import normalize_invite_code
@@ -197,3 +199,44 @@ async def post_group_message(
         PostGroupMessage(user_id=user_id, participation_id=participation_id, text=body.text)
     )
     return s.IdOut(id=message_id)
+
+
+@router.post("/me/participations/{participation_id}/share", response_model=s.ShareLinkOut)
+async def share_link(
+    participation_id: UUID, user_id: UserId, container: ContainerDep
+) -> s.ShareLinkOut:
+    async with container.uow_factory() as uow:
+        mine = require(await uow.participations.get(participation_id), "Challenge topilmadi")
+    if mine.user_id != user_id:
+        raise PermissionDenied("Bu sizning challenge'ingiz emas")
+    return s.ShareLinkOut(token=issue_share_token(participation_id, container.settings))
+
+
+@router.get(
+    "/share/{token}",
+    response_model=s.ShareOut,
+    dependencies=[Depends(rate_limit("share-view", 120, 60))],
+)
+async def shared(token: str, container: ContainerDep, locale: LocaleDep) -> s.ShareOut:
+    """Public: the page and the picture behind a shared link."""
+    try:
+        participation_id = read_share_token(token, container.settings)
+    except (jwt.PyJWTError, KeyError, ValueError):
+        raise HTTPException(404, "Havola topilmadi") from None
+    async with container.uow_factory() as uow:
+        run = require(await uow.participations.get(participation_id), "Havola topilmadi")
+        owner = require(await uow.users.get(run.user_id), "Havola topilmadi")
+        challenge = require(await uow.challenges.get(run.challenge_id), "Havola topilmadi")
+    if owner.is_erased:
+        raise HTTPException(404, "Havola topilmadi")
+    text = catalog_text(challenge.id, locale.value)
+    return s.ShareOut(
+        username=owner.username,
+        title=text.title if text else challenge.title,
+        category=challenge.category.value,
+        status=run.status.value,
+        current_streak=run.current_streak,
+        best_streak=run.best_streak,
+        days_completed=run.days_completed,
+        total_days=run.total_days,
+    )

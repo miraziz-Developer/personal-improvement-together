@@ -64,6 +64,25 @@ def read_telegram_signup_token(token: str, settings: Settings) -> int:
     return int(payload["tg"])
 
 
+SHARE_AUDIENCE = "share"
+
+
+def issue_share_token(participation_id: UUID, settings: Settings) -> str:
+    """A link the owner chose to share: it shows that one run's progress, and nothing else."""
+    payload = {"aud": SHARE_AUDIENCE, "p": str(participation_id)}
+    return jwt.encode(payload, settings.jwt_secret.get_secret_value(), algorithm=ALGORITHM)
+
+
+def read_share_token(token: str, settings: Settings) -> UUID:
+    payload = jwt.decode(
+        token,
+        settings.jwt_secret.get_secret_value(),
+        algorithms=[ALGORITHM],
+        audience=SHARE_AUDIENCE,
+    )
+    return UUID(str(payload["p"]))
+
+
 def read_token(token: str, settings: Settings) -> UUID:
     """Raises jwt.PyJWTError / ValueError for anything invalid or expired."""
     payload = jwt.decode(token, settings.jwt_secret.get_secret_value(), algorithms=[ALGORITHM])

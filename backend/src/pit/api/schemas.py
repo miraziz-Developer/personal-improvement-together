@@ -476,6 +476,23 @@ class GroupPreviewOut(BaseModel):
     week: Week
 
 
+class ShareLinkOut(BaseModel):
+    token: str
+
+
+class ShareOut(BaseModel):
+    """What a shared link shows: one run's progress, under the owner's name."""
+
+    username: str
+    title: str
+    category: str
+    status: str
+    current_streak: int
+    best_streak: int
+    days_completed: int
+    total_days: int
+
+
 class GroupMemberOut(BaseModel):
     rank: int  # place in the group: most days done, then the longest streak
     username: str
