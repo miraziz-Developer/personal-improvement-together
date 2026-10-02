@@ -17,6 +17,7 @@ class Moment(StrEnum):
     EVENING_REMINDER = "evening_reminder"
     FRIEND_DAY_DONE = "friend_day_done"
     FRIEND_JOINED = "friend_joined"
+    FRIEND_BROUGHT = "friend_brought"  # a friend you invited kept going: a thank-you
     WEEKLY_GREAT = "weekly_great"
     WEEKLY_OK = "weekly_ok"
     WEEKLY_TOUGH = "weekly_tough"

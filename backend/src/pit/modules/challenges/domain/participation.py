@@ -11,6 +11,7 @@ from pit.modules.challenges.domain.events import (
     DayFrozen,
     DayNeedsHumanReview,
     FreezeRegained,
+    FriendBrought,
     OptionalTaskCompleted,
     ParticipationCancelled,
     ParticipationCompleted,
@@ -27,6 +28,8 @@ DAYS_PER_FREEZE = 10  # one freeze per 10 *scheduled* days
 MAX_OPEN_STAKES = 3
 MAX_START_DELAY_DAYS = 30
 STREAK_TO_REGAIN_FREEZE = 7  # a week in a row earns back one freeze spent on a missed day
+FRIEND_DAYS = 3  # a friend you invited who keeps going this long earns you a thank-you
+MAX_FRIEND_FREEZES = 5  # bonus freezes one run can collect from friends
 MAX_PAUSE_DAYS = 14  # per run, all pauses together: a break, not a way to stretch forever
 
 
@@ -86,6 +89,7 @@ class Participation(AggregateRoot):
     days: dict[date, DayStatus]
     freezes_total: int
     freezes_used: int = 0
+    bonus_freezes: int = 0  # earned by bringing friends; kept when the schedule changes
     paused_days: int = 0  # the run is this many days longer because of pauses
     current_streak: int = 0
     best_streak: int = 0
@@ -173,7 +177,7 @@ class Participation(AggregateRoot):
 
     @property
     def freezes_left(self) -> int:
-        return self.freezes_total - self.freezes_used
+        return self.freezes_total + self.bonus_freezes - self.freezes_used
 
     def schedule_on(self, day: date) -> Schedule:
         return next(s for since, s in reversed(self.schedule_history) if since <= day)
@@ -304,6 +308,22 @@ class Participation(AggregateRoot):
         self.freezes_total = max(self.freezes_used, self.total_days // DAYS_PER_FREEZE)
         self._record(ScheduleChanged(participation_id=self.id, effective_from=effective))
         self._complete_if_finished()
+
+    def thank_for_friend(self, friend_id: UUID, friend_participation_id: UUID, day: date) -> None:
+        """A friend this run's owner invited kept going: +1 freeze (up to a few)."""
+        granted = self.bonus_freezes < MAX_FRIEND_FREEZES
+        if granted:
+            self.bonus_freezes += 1
+        self._record(
+            FriendBrought(
+                participation_id=self.id,
+                user_id=self.user_id,
+                friend_id=friend_id,
+                friend_participation_id=friend_participation_id,
+                day=day,
+                freeze_granted=granted,
+            )
+        )
 
     def retime(self, timed: Schedule, today: date) -> None:
         """Give the tasks clock times (the daily routine). Only the times may differ, so the

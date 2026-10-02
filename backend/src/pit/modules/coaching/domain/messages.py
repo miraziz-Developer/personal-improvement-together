@@ -166,6 +166,13 @@ LIBRARY: dict[Moment, tuple[tuple[str, str], ...]] = {
             "«{title}»: o'tgan oy marrasi — {done_goal}. Bu oyning marrasi: {goal}. Davom etamiz!",
         ),
     ),
+    Moment.FRIEND_BROUGHT: (
+        (
+            "🎁 Rahmat, {name}!",
+            "Siz taklif qilgan {friend} 3 kun ketma-ket bajardi. Sizga {reward}. "
+            "Yana kimni chaqirasiz?",
+        ),
+    ),
     Moment.TASK_SOON: (
         (
             "⏳ 10 daqiqadan keyin: {task}",

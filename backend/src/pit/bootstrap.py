@@ -24,6 +24,7 @@ from pit.modules.challenges.domain.events import (
     DayFrozen,
     DayNeedsHumanReview,
     FreezeRegained,
+    FriendBrought,
     GroupMemberJoined,
     OptionalTaskCompleted,
     ParticipationCancelled,
@@ -257,6 +258,11 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
             partial(ranking.award_day_points, index=deps.leaderboard),
             partial(coaching.on_day_completed, clock=clock),
             partial(coaching.on_friend_day_done, clock=clock),
+            challenges.thank_the_inviter,
+        ],
+        FriendBrought: [
+            partial(ranking.award_friend_points, index=deps.leaderboard),
+            partial(coaching.on_friend_brought, clock=clock),
         ],
         GroupMemberJoined: [
             partial(coaching.on_friend_joined, clock=clock, texts=deps.challenge_texts)

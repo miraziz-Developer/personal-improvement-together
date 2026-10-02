@@ -10,6 +10,7 @@ from pit.modules.challenges.domain.events import (
     DayCompleted,
     DayFrozen,
     FreezeRegained,
+    FriendBrought,
     GroupMemberJoined,
     ParticipationCompleted,
     ParticipationFailed,
@@ -771,5 +772,28 @@ async def cheer_friend(cmd: CheerFriend, uow: CoachingUoW, *, clock: Clock) -> N
             subject_id=sender.id,
             friend=sender.username,
             emoji=emoji,
+        )
+        await uow.commit()
+
+
+async def on_friend_brought(event: FriendBrought, uow: CoachingUoW, *, clock: Clock) -> None:
+    async with uow:
+        inviter = require(await uow.users.get(event.user_id), "Foydalanuvchi topilmadi")
+        friend = await uow.users.get(event.friend_id)
+        ru = inviter.locale.value == "ru"
+        if event.freeze_granted:
+            reward = "+1 freeze и +50 баллов" if ru else "+1 freeze va +50 ball"
+        else:
+            reward = "+50 баллов" if ru else "+50 ball"
+        await _notify(
+            uow,
+            clock,
+            key=f"friend-brought:{event.friend_participation_id}",
+            user_id=inviter.id,
+            moment=Moment.FRIEND_BROUGHT,
+            participation_id=event.participation_id,
+            name=inviter.username,
+            friend=friend.username if friend else "—",
+            reward=reward,
         )
         await uow.commit()

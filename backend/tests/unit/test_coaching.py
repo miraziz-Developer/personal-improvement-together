@@ -19,6 +19,7 @@ ALL_FACTS = {
     "minutes": 45,
     "left": 1,
     "friend": "vali_07",
+    "reward": "+1 freeze va +50 ball",
     "planned": 7,
     "group_line": "Guruhda 2-o'rin. ",
     "emoji": "👏",

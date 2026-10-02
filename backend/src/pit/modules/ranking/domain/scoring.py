@@ -14,6 +14,10 @@ class ScoreReason(StrEnum):
     DAY = "day"
     COMPLETION = "completion"
     OPTIONAL_TASK = "optional_task"
+    FRIEND = "friend"  # a friend you invited kept going
+
+
+FRIEND_POINTS = 50
 
 
 @dataclass(frozen=True, slots=True)

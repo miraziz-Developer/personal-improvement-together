@@ -19,9 +19,11 @@ from pit.modules.challenges.application.commands import (
 )
 from pit.modules.challenges.application.ports import DayEvidenceReader, StakeEscrow
 from pit.modules.challenges.domain.challenge import Challenge, ParticipationMode
+from pit.modules.challenges.domain.events import DayCompleted
 from pit.modules.challenges.domain.group import INVITE_ALPHABET, Group, normalize_invite_code
 from pit.modules.challenges.domain.group_message import GroupMessage
 from pit.modules.challenges.domain.participation import (
+    FRIEND_DAYS,
     MAX_OPEN_STAKES,
     DayEvidence,
     DayStatus,
@@ -338,3 +340,23 @@ async def pause_challenge(cmd: PauseChallenge, uow: ChallengesUoW, *, clock: Clo
         first = participation.pause(cmd.days, local_date(clock.now(), user.timezone))
         await uow.commit()
         return first
+
+
+async def thank_the_inviter(event: DayCompleted, uow: ChallengesUoW) -> None:
+    """A member who joined by the group's invite reached FRIEND_DAYS days done: the one who
+    invited them (the group's owner) gets a thank-you on their run in that group."""
+    async with uow:
+        friend_run = await uow.participations.get(event.participation_id)
+        if friend_run is None or friend_run.group_id is None:
+            return
+        if friend_run.days_completed != FRIEND_DAYS:
+            return
+        group = await uow.groups.get(friend_run.group_id)
+        if group is None or group.owner_id == friend_run.user_id:
+            return
+        for member_id in await uow.participations.list_in_group(group.id):
+            run = await uow.participations.get(member_id)
+            if run is not None and run.user_id == group.owner_id and run.is_open:
+                run.thank_for_friend(friend_run.user_id, friend_run.id, event.day)
+                await uow.commit()
+                return

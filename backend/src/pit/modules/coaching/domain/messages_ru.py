@@ -135,6 +135,12 @@ LIBRARY_RU: dict[Moment, tuple[tuple[str, str], ...]] = {
             "«{title}»: веха прошлого месяца — {done_goal}. Веха этого месяца: {goal}. Продолжаем!",
         ),
     ),
+    Moment.FRIEND_BROUGHT: (
+        (
+            "🎁 Спасибо, {name}!",
+            "Приглашённый вами {friend} выполнил 3 дня подряд. Вам {reward}. Кого позовёте ещё?",
+        ),
+    ),
     Moment.TASK_SOON: (
         (
             "⏳ Через 10 минут: {task}",

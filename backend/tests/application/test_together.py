@@ -130,3 +130,27 @@ async def test_a_friend_who_blocked_telegram_still_gets_site_notifications(
     world.telegram.down = True  # Telegram trouble must not lose the in-app news
     await world.prove(friend, friend_pid)
     assert news(world, owner, Moment.FRIEND_DAY_DONE)
+
+
+async def test_a_friend_who_keeps_going_earns_the_inviter_a_thank_you(world: World) -> None:
+    owner, friend = world.add_user(), world.add_user()
+    owner_run = await world.join(owner, world.add_challenge(duration_days=14))
+    friend_run = await accept(world, friend, await invite(world, owner, owner_run))
+    freezes = world.participation(owner_run).freezes_left
+
+    for _ in range(2):
+        await world.prove(owner, owner_run)
+        await world.prove(friend, friend_run)
+        await world.next_day()
+    assert not news(world, owner, Moment.FRIEND_BROUGHT)  # two days are not enough yet
+
+    await world.prove(owner, owner_run)
+    await world.prove(friend, friend_run)  # the third day
+    assert world.participation(owner_run).freezes_left == freezes + 1
+    assert len(news(world, owner, Moment.FRIEND_BROUGHT)) == 1
+    earned = world.store.scores.values()
+    assert [s.points for s in earned if s.user_id == owner.id and s.reason == "friend"] == [50]
+
+    await world.next_day()
+    await world.prove(friend, friend_run)  # a fourth day changes nothing
+    assert len(news(world, owner, Moment.FRIEND_BROUGHT)) == 1

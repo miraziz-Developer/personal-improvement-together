@@ -685,4 +685,5 @@ export const RU: Record<string, string> = {
   "Story uchun rasm (Instagram, Telegram)": "Картинка для сторис (Instagram, Telegram)",
   "Havolani nusxalash": "Скопировать ссылку",
   "Boshqa ilovalar": "Другие приложения",
+  "🎁 Siz chaqirgan do'st 3 kun bajarsa — sizga +1 freeze va 50 ball": "🎁 Приглашённый друг выполнит 3 дня — вам +1 freeze и 50 баллов",
 };

@@ -3,6 +3,7 @@ from typing import Protocol
 from pit.modules.challenges.domain.challenge import ParticipationMode
 from pit.modules.challenges.domain.events import (
     DayCompleted,
+    FriendBrought,
     OptionalTaskCompleted,
     ParticipationCompleted,
 )
@@ -11,6 +12,7 @@ from pit.modules.identity.domain.repositories import UserRepository
 from pit.modules.ranking.application.ports import LeaderboardIndex
 from pit.modules.ranking.domain.repositories import ScoreRepository
 from pit.modules.ranking.domain.scoring import (
+    FRIEND_POINTS,
     ScoreEntry,
     ScoreReason,
     completion_bonus,
@@ -66,6 +68,19 @@ async def award_optional_task_points(
         points=optional_task_points(event.minutes),
         reason=ScoreReason.OPTIONAL_TASK,
         source_key=f"task:{event.participation_id}:{event.day.isoformat()}:{event.task_key}",
+        earned_on=event.day,
+    )
+    await _award(entry, uow, index)
+
+
+async def award_friend_points(
+    event: FriendBrought, uow: RankingUoW, *, index: LeaderboardIndex
+) -> None:
+    entry = ScoreEntry(
+        user_id=event.user_id,
+        points=FRIEND_POINTS,
+        reason=ScoreReason.FRIEND,
+        source_key=f"friend:{event.friend_participation_id}",  # once per friend's run
         earned_on=event.day,
     )
     await _award(entry, uow, index)

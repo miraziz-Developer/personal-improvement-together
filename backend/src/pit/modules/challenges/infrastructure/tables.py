@@ -58,6 +58,7 @@ participations = Table(
     Column("schedule_history", JSONB, nullable=False),
     Column("freezes_total", SmallInteger, nullable=False),
     Column("freezes_used", SmallInteger, nullable=False),
+    Column("bonus_freezes", SmallInteger, nullable=False, server_default="0"),
     Column("paused_days", SmallInteger, nullable=False, server_default="0"),
     Column("current_streak", Integer, nullable=False),
     Column("best_streak", Integer, nullable=False),

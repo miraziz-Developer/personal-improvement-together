@@ -240,6 +240,7 @@ export function TogetherCard({ participationId, open }: { participationId: strin
           {board.size === 1 && (
             <p className="mb-3 text-sm">{t("Hozircha guruhda faqat sizsiz. Havolani do'stlaringizga yuboring — ular qo'shilgach, shu yerda kim oldinda ekani ko'rinadi 🏁")}</p>
           )}
+          <p className="mb-2 text-xs text-amberish">{t("🎁 Siz chaqirgan do'st 3 kun bajarsa — sizga +1 freeze va 50 ball")}</p>
           <p className="text-xs text-mist">{t("Taklif havolasi")}</p>
           <div className="mt-2 flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-xl bg-ink-900/70 px-3 py-2 text-sm">{link}</code>

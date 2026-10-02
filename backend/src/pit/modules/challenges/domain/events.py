@@ -101,3 +101,15 @@ class GroupMemberJoined(DomainEvent):
     group_id: UUID
     user_id: UUID
     challenge_id: UUID
+
+
+@dataclass(frozen=True, kw_only=True)
+class FriendBrought(DomainEvent):
+    """A friend who joined by your invite kept going for FRIEND_DAYS days: a thank-you."""
+
+    participation_id: UUID  # the inviter's run in the group
+    user_id: UUID  # the inviter
+    friend_id: UUID
+    friend_participation_id: UUID
+    day: date  # the friend's day that reached FRIEND_DAYS
+    freeze_granted: bool  # False once the run has had its share of bonus freezes
