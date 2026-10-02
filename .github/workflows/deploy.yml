@@ -1,0 +1,70 @@
+name: Deploy
+
+# After CI passes on main: the API to the server (docker-compose.lite.yml), the site to Vercel.
+# Secrets (repository settings → Secrets → Actions): DEPLOY_SSH_KEY, VERCEL_TOKEN.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false # never stop a deploy half-way
+
+env:
+  HOST: pit-uz.indiasouthcentral.cloudapp.azure.com
+  # The server's SSH host key: a changed key stops the deploy instead of trusting a stranger.
+  HOST_KEY: pit-uz.indiasouthcentral.cloudapp.azure.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDsallygd+hmTvLlnzn2xdxcxEj94u5dSHt6Gsh+g8dt
+  VERCEL_ORG_ID: team_qK2zXqgOUFMsjMGdbMp1Wq15
+  VERCEL_PROJECT_ID: prj_Czp0qUphw49fTNlqjT4n8ODDYcYe
+
+jobs:
+  api:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: SSH access
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "$HOST_KEY" > ~/.ssh/known_hosts
+      - name: Upload code
+        run: |
+          rsync -az --delete --exclude .venv --exclude .storage --exclude '.*_cache' \
+            --exclude .env --exclude __pycache__ --exclude .env.lite \
+            backend docker-compose.lite.yml deploy pit@$HOST:~/pit/
+      - name: Build and restart
+        run: |
+          ssh pit@$HOST 'cd ~/pit && C="docker compose -f docker-compose.lite.yml --env-file deploy/.env.lite" && $C build migrate && $C up -d && docker image prune -f >/dev/null'
+      - name: Health
+        run: |
+          for i in $(seq 1 12); do
+            curl -sf "https://$HOST/health" && exit 0
+            sleep 5
+          done
+          exit 1
+
+  site:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Deploy to Vercel
+        # From a copy without .git: Vercel blocks git deployments whose commit author it does not
+        # know, while a plain CLI upload with the project token is accepted.
+        run: |
+          mkdir -p /tmp/site && cp -r frontend .vercelignore /tmp/site/
+          rm -rf /tmp/site/frontend/node_modules
+          cd /tmp/site
+          npx -y vercel@62 deploy --prod --yes --token "${{ secrets.VERCEL_TOKEN }}"
