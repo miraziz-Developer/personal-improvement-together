@@ -26,6 +26,24 @@ if ! command -v docker >/dev/null; then
   apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 fi
 
+# Only SSH and the web are reachable; repeated SSH guesses get banned; security updates
+# install themselves. (Docker publishes 80/443 on its own; Postgres and Redis stay private.)
+apt-get install -y ufw fail2ban unattended-upgrades
+ufw allow OpenSSH
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw --force enable
+cat > /etc/fail2ban/jail.d/sshd.local <<'JAIL'
+[sshd]
+enabled = true
+maxretry = 5
+bantime = 1h
+JAIL
+systemctl enable --now fail2ban
+sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+systemctl reload ssh || systemctl reload sshd
+dpkg-reconfigure -f noninteractive unattended-upgrades
+
 # Logs must not fill the disk.
 cat > /etc/docker/daemon.json <<'JSON'
 { "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "3" } }
