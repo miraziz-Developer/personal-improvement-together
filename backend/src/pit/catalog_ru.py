@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pit.catalog import catalog_id
 from pit.catalog_roadmaps_ru import ROADMAPS_RU
+from pit.catalog_trends_ru import CATALOG_TRENDS_RU
 from pit.modules.challenges.domain.challenge import Challenge
 from pit.modules.challenges.domain.roadmap import Roadmap
 from pit.modules.challenges.domain.schedule import TaskSpec
@@ -99,3 +100,6 @@ class CatalogTexts:
 def catalog_text(challenge_id: UUID, locale: str) -> CatalogText | None:
     """The translated texts of a catalog challenge, or None to keep the stored (Uzbek) ones."""
     return _TEXTS.get(locale, {}).get(challenge_id)
+
+
+CATALOG_RU.update({key: CatalogText(*text) for key, text in CATALOG_TRENDS_RU.items()})

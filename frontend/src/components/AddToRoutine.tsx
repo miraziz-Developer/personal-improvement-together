@@ -11,7 +11,7 @@ import { api, errorMessage } from "@/lib/api";
 import { CATEGORY, minutes, WEEKDAYS_SHORT } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { type FrameLike, timeProblem, toMinutes } from "@/lib/routine";
-import type { Challenge, Participation } from "@/lib/types";
+import type { Category, Challenge, Participation } from "@/lib/types";
 
 type TaskLine = { key: string; title: string; minutes: number; weekdays: number[]; at?: string | null };
 
@@ -61,6 +61,7 @@ export function AddToRoutine({
   const [times, setTimes] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [together, setTogether] = useState(false);
+  const [category, setCategory] = useState<Category | "all">("all");
   const router = useRouter();
 
   const lines = picked ? taskLines(picked) : [];
@@ -75,7 +76,9 @@ export function AddToRoutine({
   );
   const blocked = Object.values(problems).some(Boolean);
   const running = new Set(mine?.filter((p) => p.status === "active" || p.status === "scheduled").map((p) => p.challenge_id));
-  const available = catalog?.filter((c) => !running.has(c.id)) ?? [];
+  const notRunning = catalog?.filter((c) => !running.has(c.id)) ?? [];
+  const categories = Array.from(new Set(notRunning.map((c) => c.category)));
+  const available = notRunning.filter((c) => category === "all" || c.category === category);
 
   function pick(challenge: Challenge) {
     setPicked(challenge);
@@ -117,6 +120,20 @@ export function AddToRoutine({
     <Modal open={open} onClose={close} title={picked ? picked.title : t("Kun tartibiga challenge qo'shish")}>
       {!picked ? (
         <div className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto">
+          {categories.length > 1 && (
+            <div className="-mx-1 flex shrink-0 gap-1.5 overflow-x-auto px-1 pb-1">
+              {(["all", ...categories] as const).map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCategory(c)}
+                  aria-pressed={category === c}
+                  className={`shrink-0 rounded-xl px-3 py-1.5 text-sm font-semibold transition ${category === c ? "bg-white/10 text-white" : "text-mist hover:text-white"}`}
+                >
+                  {c === "all" ? t("Hammasi") : t(CATEGORY[c].label)}
+                </button>
+              ))}
+            </div>
+          )}
           {!catalog && [0, 1, 2].map((i) => <Skeleton key={i} className="h-16" />)}
           {catalog && available.length === 0 && <p className="text-sm text-mist">{t("Katalogdagi hamma challenge'larda allaqachon qatnashyapsiz 💪")}</p>}
           {available.map((challenge) => {

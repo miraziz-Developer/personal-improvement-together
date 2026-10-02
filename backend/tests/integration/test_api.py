@@ -15,7 +15,7 @@ from pydantic import SecretStr
 from sqlalchemy import text
 
 from pit.api.app import create_app
-from pit.catalog import catalog_id
+from pit.catalog import build_catalog, catalog_id
 from pit.catalog_roadmaps_ru import ROADMAPS_RU
 from pit.cli import make_moderator, seed
 from pit.config import Settings
@@ -149,7 +149,7 @@ async def test_full_journey_of_a_stake_challenge(api: Api) -> None:
 
     # Catalog -> money -> join with a stake
     catalog = (await api.client.get("/api/v1/challenges")).json()
-    assert len(catalog) == 8
+    assert len(catalog) == len(build_catalog())
     await api.client.post("/api/v1/wallet/dev-deposit", json={"amount": 150_000}, headers=auth)
     reading = str(catalog_id("reading-30"))
     joined = await api.client.post(
@@ -656,7 +656,7 @@ async def test_errors_speak_the_clients_language(api: Api) -> None:
 async def test_content_speaks_the_clients_language(api: Api) -> None:
     ru = {"Accept-Language": "ru"}
     catalog = (await api.client.get("/api/v1/challenges", headers=ru)).json()
-    sport = next(c for c in catalog if c["duration_days"] == 21 and c["category"] == "sport")
+    sport = next(c for c in catalog if c["id"] == str(catalog_id("sport-21")))
     assert sport["title"] == "21 день спорта"
     assert sport["week"][0][0]["title"] == "Тренировка"
     # ?lang= wins over the header (the web client puts it in its cache keys)
@@ -701,7 +701,7 @@ async def test_content_speaks_the_clients_language(api: Api) -> None:
 
 async def test_a_roadmap_moves_the_user_forward_day_by_day(api: Api) -> None:
     catalog = (await api.client.get("/api/v1/challenges")).json()
-    english = next(c for c in catalog if c["category"] == "study")
+    english = next(c for c in catalog if c["id"] == str(catalog_id("english-30")))
     assert len(english["roadmap"]["weeks"]) == 5
     assert english["roadmap"]["weeks"][0]["lessons"][0] == "O'zim haqimda gapirish"
     ru = (await api.client.get(f"/api/v1/challenges/{english['id']}?lang=ru")).json()
@@ -789,7 +789,7 @@ async def test_a_life_plan_needs_sensible_input(api: Api) -> None:
 async def test_the_routine_takes_in_running_challenges_and_lists_what_i_created(api: Api) -> None:
     auth = await api.register()
     catalog = (await api.client.get("/api/v1/challenges")).json()
-    english = next(c for c in catalog if c["category"] == "study")
+    english = next(c for c in catalog if c["id"] == str(catalog_id("english-30")))
     joined = await api.client.post(
         f"/api/v1/challenges/{english['id']}/join", json={"mode": "free"}, headers=auth
     )
@@ -842,7 +842,7 @@ async def test_editing_the_routine_by_hand(api: Api) -> None:
     plan = (await api.client.post("/api/v1/life-plans", json=body, headers=auth)).json()
     await api.client.post(f"/api/v1/life-plans/{plan['id']}/start", headers=auth)
     catalog = (await api.client.get("/api/v1/challenges")).json()
-    calm = next(c for c in catalog if c["duration_days"] == 14)
+    calm = next(c for c in catalog if c["id"] == str(catalog_id("meditation-14")))
     joined = (
         await api.client.post(
             f"/api/v1/challenges/{calm['id']}/join", json={"mode": "free"}, headers=auth
@@ -875,7 +875,7 @@ async def test_editing_the_routine_by_hand(api: Api) -> None:
 async def test_adding_a_catalog_challenge_straight_into_the_routine(api: Api) -> None:
     auth = await api.register()
     catalog = (await api.client.get("/api/v1/challenges")).json()
-    calm = next(c for c in catalog if c["duration_days"] == 14)
+    calm = next(c for c in catalog if c["id"] == str(catalog_id("meditation-14")))
     added = await api.client.post(
         "/api/v1/me/routine/challenges",
         json={"challenge_id": calm["id"], "times": {"meditate": "07:10"}},
@@ -893,7 +893,7 @@ async def test_adding_a_catalog_challenge_straight_into_the_routine(api: Api) ->
 async def test_the_routine_can_be_seen_ahead(api: Api) -> None:
     auth = await api.register()
     catalog = (await api.client.get("/api/v1/challenges")).json()
-    calm = next(c for c in catalog if c["duration_days"] == 14)
+    calm = next(c for c in catalog if c["id"] == str(catalog_id("meditation-14")))
     await api.client.post(
         "/api/v1/me/routine/challenges",
         json={"challenge_id": calm["id"], "times": {"meditate": "07:10"}},
@@ -915,7 +915,7 @@ async def test_the_routine_can_be_seen_ahead(api: Api) -> None:
 async def test_progress_counts_days_and_open_challenges(api: Api) -> None:
     auth = await api.register()
     catalog = (await api.client.get("/api/v1/challenges")).json()
-    calm = next(c for c in catalog if c["duration_days"] == 14)
+    calm = next(c for c in catalog if c["id"] == str(catalog_id("meditation-14")))
     joined = await api.client.post(
         f"/api/v1/challenges/{calm['id']}/join", json={"mode": "free"}, headers=auth
     )
@@ -929,7 +929,7 @@ async def test_progress_counts_days_and_open_challenges(api: Api) -> None:
 async def test_friends_write_short_messages_in_their_group(api: Api) -> None:
     owner, friend = await api.register("guruh_egasi"), await api.register("guruh_dosti")
     catalog = (await api.client.get("/api/v1/challenges")).json()
-    calm = next(c for c in catalog if c["duration_days"] == 14)
+    calm = next(c for c in catalog if c["id"] == str(catalog_id("meditation-14")))
     mine = (
         await api.client.post(
             f"/api/v1/challenges/{calm['id']}/join", json={"mode": "free"}, headers=owner

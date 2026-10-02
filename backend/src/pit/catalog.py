@@ -26,7 +26,11 @@ def task(
 
 
 def build_catalog() -> list[Challenge]:
+    # Imported here: catalog_trends imports catalog_id from this module.
+    from pit.catalog_trends import build_trends
+
     return [
+        *build_trends(),
         Challenge.create_template(
             challenge_id=catalog_id("sport-21"),
             roadmap=ROADMAPS["sport-21"],
