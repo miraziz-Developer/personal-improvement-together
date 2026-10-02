@@ -1,10 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { CATEGORY_EMOJI, fetchShared, headline } from "@/lib/share";
 
 type Props = { params: Promise<{ token: string }> };
+
+/** The visitor's language from the browser: a link travels between Uzbek and Russian speakers. */
+async function visitorLanguage(): Promise<"uz" | "ru"> {
+  const accepted = (await headers()).get("accept-language") ?? "";
+  return /^ru\b/i.test(accepted.trim()) ? "ru" : "uz";
+}
+
+const TEXT = {
+  uz: { stats: "kun · eng uzun streak", start: "Men ham boshlayman 🚀", tagline: "PIT — har kuni kichik qadam, katta natija. Bepul." },
+  ru: { stats: "дн. · лучшая серия", start: "Я тоже начну 🚀", tagline: "PIT — маленький шаг каждый день, большой результат. Бесплатно." },
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const shared = await fetchShared((await params).token);
@@ -18,9 +30,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /** What a friend sees when the link is opened: the result, and a way to start too. */
 export default async function SharedPage({ params }: Props) {
   const { token } = await params;
-  const shared = await fetchShared(token);
+  const lang = await visitorLanguage();
+  const shared = await fetchShared(token, lang);
   if (!shared) notFound();
-  const { big, small } = headline(shared);
+  const { big, small } = headline(shared, lang);
+  const text = TEXT[lang];
   const progress = shared.total_days ? Math.min(shared.days_completed / shared.total_days, 1) : 0;
   return (
     <main className="grid min-h-dvh place-items-center px-5 py-10">
@@ -35,12 +49,12 @@ export default async function SharedPage({ params }: Props) {
           <div className="bg-flame h-full rounded-full" style={{ width: `${progress * 100}%` }} />
         </div>
         <p className="mt-2 text-sm text-mist">
-          {shared.days_completed}/{shared.total_days} kun · eng uzun streak {shared.best_streak}
+          {shared.days_completed}/{shared.total_days} {text.stats} {shared.best_streak}
         </p>
         <Link href="/register" className="bg-flame glow-flame mt-6 block rounded-2xl py-3 font-semibold text-white">
-          Men ham boshlayman 🚀
+          {text.start}
         </Link>
-        <p className="mt-3 text-xs text-mist">PIT — har kuni kichik qadam, katta natija. Bepul.</p>
+        <p className="mt-3 text-xs text-mist">{text.tagline}</p>
       </div>
     </main>
   );
