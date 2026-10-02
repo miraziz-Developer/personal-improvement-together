@@ -81,6 +81,7 @@ ERRORS_RU: dict[str, str] = {
     "Havola eskirgan. Saytdagi profilingizdan qaytadan ulang": "Ссылка устарела. Подключите заново из профиля на сайте",
     "Bu Telegram akkaunt allaqachon ro'yxatdan o'tgan": "Этот аккаунт Telegram уже зарегистрирован",
     "Telegram bot ulanmagan": "Telegram-бот не подключён",
+    "Havola topilmadi": "Ссылка не найдена",
     "Telegram ma'lumoti tasdiqlanmadi. Ilovani qayta oching": "Не удалось подтвердить данные Telegram. Откройте приложение заново",
     "Vaqt tugadi. Ilovani qayta oching": "Время вышло. Откройте приложение заново",
     "Vaqt tugadi. «Telegram orqali kirish»ni qayta bosing": "Время вышло. Нажмите «Войти через Telegram» ещё раз",
