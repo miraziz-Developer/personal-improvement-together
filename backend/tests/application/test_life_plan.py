@@ -6,7 +6,7 @@ import pytest
 from pit.modules.challenges.domain.schedule import Schedule, TaskSpec
 from pit.modules.coaching.application.commands import SendDailyNudges, SendTaskReminders
 from pit.modules.coaching.domain.moments import Moment
-from pit.modules.identity.application.commands import EraseAccount
+from pit.modules.identity.application.commands import ChangeNotificationPrefs, EraseAccount
 from pit.modules.planning.application.commands import (
     AddToRoutine,
     ChangeDayFrame,
@@ -271,6 +271,50 @@ async def test_ten_minutes_before_a_task_then_at_its_time(world: World) -> None:
     world.clock.advance(minutes=5)  # 10:01 — now
     await world.bus.handle(SendTaskReminders())
     assert len(sent(Moment.TASK_DUE)) == 1
+
+
+async def test_the_heads_up_follows_the_users_choice_and_quiet_hours_hold_telegram(
+    world: World,
+) -> None:
+    user = world.add_user()  # 09:00
+    user.link_telegram(4321)
+    await world.bus.handle(
+        ChangeNotificationPrefs(
+            user_id=user.id,
+            remind_before=30,
+            quiet_from=time(9, 0),
+            quiet_to=time(9, 40),
+            friends_news=True,
+        )
+    )
+    joined = await world.bus.handle(
+        AddToRoutine(
+            user_id=user.id,
+            challenge_id=world.add_challenge(duration_days=30).id,
+            times={"main": time(10, 0)},
+        )
+    )
+
+    def soon() -> list[str]:
+        return [
+            n.title
+            for n in world.store.notifications.values()
+            if n.moment is Moment.TASK_SOON and n.participation_id == joined
+        ]
+
+    world.clock.advance(minutes=31)  # 09:31: 29 minutes before, inside the user's 30
+    await world.bus.handle(SendTaskReminders())
+    assert len(soon()) == 1  # in the app
+    assert not any(
+        "10 daqiqadan" in m.text or "Tayyorlaning" in m.text for m in world.telegram.to(4321)
+    )
+
+    with pytest.raises(DomainError, match="0, 5, 10"):
+        await world.bus.handle(
+            ChangeNotificationPrefs(
+                user_id=user.id, remind_before=7, quiet_from=None, quiet_to=None, friends_news=True
+            )
+        )
 
 
 async def test_the_morning_comes_at_wake_up_and_the_day_closes_with_a_summary(

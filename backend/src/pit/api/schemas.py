@@ -176,6 +176,13 @@ class TelegramLoginCheckIn(BaseModel):
     token: str = Field(repr=False)
 
 
+class NotificationPrefsIO(BaseModel):
+    remind_before: int = 10  # minutes before a timed task; 0 = no heads-up
+    quiet_from: time | None = None  # quiet hours: no Telegram or push in between
+    quiet_to: time | None = None
+    friends_news: bool = True
+
+
 class LocaleIn(BaseModel):
     locale: Literal["uz", "ru"]
 
@@ -236,6 +243,7 @@ class MeOut(BaseModel):
     unread_notifications: int
     telegram_linked: bool
     locale: str
+    notifications: NotificationPrefsIO
 
 
 class TelegramLinkOut(BaseModel):

@@ -686,4 +686,12 @@ export const RU: Record<string, string> = {
   "Havolani nusxalash": "Скопировать ссылку",
   "Boshqa ilovalar": "Другие приложения",
   "🎁 Siz chaqirgan do'st 3 kun bajarsa — sizga +1 freeze va 50 ball": "🎁 Приглашённый друг выполнит 3 дня — вам +1 freeze и 50 баллов",
+  "Eslatma sozlamalari saqlandi": "Настройки напоминаний сохранены",
+  "Eslatmalar": "Напоминания",
+  "Vazifadan oldin eslatish": "Напоминать до задания",
+  "O'chiq": "Выкл.",
+  "Tinch soatlar": "Тихие часы",
+  "Bu vaqtda Telegram va telefon xabar yubormaydi — hammasi ilovada kutib turadi.": "В это время Telegram и телефон молчат — всё ждёт в приложении.",
+  "Do'stlar yangiliklari": "Новости друзей",
+  "Do'stingiz bugun bajarganda yoki guruhga qo'shilganda xabar berish.": "Сообщать, когда друг выполнил день или вступил в группу.",
 };

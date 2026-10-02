@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, time
 from uuid import UUID
 
 from pit.modules.identity.domain.user import DEFAULT_TIMEZONE
@@ -116,6 +116,15 @@ class EraseAccount(Command):
 
     user_id: UUID
     confirm_username: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class ChangeNotificationPrefs(Command):
+    user_id: UUID
+    remind_before: int
+    quiet_from: time | None
+    quiet_to: time | None
+    friends_news: bool
 
 
 @dataclass(frozen=True, kw_only=True)

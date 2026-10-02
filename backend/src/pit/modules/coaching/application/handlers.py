@@ -71,7 +71,6 @@ class CoachingUoW(Transaction, Protocol):
 
 
 REMINDER_WINDOW = timedelta(minutes=30)  # a reminder later than this would only nag
-GET_READY = timedelta(minutes=10)  # "in ten minutes: …" before each timed task
 PLAN_BEFORE_WAKE = timedelta(minutes=5)  # the day's plan is waiting when the alarm rings
 _OWN_TEXTS = OwnTexts()
 
@@ -299,6 +298,9 @@ async def on_friend_day_done(event: DayCompleted, uow: CoachingUoW, *, clock: Cl
         if len(mates) >= CLOSE_CIRCLE:
             return  # a big group: the board shows who is done, nobody gets dozens of pings
         for mate in mates:
+            reader = await uow.users.get(mate.user_id)
+            if reader is not None and not reader.notifications.friends_news:
+                continue
             await _notify(
                 uow,
                 clock,
@@ -328,6 +330,8 @@ async def on_friend_joined(
             return  # a big group: newcomers show up on the board
         for mate in mates:
             reader = await uow.users.get(mate.user_id)
+            if reader is not None and not reader.notifications.friends_news:
+                continue
             await _notify(
                 uow,
                 clock,
@@ -612,7 +616,10 @@ async def send_task_reminders(
             soon = [
                 t
                 for t in timed
-                if t.at and timedelta(0) < datetime.combine(today, t.at) - local <= GET_READY
+                if t.at
+                and timedelta(0)
+                < datetime.combine(today, t.at) - local
+                <= timedelta(minutes=user.notifications.remind_before)
             ]
             if not due and not soon:
                 continue

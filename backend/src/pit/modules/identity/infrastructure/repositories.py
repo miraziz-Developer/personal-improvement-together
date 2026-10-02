@@ -1,7 +1,7 @@
 from collections.abc import Mapping
 from typing import Any
 
-from pit.modules.identity.domain.user import Locale, Role, User
+from pit.modules.identity.domain.user import Locale, NotificationPrefs, Role, User
 from pit.modules.identity.infrastructure.tables import users
 from pit.shared.infrastructure.repository import Row, SqlRepository
 
@@ -27,6 +27,10 @@ class SqlUserRepository(SqlRepository[User]):
             "email": item.email,
             "deleted_at": item.deleted_at,
             "locale": item.locale.value,
+            "remind_before": item.notifications.remind_before,
+            "quiet_from": item.notifications.quiet_from,
+            "quiet_to": item.notifications.quiet_to,
+            "friends_news": item.notifications.friends_news,
         }
 
     async def _to_aggregate(self, row: Mapping[str, Any]) -> User:
@@ -47,6 +51,12 @@ class SqlUserRepository(SqlRepository[User]):
             email=row["email"],
             deleted_at=row["deleted_at"],
             locale=Locale(row["locale"]),
+            notifications=NotificationPrefs(
+                remind_before=row["remind_before"],
+                quiet_from=row["quiet_from"],
+                quiet_to=row["quiet_to"],
+                friends_news=row["friends_news"],
+            ),
         )
 
     async def get_by_username(self, username: str) -> User | None:

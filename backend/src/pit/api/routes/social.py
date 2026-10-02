@@ -11,7 +11,7 @@ from pit.api.ratelimit import rate_limit
 from pit.modules.challenges.infrastructure.tables import participations
 from pit.modules.coaching.application.commands import MarkNotificationsRead
 from pit.modules.coaching.infrastructure.tables import notifications
-from pit.modules.identity.application.commands import ChangeLocale
+from pit.modules.identity.application.commands import ChangeLocale, ChangeNotificationPrefs
 from pit.modules.identity.domain.user import Locale
 from pit.modules.identity.infrastructure.tables import users
 from pit.modules.moderation.application.commands import FileReport
@@ -56,6 +56,12 @@ async def me(user_id: UserId, container: ContainerDep, locale: LocaleDep) -> s.M
             unread_notifications=unread,
             telegram_linked=user.telegram_chat_id is not None,
             locale=user.locale.value,
+            notifications=s.NotificationPrefsIO(
+                remind_before=user.notifications.remind_before,
+                quiet_from=user.notifications.quiet_from,
+                quiet_to=user.notifications.quiet_to,
+                friends_news=user.notifications.friends_news,
+            ),
         )
 
 
@@ -229,6 +235,21 @@ async def unsubscribe_push(
     body: s.PushEndpointIn, user_id: UserId, container: ContainerDep
 ) -> None:
     await container.bus.handle(UnsubscribePush(user_id=user_id, endpoint=body.endpoint))
+
+
+@router.put("/me/notifications/settings", status_code=204)
+async def change_notification_prefs(
+    body: s.NotificationPrefsIO, user_id: UserId, container: ContainerDep
+) -> None:
+    await container.bus.handle(
+        ChangeNotificationPrefs(
+            user_id=user_id,
+            remind_before=body.remind_before,
+            quiet_from=body.quiet_from,
+            quiet_to=body.quiet_to,
+            friends_news=body.friends_news,
+        )
+    )
 
 
 @router.put("/me/locale", status_code=204)

@@ -60,6 +60,7 @@ export interface Me {
   unread_notifications: number;
   telegram_linked: boolean;
   locale: "uz" | "ru";
+  notifications: NotificationPrefs;
 }
 
 export interface Challenge {
@@ -305,4 +306,11 @@ export interface Routine {
   items: RoutineItem[];
   untimed: RoutineItem[];
   months: { participation_id: string; title: string; month: number; goal: string }[];
+}
+
+export interface NotificationPrefs {
+  remind_before: number; // minutes before a timed task; 0 = no heads-up
+  quiet_from: string | null; // "HH:MM:SS"
+  quiet_to: string | null;
+  friends_news: boolean;
 }

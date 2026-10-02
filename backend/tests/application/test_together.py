@@ -14,6 +14,7 @@ from pit.modules.challenges.domain.challenge import Challenge, ParticipationMode
 from pit.modules.challenges.domain.group import CLOSE_CIRCLE, Group
 from pit.modules.challenges.domain.schedule import Schedule, TaskSpec
 from pit.modules.coaching.domain.messages import Moment
+from pit.modules.identity.application.commands import ChangeNotificationPrefs
 from pit.modules.identity.domain.user import User
 from pit.shared.domain.errors import DomainError, PermissionDenied
 from tests.application.conftest import World
@@ -154,3 +155,16 @@ async def test_a_friend_who_keeps_going_earns_the_inviter_a_thank_you(world: Wor
     await world.next_day()
     await world.prove(friend, friend_run)  # a fourth day changes nothing
     assert len(news(world, owner, Moment.FRIEND_BROUGHT)) == 1
+
+
+async def test_friends_news_can_be_turned_off(world: World) -> None:
+    owner, friend = world.add_user(), world.add_user()
+    owner_run = await world.join(owner, world.add_challenge(duration_days=14))
+    friend_run = await accept(world, friend, await invite(world, owner, owner_run))
+    await world.bus.handle(
+        ChangeNotificationPrefs(
+            user_id=owner.id, remind_before=10, quiet_from=None, quiet_to=None, friends_news=False
+        )
+    )
+    await world.prove(friend, friend_run)
+    assert not news(world, owner, Moment.FRIEND_DAY_DONE)

@@ -27,6 +27,7 @@ from pit.modules.telegram.application.ports import (
 from pit.modules.telegram.application.texts import tr
 from pit.modules.verification.domain.events import ProofApproved
 from pit.modules.verification.domain.verdict import ProofStatus
+from pit.shared.application.clock import Clock
 
 logger = logging.getLogger(__name__)
 
@@ -73,12 +74,19 @@ def notification_keyboard(notification: Notification, web_url: str, lang: str = 
 
 
 async def deliver_notification(
-    event: NotificationCreated, uow: TelegramUoW, *, telegram: TelegramApi, web_url: str
+    event: NotificationCreated,
+    uow: TelegramUoW,
+    *,
+    telegram: TelegramApi,
+    web_url: str,
+    clock: Clock,
 ) -> None:
     async with uow:
         user = await uow.users.get(event.user_id)
         if user is None or user.telegram_chat_id is None:
             return
+        if user.is_quiet_now(clock.now()):
+            return  # quiet hours: the message waits in the app instead
         notification = await uow.notifications.get(event.notification_id)
         if notification is None:
             return

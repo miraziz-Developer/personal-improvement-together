@@ -5,8 +5,10 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    SmallInteger,
     String,
     Table,
+    Time,
     UniqueConstraint,
     Uuid,
 )
@@ -42,6 +44,10 @@ users = Table(
     Column("email", String(255), nullable=True),
     Column("deleted_at", DateTime(timezone=True), nullable=True),
     Column("locale", String(2), nullable=False, server_default="uz"),
+    Column("remind_before", SmallInteger, nullable=False, server_default="10"),
+    Column("quiet_from", Time, nullable=True),
+    Column("quiet_to", Time, nullable=True),
+    Column("friends_news", Boolean, nullable=False, server_default="true"),
     *audit_columns(),
     # Deferred: moving a chat between accounts unlinks one and links the other in a single
     # transaction, in whatever order the updates are flushed.

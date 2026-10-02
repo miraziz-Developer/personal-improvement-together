@@ -45,6 +45,7 @@ from pit.modules.coaching.domain.notification import NotificationCreated
 from pit.modules.identity.application import handlers as identity
 from pit.modules.identity.application.commands import (
     ChangeLocale,
+    ChangeNotificationPrefs,
     ConfirmPhone,
     EraseAccount,
     IssueTelegramLink,
@@ -168,6 +169,7 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
         VerifyPhoneFromTelegram: identity.verify_phone_from_telegram,
         EraseAccount: partial(identity.erase_account, clock=clock),
         ChangeLocale: identity.change_locale,
+        ChangeNotificationPrefs: identity.change_notification_prefs,
         RegisterWithGoogle: partial(identity.register_with_google, clock=clock),
         RegisterWithTelegram: partial(identity.register_with_telegram, clock=clock),
         LinkTelegramChat: identity.link_telegram_chat,
@@ -298,10 +300,15 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
     # Delivery channels are best effort: last in each list, never holding up the real work.
     deliveries: list[Any] = []
     if deps.push is not None:
-        deliveries.append(partial(push.deliver_push, sender=deps.push))
+        deliveries.append(partial(push.deliver_push, sender=deps.push, clock=clock))
     if deps.telegram is not None:
         deliveries.append(
-            partial(telegram.deliver_notification, telegram=deps.telegram, web_url=deps.web_url)
+            partial(
+                telegram.deliver_notification,
+                telegram=deps.telegram,
+                web_url=deps.web_url,
+                clock=clock,
+            )
         )
     if deliveries:
         event_handlers[NotificationCreated] = deliveries

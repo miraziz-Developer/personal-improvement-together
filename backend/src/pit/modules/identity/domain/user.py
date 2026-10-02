@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from datetime import date, datetime
+from dataclasses import dataclass, field
+from datetime import date, datetime, time
 from enum import StrEnum
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from pit.modules.identity.domain.events import AccountErased, PhoneVerified, UserRegistered
 from pit.shared.domain.aggregate import AggregateRoot
@@ -37,6 +38,35 @@ def age_on(birth_date: date, today: date) -> int:
     return today.year - birth_date.year - (0 if had_birthday else 1)
 
 
+REMIND_BEFORE_CHOICES = (0, 5, 10, 15, 30)  # minutes before a timed task; 0 = no heads-up
+
+
+@dataclass(frozen=True, slots=True)
+class NotificationPrefs:
+    """How the coach may reach the user. Quiet hours hold back Telegram and push messages
+    (they still appear in the app); friends' news can be turned off."""
+
+    remind_before: int = 10
+    quiet_from: time | None = None
+    quiet_to: time | None = None
+    friends_news: bool = True
+
+    def __post_init__(self) -> None:
+        if self.remind_before not in REMIND_BEFORE_CHOICES:
+            raise InvariantViolation("Eslatma vaqti 0, 5, 10, 15 yoki 30 daqiqa bo'lsin")
+        if (self.quiet_from is None) != (self.quiet_to is None):
+            raise InvariantViolation("Tinch soatlarning boshi va oxirini birga belgilang")
+        if self.quiet_from is not None and self.quiet_from == self.quiet_to:
+            raise InvariantViolation("Tinch soatlarning boshi va oxiri har xil bo'lsin")
+
+    def is_quiet(self, at: time) -> bool:
+        if self.quiet_from is None or self.quiet_to is None:
+            return False
+        if self.quiet_from < self.quiet_to:
+            return self.quiet_from <= at < self.quiet_to
+        return at >= self.quiet_from or at < self.quiet_to  # across midnight, e.g. 23:00-07:00
+
+
 @dataclass(eq=False, kw_only=True)
 class User(AggregateRoot):
     username: str
@@ -57,6 +87,7 @@ class User(AggregateRoot):
     email: str | None = None
     deleted_at: datetime | None = None  # erased at the user's request; only statistics remain
     locale: Locale = Locale.UZ
+    notifications: NotificationPrefs = field(default_factory=NotificationPrefs)
 
     @classmethod
     def register(
@@ -138,6 +169,13 @@ class User(AggregateRoot):
 
     def change_locale(self, locale: Locale) -> None:
         self.locale = locale
+
+    def change_notifications(self, prefs: NotificationPrefs) -> None:
+        self.notifications = prefs
+
+    def is_quiet_now(self, now: datetime) -> bool:
+        """Inside the user's quiet hours, in their own time zone."""
+        return self.notifications.is_quiet(now.astimezone(ZoneInfo(self.timezone)).time())
 
     def reset_username(self) -> None:
         """A moderator removes an offensive username; the user may pick a new one later."""

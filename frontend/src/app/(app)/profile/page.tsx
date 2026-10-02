@@ -7,6 +7,7 @@ import { AppInstall } from "@/components/AppInstall";
 import { OrDivider } from "@/components/AuthFields";
 import { Badges } from "@/components/Badges";
 import { DataRights } from "@/components/DataRights";
+import { NotificationSettings } from "@/components/NotificationSettings";
 import { TelegramCard } from "@/components/Telegram";
 import { useToast } from "@/components/toast";
 import { Badge, Button, Card, Input, Label, PageHeader, Skeleton, StreakFlame } from "@/components/ui";
@@ -134,6 +135,7 @@ export default function ProfilePage() {
       </Card>
 
       <TelegramCard />
+      {me.notifications && <NotificationSettings key={JSON.stringify(me.notifications)} prefs={me.notifications} />}
 
       <AppInstall />
 

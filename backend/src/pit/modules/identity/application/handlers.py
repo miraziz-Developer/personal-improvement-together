@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 from pit.modules.identity.application.commands import (
     ChangeLocale,
+    ChangeNotificationPrefs,
     ConfirmPhone,
     EraseAccount,
     IssueTelegramLink,
@@ -29,7 +30,13 @@ from pit.modules.identity.application.ports import (
     SmsSender,
 )
 from pit.modules.identity.domain.repositories import UserRepository
-from pit.modules.identity.domain.user import Locale, User, ensure_strong_password, normalize_phone
+from pit.modules.identity.domain.user import (
+    Locale,
+    NotificationPrefs,
+    User,
+    ensure_strong_password,
+    normalize_phone,
+)
 from pit.shared.application.clock import Clock, local_date
 from pit.shared.application.lookup import require
 from pit.shared.application.unit_of_work import Transaction
@@ -279,6 +286,19 @@ async def erase_account(cmd: EraseAccount, uow: IdentityUoW, *, clock: Clock) ->
         if cmd.confirm_username.strip().lower() != user.username:
             raise DomainError("Tasdiqlash uchun username'ingizni aynan yozing")
         user.erase(clock.now())
+        await uow.commit()
+
+
+async def change_notification_prefs(cmd: ChangeNotificationPrefs, uow: IdentityUoW) -> None:
+    prefs = NotificationPrefs(
+        remind_before=cmd.remind_before,
+        quiet_from=cmd.quiet_from,
+        quiet_to=cmd.quiet_to,
+        friends_news=cmd.friends_news,
+    )
+    async with uow:
+        user = require(await uow.users.get(cmd.user_id), "Foydalanuvchi topilmadi")
+        user.change_notifications(prefs)
         await uow.commit()
 
 

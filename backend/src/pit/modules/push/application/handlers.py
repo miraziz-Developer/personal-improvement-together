@@ -7,6 +7,7 @@ from uuid import uuid4
 from pit.modules.coaching.domain.notification import NotificationCreated
 from pit.modules.coaching.domain.repositories import NotificationRepository
 from pit.modules.identity.domain.events import AccountErased
+from pit.modules.identity.domain.repositories import UserRepository
 from pit.modules.push.application.commands import SubscribePush, UnsubscribePush
 from pit.modules.push.application.ports import PushMessage, SubscriptionGone, WebPushSender
 from pit.modules.push.domain.subscription import PushSubscription, PushSubscriptionRepository
@@ -22,6 +23,9 @@ class PushUoW(Transaction, Protocol):
 
     @property
     def notifications(self) -> NotificationRepository: ...
+
+    @property
+    def users(self) -> UserRepository: ...
 
 
 async def subscribe(cmd: SubscribePush, uow: PushUoW, *, clock: Clock) -> None:
@@ -51,9 +55,14 @@ async def unsubscribe(cmd: UnsubscribePush, uow: PushUoW) -> None:
             await uow.commit()
 
 
-async def deliver_push(event: NotificationCreated, uow: PushUoW, *, sender: WebPushSender) -> None:
+async def deliver_push(
+    event: NotificationCreated, uow: PushUoW, *, sender: WebPushSender, clock: Clock
+) -> None:
     """Best effort, like Telegram: a push failure never breaks the platform's own work."""
     async with uow:
+        user = await uow.users.get(event.user_id)
+        if user is not None and user.is_quiet_now(clock.now()):
+            return  # quiet hours: the message waits in the app instead
         subscriptions = await uow.push_subscriptions.list_for_user(event.user_id)
         if not subscriptions:
             return
