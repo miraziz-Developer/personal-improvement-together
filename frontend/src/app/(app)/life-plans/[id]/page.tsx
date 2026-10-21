@@ -204,6 +204,12 @@ export default function LifePlanPage() {
             <Badge key={goal.key}>{goal.title}</Badge>
           ))}
         </div>
+        {/* Nothing runs until started; the bottom button sits below a long timeline */}
+        {plan.status === "draft" && (
+          <Button size="lg" className="mt-5 w-full" loading={starting} onClick={start}>
+            <Rocket className="size-5" /> {t("Hammasini boshlash")}
+          </Button>
+        )}
       </Card>
 
       <Card>
