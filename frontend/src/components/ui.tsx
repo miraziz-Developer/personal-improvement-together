@@ -4,8 +4,11 @@ import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
 import { Flame, Loader2, X } from "lucide-react";
 import Link from "next/link";
-import { forwardRef, useEffect, useId } from "react";
+import { forwardRef, useEffect, useId, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { currentLocale, translate } from "@/lib/i18n";
+
+const noSubscribe = () => () => {};
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost" | "danger" | "sky";
@@ -217,6 +220,7 @@ export function Modal({
   children: React.ReactNode;
 }) {
   const titleId = useId();
+  const onClient = useSyncExternalStore(noSubscribe, () => true, () => false);
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
@@ -224,7 +228,10 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  return (
+  if (!onClient) return null;
+  // Into <body>: a blurred or animated card around the caller would trap `fixed` inside it,
+  // leaving the dialog's buttons under the bottom navigation.
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -235,7 +242,7 @@ export function Modal({
           onClick={onClose}
         >
           <motion.div
-            className="w-full max-w-lg rounded-t-3xl border border-white/10 bg-ink-800 p-6 shadow-2xl sm:rounded-3xl"
+            className="max-h-[90dvh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-3xl border border-white/10 bg-ink-800 p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl"
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
@@ -256,7 +263,8 @@ export function Modal({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
 
