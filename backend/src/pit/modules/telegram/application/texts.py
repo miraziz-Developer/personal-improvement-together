@@ -42,8 +42,12 @@ TEXTS: Final[dict[str, dict[str, str]]] = {
             "👋 Assalomu alaykum! Men <b>PIT murabbiyi</b>man.\n\n"
             "Har kuni rejangizni eslatib turaman, isbotlaringizni qabul qilaman va har bir "
             "g'alabangizni nishonlayman 🔥\n\n"
-            "Boshlash uchun pastdagi <b>📱 Ilovani ochish</b> tugmasini bosing — PIT shu "
-            "yerning o'zida, Telegram ichida ochiladi."
+            "<b>Boshlash — 1 daqiqa:</b>\n"
+            "1️⃣ Pastdagi <b>📱 Ilovani ochish</b> tugmasini bosing — PIT shu yerda, "
+            "Telegram ichida ochiladi\n"
+            "2️⃣ «Yangi akkaunt ochish» → tug'ilgan sana va hududni tanlang\n"
+            "3️⃣ Maqsadingizni yozing — AI har kunlik reja tuzib beradi\n\n"
+            "Keyin har kuni shu chatga rasm yuborasiz, qolganini men kuzatib boraman 👇"
         ),
         "welcome": (
             "🎉 Salom, <b>{name}</b>! Telegram ulandi.\n\n"
@@ -148,8 +152,12 @@ TEXTS: Final[dict[str, dict[str, str]]] = {
             "👋 Здравствуйте! Я <b>коуч PIT</b>.\n\n"
             "Каждый день напоминаю о плане, принимаю доказательства и отмечаю каждую "
             "вашу победу 🔥\n\n"
-            "Чтобы начать, нажмите <b>📱 Открыть приложение</b> ниже — PIT откроется "
-            "прямо здесь, в Telegram."
+            "<b>Начать — 1 минута:</b>\n"
+            "1️⃣ Нажмите <b>📱 Открыть приложение</b> ниже — PIT откроется прямо здесь, "
+            "в Telegram\n"
+            "2️⃣ «Создать аккаунт» → выберите дату рождения и регион\n"
+            "3️⃣ Напишите свою цель — AI составит план на каждый день\n\n"
+            "Дальше каждый день присылайте фото в этот чат, остальное я беру на себя 👇"
         ),
         "welcome": (
             "🎉 Привет, <b>{name}</b>! Telegram подключён.\n\n"

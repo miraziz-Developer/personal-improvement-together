@@ -68,7 +68,7 @@ from pit.modules.identity.application.ports import (
     PasswordHasher,
     SmsSender,
 )
-from pit.modules.identity.domain.events import AccountErased
+from pit.modules.identity.domain.events import AccountErased, UserRegistered
 from pit.modules.moderation.application import handlers as moderation
 from pit.modules.moderation.application.commands import FileReport, ResolveReport
 from pit.modules.planning.application import handlers as planning
@@ -313,6 +313,9 @@ def bootstrap(deps: Dependencies, *, strict: bool = False) -> MessageBus:
     if deliveries:
         event_handlers[NotificationCreated] = deliveries
     if deps.telegram is not None:
+        event_handlers[UserRegistered] = [
+            partial(telegram.greet_new_user, telegram=deps.telegram, web_url=deps.web_url)
+        ]
         event_handlers[ProofApproved].append(
             partial(
                 telegram.announce_task_approved,

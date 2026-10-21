@@ -266,7 +266,7 @@ class TelegramBot:
         await self._say(chat_id, text, menu=self._main_menu(lang) if user else None)
 
     async def _not_linked(self, chat_id: int, lang: str) -> None:
-        site = keyboard(site_row(self._web_url, "/profile", tr(lang, "btn_site")))
+        site = keyboard(site_row(self._web_url, "/routine", tr(lang, "btn_site")))
         # Without a site button there is room to hide a menu left from an earlier link.
         await self._say(chat_id, tr(lang, "not_linked"), site, menu=None if site else [])
 

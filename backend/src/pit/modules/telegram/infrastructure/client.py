@@ -33,7 +33,8 @@ DESCRIPTION = (
     "☀️ Ertalab bugungi rejani eslataman\n"
     "📸 Isbotni shu yerda qabul qilaman\n"
     "🏆 Har bir g'alabangizni nishonlayman\n\n"
-    "Boshlash: pastdagi «PIT» tugmasini bosing — ilova shu yerda, Telegram ichida ochiladi."
+    "Boshlash: pastdagi «Start» (Начать) tugmasini bosing — 1 daqiqada ro'yxatdan o'tasiz, "
+    "ilova shu yerda, Telegram ichida ochiladi."
 )
 SHORT_DESCRIPTION = "Har kungi reja, eslatma va isbot — PIT murabbiyi 🔥"
 
@@ -140,7 +141,7 @@ class HttpTelegramApi:
         await self.call("setMyDescription", {"description": DESCRIPTION})
         await self.call("setMyShortDescription", {"short_description": SHORT_DESCRIPTION})
         if app_url:
-            button = {"type": "web_app", "text": "PIT", "web_app": {"url": app_url}}
+            button = {"type": "web_app", "text": "📱 Ilova", "web_app": {"url": app_url}}
             await self.call("setChatMenuButton", {"menu_button": button})
 
     async def updates(self, offset: int) -> list[dict[str, Any]]:

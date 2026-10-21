@@ -1,12 +1,18 @@
 """The Telegram bot: linking, the coach's messages, and proofs sent from the chat."""
 
+from datetime import date
+
 import pytest
 
 from pit.modules.challenges.domain.challenge import ProofType
 from pit.modules.challenges.domain.schedule import Schedule, TaskSpec
 from pit.modules.coaching.domain.messages import Moment
-from pit.modules.identity.application.commands import IssueTelegramLink, RequestPasswordReset
-from pit.modules.identity.domain.user import Locale, User
+from pit.modules.identity.application.commands import (
+    IssueTelegramLink,
+    RegisterWithTelegram,
+    RequestPasswordReset,
+)
+from pit.modules.identity.domain.user import CURRENT_TERMS_VERSION, Locale, User
 from pit.modules.telegram.application.bot import (
     PHONE_MENU,
     Callback,
@@ -20,7 +26,7 @@ from pit.modules.telegram.application.texts import LABELS
 from pit.modules.telegram.infrastructure.client import parse_update
 from pit.modules.verification.domain.proof import Proof
 from pit.modules.verification.domain.verdict import AiDecision, ProofStatus
-from tests.application.conftest import World
+from tests.application.conftest import REGION, World
 from tests.fakes import FakeConversation, FakeProofFiles, FakeUnitOfWork
 
 CHAT = 7001
@@ -88,7 +94,22 @@ async def test_unknown_chat_is_invited_to_link(world: World, bot: TelegramBot) -
     await say(bot, "/bugun")
     message = world.telegram.last(CHAT)
     assert "Ilovani ochish" in message.text  # the app opens right inside Telegram
-    assert message.apps == ["https://pit.uz/tg?next=/profile"]
+    assert message.apps == ["https://pit.uz/tg?next=/routine"]  # a newcomer lands on day one
+
+
+async def test_signing_up_in_the_app_greets_in_the_chat(world: World) -> None:
+    await world.bus.handle(
+        RegisterWithTelegram(
+            chat_id=CHAT,
+            username="vali_tg",
+            birth_date=date(2004, 4, 4),
+            region_id=REGION,
+            accepted_terms_version=CURRENT_TERMS_VERSION,
+        )
+    )
+    welcome = world.telegram.last(CHAT)
+    assert "vali_tg" in welcome.text and welcome.menu == MAIN_MENU  # back in the chat: buttons
+    assert len(world.telegram.sent) == 1
 
 
 async def test_a_chat_follows_the_latest_account(world: World, bot: TelegramBot) -> None:

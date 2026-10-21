@@ -8,7 +8,9 @@ import logging
 from pit.modules.coaching.application.ports import ChallengeTexts, OwnTexts
 from pit.modules.coaching.domain.messages import Moment
 from pit.modules.coaching.domain.notification import Notification, NotificationCreated
+from pit.modules.identity.domain.events import UserRegistered
 from pit.modules.identity.domain.user import User
+from pit.modules.telegram.application.bot import menu_for
 from pit.modules.telegram.application.common import (
     CHEER_CALLBACK,
     TODAY_CALLBACK,
@@ -93,6 +95,22 @@ async def deliver_notification(
         text = f"<b>{html(notification.title)}</b>\n\n{html(notification.body)}"
         buttons = notification_keyboard(notification, web_url, user.locale.value)
         await send_or_unlink(uow, user, text, buttons, telegram)
+
+
+async def greet_new_user(
+    event: UserRegistered, uow: TelegramUoW, *, telegram: TelegramApi, web_url: str
+) -> None:
+    """Signed up inside the Mini App: back in the chat, the menu buttons are already there."""
+    async with uow:
+        user = await uow.users.get(event.user_id)
+        if user is None or user.telegram_chat_id is None:
+            return
+        lang = user.locale.value
+        try:
+            welcome = tr(lang, "welcome", name=html(user.username))
+            await telegram.send(user.telegram_chat_id, welcome, menu=menu_for(lang, web_url))
+        except (ChatUnavailable, TelegramUnavailable):
+            logger.warning("Could not greet %s in Telegram", user.id)
 
 
 class TelegramMessenger:
