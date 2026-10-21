@@ -48,6 +48,8 @@ html {
 
 body {
   min-height: 100dvh;
+  /* Sliding steps and glows never make a phone scroll sideways; clip keeps sticky headers. */
+  overflow-x: clip;
   background:
     radial-gradient(1100px 600px at 10% -10%, rgb(255 107 44 / 0.16), transparent 60%),
     radial-gradient(900px 600px at 110% 10%, rgb(124 92 255 / 0.18), transparent 60%),

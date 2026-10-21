@@ -77,7 +77,7 @@ export default function GoogleRegisterPage() {
   return (
     <form onSubmit={submit} className="flex flex-col gap-5">
       <div>
-        <h1 className="font-display text-3xl font-bold">{t("Oxirgi qadam ✨")}</h1>
+        <h1 className="font-display text-2xl font-bold break-words sm:text-3xl">{t("Oxirgi qadam ✨")}</h1>
         <p className="mt-2 text-mist">
           {signup.email ? <b className="text-white">{signup.email}</b> : signup.provider === "telegram" ? t("Telegram akkauntingiz") : t("Google akkauntingiz")}{" "}
           {t("ulandi. Reyting uchun yoshingiz va hududingiz kerak.")}

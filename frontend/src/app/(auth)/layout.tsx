@@ -32,7 +32,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
         </div>
         <div className="bg-flame absolute -bottom-32 -left-32 size-96 rounded-full opacity-20 blur-3xl" />
       </section>
-      <section className="flex items-center justify-center p-5 sm:p-10">
+      <section className="flex min-w-0 items-center justify-center p-5 sm:p-10">
         <div className="w-full max-w-md">
           <div className="mb-10 flex items-center justify-between lg:mb-6 lg:justify-end">
             <Logo className="lg:hidden" />

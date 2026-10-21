@@ -65,7 +65,8 @@ export function Timeline({ entries, now }: { entries: TimelineEntry[]; now?: str
                   <>
                     <p className="font-semibold">
                       {entry.title}
-                      {entry.optional && <span className="ml-2 text-xs font-normal text-mist">{t("qo'shimcha")}</span>}
+                      {/* the space lets the badge wrap to its own line on a narrow phone */}
+                      {entry.optional && <>{" "}<span className="ml-1 text-xs font-normal text-mist">{t("qo'shimcha")}</span></>}
                     </p>
                     <p className="text-xs text-mist">
                       {[entry.goal, entry.minutes ? minutes(entry.minutes) : null, entry.end ? t("{time} gacha", { time: entry.end }) : null].filter(Boolean).join(" · ")}

@@ -50,7 +50,7 @@ function RegisterForm() {
   return (
     <form onSubmit={submit} className="flex flex-col gap-5">
       <div>
-        <h1 className="font-display text-3xl font-bold">{t("Yangi boshlanish ✨")}</h1>
+        <h1 className="font-display text-2xl font-bold break-words sm:text-3xl">{t("Yangi boshlanish ✨")}</h1>
         <p className="mt-2 text-mist">{t("1 daqiqa — va sizning sayohatingiz boshlanadi.")}</p>
       </div>
       <TelegramButton next={next ?? "/onboarding"} />

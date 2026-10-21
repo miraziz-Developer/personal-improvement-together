@@ -68,7 +68,8 @@ export function Button({
 
 export function Card({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={clsx("glass rounded-3xl p-5 sm:p-6", className)} {...props}>
+    // min-w-0: inside a grid or flex, a long truncated title must not widen the card
+    <div className={clsx("glass min-w-0 rounded-3xl p-5 sm:p-6", className)} {...props}>
       {children}
     </div>
   );
@@ -188,13 +189,14 @@ export function Segmented<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="glass inline-flex rounded-2xl p-1">
+    // On a narrow phone the options scroll sideways instead of pushing the page wider.
+    <div className="glass inline-flex max-w-full overflow-x-auto rounded-2xl p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {options.map((option) => (
         <button
           key={option.value}
           onClick={() => onChange(option.value)}
           className={clsx(
-            "relative rounded-xl px-3.5 py-2 text-sm font-semibold transition",
+            "relative shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition sm:px-3.5",
             value === option.value ? "text-white" : "text-mist hover:text-white",
           )}
         >

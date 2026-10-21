@@ -38,8 +38,8 @@ const percent = (share: number | null) => (share === null ? "—" : `${Math.roun
 function Tile({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
   return (
     <Card className="p-4">
-      <p className="text-sm text-mist">{label}</p>
-      <p className="mt-1 font-display text-3xl font-bold tabular-nums">{value}</p>
+      <p className="text-sm break-words text-mist">{label}</p>
+      <p className="mt-1 font-display text-2xl font-bold tabular-nums sm:text-3xl">{value}</p>
       {sub && <p className="mt-1 text-xs text-mist">{sub}</p>}
     </Card>
   );

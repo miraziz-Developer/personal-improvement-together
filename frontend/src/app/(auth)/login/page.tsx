@@ -42,7 +42,7 @@ function LoginForm() {
   return (
     <form onSubmit={submit} className="flex flex-col gap-5">
       <div>
-        <h1 className="font-display text-3xl font-bold">{t("Qaytganingizdan xursandmiz 👋")}</h1>
+        <h1 className="font-display text-2xl font-bold break-words sm:text-3xl">{t("Qaytganingizdan xursandmiz 👋")}</h1>
         <p className="mt-2 text-mist">{t("Streak'ingiz sizni kutyapti.")}</p>
       </div>
       <TelegramButton next={next} />

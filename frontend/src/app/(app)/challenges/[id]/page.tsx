@@ -50,7 +50,7 @@ export default function ChallengeDetail() {
       <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${meta.gradient} p-6 sm:p-10`}>
         <Icon className="absolute -right-6 -bottom-6 size-48 text-white/15" />
         <Badge className="border-white/20 bg-black/20 text-white">{t(meta.label)}</Badge>
-        <h1 className="mt-4 max-w-xl font-display text-3xl font-bold sm:text-4xl">{c.title}</h1>
+        <h1 className="mt-4 max-w-xl font-display text-2xl font-bold break-words sm:text-4xl">{c.title}</h1>
         <p className="mt-3 max-w-xl text-white/85">{c.description}</p>
         <div className="mt-6 flex flex-wrap gap-2">
           <Badge className="border-white/20 bg-black/20 text-white">

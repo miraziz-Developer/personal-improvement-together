@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
   return (
     <form onSubmit={sent ? reset : requestCode} className="flex flex-col gap-5">
       <div>
-        <h1 className="font-display text-3xl font-bold">{t("Parolni tiklash 🔑")}</h1>
+        <h1 className="font-display text-2xl font-bold break-words sm:text-3xl">{t("Parolni tiklash 🔑")}</h1>
         <p className="mt-2 text-mist">{t("Kodni Telegram botga yuboramiz. Bot ulanmagan bo'lsa — tasdiqlangan raqamga SMS.")}</p>
       </div>
       <label>
