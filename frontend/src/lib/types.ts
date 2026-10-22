@@ -162,6 +162,12 @@ export interface Leaderboard {
   hidden: boolean;
 }
 
+export interface ChallengeBoard {
+  size: number; // everyone who joined, points or not
+  entries: { rank: number; user_id: string; username: string; points: number; streak: number; is_me: boolean }[];
+  me: { rank: number; points: number } | null;
+}
+
 export interface Wallet {
   available: number;
   locked: number;

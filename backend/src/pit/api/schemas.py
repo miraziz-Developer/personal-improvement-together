@@ -397,6 +397,21 @@ class MyRank(BaseModel):
     points: int
 
 
+class ChallengeBoardEntry(BaseModel):
+    rank: int
+    user_id: UUID
+    username: str
+    points: int
+    streak: int
+    is_me: bool
+
+
+class ChallengeBoardOut(BaseModel):
+    size: int  # everyone who joined, points or not
+    entries: list[ChallengeBoardEntry]
+    me: MyRank | None
+
+
 class LeaderboardOut(BaseModel):
     scope: str
     period: str

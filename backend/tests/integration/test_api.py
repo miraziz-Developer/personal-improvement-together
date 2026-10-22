@@ -984,3 +984,57 @@ async def test_friends_write_short_messages_in_their_group(api: Api) -> None:
         f"/api/v1/me/participations/{mine}/group/messages", headers=stranger
     )
     assert peek.status_code == 403
+
+
+async def test_a_catalog_challenge_ranks_everyone_who_joined(api: Api) -> None:
+    reading = str(catalog_id("reading-30"))
+    ali, vali, outsider = [await api.register(n) for n in ("ali_reader", "vali_reader", "begona")]
+    pids = []
+    for auth in (ali, vali):
+        joined = await api.client.post(
+            f"/api/v1/challenges/{reading}/join", json={"mode": "free"}, headers=auth
+        )
+        pids.append(joined.json()["id"])
+    proof = await api.client.post(
+        "/api/v1/proofs",
+        data={"participation_id": pids[0], "task_key": "read"},
+        files={"file": ("page.jpg", jpeg(), "image/jpeg")},
+        headers=ali,
+    )
+    assert proof.status_code == 201, proof.text
+    await api.settle()
+
+    # Everyone who joined is on the board, points first; someone with none yet still counts.
+    board = (await api.client.get(f"/api/v1/challenges/{reading}/leaderboard", headers=vali)).json()
+    assert board["size"] == 2
+    assert [(e["rank"], e["username"]) for e in board["entries"]] == [
+        (1, "ali_reader"),
+        (2, "vali_reader"),
+    ]
+    assert board["entries"][0]["points"] > 0 and board["entries"][1]["is_me"]
+    assert board["me"] == {"rank": 2, "points": 0}
+    watching = await api.client.get(f"/api/v1/challenges/{reading}/leaderboard", headers=outsider)
+    assert watching.json()["me"] is None and watching.json()["size"] == 2
+
+    assert board["entries"][0]["streak"] == 1  # the flame next to the name
+
+    # A personal plan is nobody else's leaderboard.
+    plan = await api.client.post(
+        "/api/v1/plans",
+        json={
+            "goal": "Kitob o'qish",
+            "motivation": "",
+            "current_level": "",
+            "obstacles": "",
+            "availability": [60, 60, 60, 60, 60, 0, 0],
+        },
+        headers=outsider,
+    )
+    await api.client.post(
+        f"/api/v1/plans/{plan.json()['id']}/start", json={"mode": "free"}, headers=outsider
+    )
+    personal = (await api.client.get("/api/v1/me/participations", headers=outsider)).json()
+    hidden = await api.client.get(
+        f"/api/v1/challenges/{personal[0]['challenge_id']}/leaderboard", headers=outsider
+    )
+    assert hidden.status_code == 404

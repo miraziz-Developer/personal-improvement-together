@@ -3,7 +3,7 @@
 from datetime import date
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, literal, or_, select
 
 from pit.api import schemas as s
 from pit.catalog_ru import CatalogText, catalog_text
@@ -18,7 +18,7 @@ from pit.modules.challenges.domain.roadmap import Roadmap
 from pit.modules.challenges.infrastructure.tables import participations
 from pit.modules.coaching.infrastructure.tables import notifications
 from pit.modules.identity.domain.user import Locale
-from pit.modules.identity.infrastructure.tables import regions
+from pit.modules.identity.infrastructure.tables import regions, users
 from pit.modules.ranking.infrastructure.tables import score_entries
 from pit.modules.verification.domain.daily_code import daily_code
 from pit.modules.verification.domain.proof import Proof
@@ -30,6 +30,57 @@ async def participant_counts(uow: SqlAlchemyUnitOfWork) -> dict[UUID, int]:
         select(participations.c.challenge_id, func.count()).group_by(participations.c.challenge_id)
     )
     return {challenge_id: count for challenge_id, count in rows.tuples()}
+
+
+# Joined and still in it (or finished): who a challenge's board shows.
+BOARD_STATUSES = (
+    ParticipationStatus.SCHEDULED.value,
+    ParticipationStatus.ACTIVE.value,
+    ParticipationStatus.COMPLETED.value,
+)
+
+
+async def challenge_board(
+    uow: SqlAlchemyUnitOfWork, challenge_id: UUID
+) -> list[tuple[UUID, str, int, int]]:
+    """(user, username, points, best current streak) for everyone in the challenge, best first.
+    Points are this challenge's own: its days, optional tasks and completion bonus."""
+    pid = cast(participations.c.id, String)
+    # shortcut: LIKE on the score ledger's key, fine at beta scale; add a participation_id
+    # column to score_entries when challenges reach thousands of participants.
+    earned = (
+        select(func.coalesce(func.sum(score_entries.c.points), 0))
+        .where(
+            or_(
+                score_entries.c.source_key.like(literal("day:") + pid + ":%"),
+                score_entries.c.source_key.like(literal("task:") + pid + ":%"),
+                score_entries.c.source_key == literal("completion:") + pid,
+            )
+        )
+        .scalar_subquery()
+    )
+    runs = (
+        select(
+            participations.c.user_id,
+            earned.label("points"),
+            participations.c.current_streak.label("streak"),
+        )
+        .where(
+            participations.c.challenge_id == challenge_id,
+            participations.c.status.in_(BOARD_STATUSES),
+        )
+        .subquery()
+    )
+    points = func.sum(runs.c.points)
+    streak = func.max(runs.c.streak)
+    rows = await uow.session.execute(
+        select(users.c.id, users.c.username, points, streak)
+        .join(runs, runs.c.user_id == users.c.id)
+        .where(users.c.deleted_at.is_(None))
+        .group_by(users.c.id, users.c.username)
+        .order_by(points.desc(), streak.desc(), users.c.username)
+    )
+    return [(uid, name, int(p), int(st)) for uid, name, p, st in rows.tuples()]
 
 
 def localized_week(week: s.Week, text: CatalogText | None) -> s.Week:

@@ -3,7 +3,7 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -26,7 +26,7 @@ from pit.modules.verification.application.commands import SubmitProof
 from pit.modules.verification.infrastructure.images import MAX_UPLOAD_BYTES, prepare_proof_image
 from pit.shared.application.clock import local_date
 from pit.shared.application.lookup import require
-from pit.shared.domain.errors import PermissionDenied
+from pit.shared.domain.errors import NotFound, PermissionDenied
 
 router = APIRouter(tags=["challenges"])
 
@@ -65,6 +65,35 @@ async def challenge_detail(
         challenge = require(await uow.challenges.get(challenge_id), "Challenge topilmadi")
         counts = await views.participant_counts(uow)
         return views.challenge_out(challenge, counts.get(challenge_id, 0), locale)
+
+
+@router.get("/challenges/{challenge_id}/leaderboard", response_model=s.ChallengeBoardOut)
+async def challenge_leaderboard(
+    challenge_id: UUID, user_id: UserId, container: ContainerDep, limit: int = Query(50, le=100)
+) -> s.ChallengeBoardOut:
+    """Who joined a catalog challenge and who leads it. Personal plans have no public board."""
+    async with container.uow_factory() as uow:
+        challenge = await uow.challenges.get(challenge_id)
+        if challenge is None or not challenge.is_template:
+            raise NotFound("Challenge topilmadi")
+        rows = await views.challenge_board(uow, challenge_id)
+    ranked = [
+        s.ChallengeBoardEntry(
+            rank=i + 1,
+            user_id=uid,
+            username=name,
+            points=points,
+            streak=streak,
+            is_me=uid == user_id,
+        )
+        for i, (uid, name, points, streak) in enumerate(rows)
+    ]
+    mine = next((e for e in ranked if e.is_me), None)
+    return s.ChallengeBoardOut(
+        size=len(ranked),
+        entries=ranked[:limit],
+        me=s.MyRank(rank=mine.rank, points=mine.points) if mine else None,
+    )
 
 
 @router.post("/challenges/{challenge_id}/join", response_model=s.IdOut, status_code=201)

@@ -694,4 +694,8 @@ export const RU: Record<string, string> = {
   "Bu vaqtda Telegram va telefon xabar yubormaydi — hammasi ilovada kutib turadi.": "В это время Telegram и телефон молчат — всё ждёт в приложении.",
   "Do'stlar yangiliklari": "Новости друзей",
   "Do'stingiz bugun bajarganda yoki guruhga qo'shilganda xabar berish.": "Сообщать, когда друг выполнил день или вступил в группу.",
+  "Challenge reytingi": "Рейтинг челленджа",
+  "{n} kishi qo'shilgan": "Участников: {n}",
+  "Hali hech kim yo'q — birinchi bo'ling! 🏁": "Пока никого — будьте первым! 🏁",
+  "Kamroq ko'rsatish": "Свернуть",
 };

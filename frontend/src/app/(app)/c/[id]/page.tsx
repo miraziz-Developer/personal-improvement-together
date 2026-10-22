@@ -11,6 +11,7 @@ import { CoachAvatar } from "@/components/coach";
 import { ProofTask } from "@/components/ProofTask";
 import { FocusCard, RoadmapView } from "@/components/Roadmap";
 import { ShareButton } from "@/components/ShareButton";
+import { ChallengeBoard } from "@/components/ChallengeBoard";
 import { TogetherCard } from "@/components/Together";
 import { useToast } from "@/components/toast";
 import { Button, Card, Modal, ProgressRing, Segmented, Skeleton, StreakFlame } from "@/components/ui";
@@ -254,8 +255,9 @@ export default function ParticipationPage() {
       )}
 
       {section === "friends" && (
-        <div className="w-full max-w-2xl">
+        <div className="flex w-full max-w-2xl flex-col gap-6">
           <TogetherCard participationId={p.id} open={p.status === "active" || p.status === "scheduled"} />
+          <ChallengeBoard challengeId={p.challenge_id} />
         </div>
       )}
 
