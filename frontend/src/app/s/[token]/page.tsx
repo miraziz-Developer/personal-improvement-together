@@ -3,7 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
-import { CATEGORY_EMOJI, fetchShared, headline } from "@/lib/share";
+import { CATEGORY_EMOJI, fetchBot, fetchShared, headline } from "@/lib/share";
 
 type Props = { params: Promise<{ token: string }> };
 
@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SharedPage({ params }: Props) {
   const { token } = await params;
   const lang = await visitorLanguage();
-  const shared = await fetchShared(token, lang);
+  const [shared, bot] = await Promise.all([fetchShared(token, lang), fetchBot()]);
   if (!shared) notFound();
   const { big, small } = headline(shared, lang);
   const text = TEXT[lang];
@@ -51,7 +51,8 @@ export default async function SharedPage({ params }: Props) {
         <p className="mt-2 text-sm text-mist">
           {shared.days_completed}/{shared.total_days} {text.stats} {shared.best_streak}
         </p>
-        <Link href="/register" className="bg-flame glow-flame mt-6 block rounded-2xl py-3 font-semibold text-white">
+        {/* In Telegram: the bot signs a visitor up in a minute, no password to remember */}
+        <Link href={bot ? `https://t.me/${bot}` : "/register"} className="bg-flame glow-flame mt-6 block rounded-2xl py-3 font-semibold text-white">
           {text.start}
         </Link>
         <p className="mt-3 text-xs text-mist">{text.tagline}</p>

@@ -90,6 +90,8 @@ MENU: Menu = menu_for("uz")
 PHONE_MENU: Menu = phone_menu_for("uz")
 PHONE_DEEP_LINK = "phone"  # t.me/<bot>?start=phone — from the website's phone card
 LOGIN_DEEP_LINK = "login_"  # t.me/<bot>?start=login_<token> — "Sign in with Telegram"
+INVITE_DEEP_LINK = "j_"  # t.me/<bot>?start=j_<invite code> — a friend's group
+CHALLENGE_DEEP_LINK = "c_"  # t.me/<bot>?start=c_<challenge id hex> — a catalog challenge
 
 
 class Callback:
@@ -183,6 +185,9 @@ class TelegramBot:
             if token.startswith(LOGIN_DEEP_LINK):
                 await self._confirm_login(chat_id, token.removeprefix(LOGIN_DEEP_LINK), message)
                 return
+            if token.startswith((INVITE_DEEP_LINK, CHALLENGE_DEEP_LINK)):
+                await self._open_shared(chat_id, token, guest)
+                return
             await self._start(chat_id, token, guest)
             return
         user = await self._user(chat_id)
@@ -264,6 +269,36 @@ class TelegramBot:
         )
         text = tr(lang, "login_ok" if confirmed else "login_expired")
         await self._say(chat_id, text, menu=self._main_menu(lang) if user else None)
+
+    async def _open_shared(self, chat_id: int, token: str, guest: str) -> None:
+        """A link a friend shared: the app opens on that group or challenge, inside Telegram.
+        Someone new signs up first, then lands on the same page."""
+        user = await self._user(chat_id)
+        lang = user.locale.value if user else guest
+        text, path = tr(lang, "link_broken"), "/routine"
+        uow = self._uow()
+        async with uow:
+            if token.startswith(INVITE_DEEP_LINK):
+                group = await uow.groups.get_by_code(token.removeprefix(INVITE_DEEP_LINK))
+                challenge = await uow.challenges.get(group.challenge_id) if group else None
+                owner = await uow.users.get(group.owner_id) if group else None
+                if group and challenge and owner:
+                    title = html(self._texts.title(challenge, lang))
+                    text = tr(lang, "invited", owner=html(owner.username), title=title)
+                    path = f"/join/{group.invite_code}"
+            else:
+                try:
+                    challenge_id = UUID(hex=token.removeprefix(CHALLENGE_DEEP_LINK))
+                except ValueError:
+                    challenge_id = None
+                challenge = await uow.challenges.get(challenge_id) if challenge_id else None
+                if challenge and challenge.is_template:  # personal plans are never shared
+                    text = tr(
+                        lang, "shared_challenge", title=html(self._texts.title(challenge, lang))
+                    )
+                    path = f"/challenges/{challenge.id}"
+        label = tr(lang, "btn_open_shared" if path != "/routine" else "btn_site")
+        await self._say(chat_id, text, keyboard(site_row(self._web_url, path, label)))
 
     async def _not_linked(self, chat_id: int, lang: str) -> None:
         site = keyboard(site_row(self._web_url, "/routine", tr(lang, "btn_site")))

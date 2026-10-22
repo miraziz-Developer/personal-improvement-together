@@ -1,7 +1,7 @@
 "use client";
 
 import confetti from "canvas-confetti";
-import { ArrowLeft, CalendarDays, Camera, Users } from "lucide-react";
+import { ArrowLeft, CalendarDays, Camera, Send, Users } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -13,9 +13,11 @@ import { StartPanel } from "@/components/StartPanel";
 import { useToast } from "@/components/toast";
 import { Badge, Card, Skeleton } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
+import { useFeatures } from "@/lib/auth";
 import { CATEGORY, WEEKDAYS, minutes } from "@/lib/format";
 import type { Challenge, Mode } from "@/lib/types";
 import { useI18n } from "@/lib/i18n";
+import { botLink, shareToTelegram } from "@/lib/telegram";
 
 export default function ChallengeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +26,7 @@ export default function ChallengeDetail() {
   const { t } = useI18n();
   const { data: c } = useSWR<Challenge>(`/challenges/${id}`);
   const [loading, setLoading] = useState(false);
+  const { telegramBot } = useFeatures();
 
   async function join(mode: Mode, amount: number, withFriends: boolean) {
     setLoading(true);
@@ -40,6 +43,13 @@ export default function ChallengeDetail() {
   }
 
   if (!c) return <Skeleton className="h-96" />;
+
+  function share() {
+    if (!c) return;
+    // Through the bot: a friend opens it inside Telegram and joins in one tap.
+    const link = telegramBot ? botLink(telegramBot, `c_${c.id.replaceAll("-", "")}`) : `${window.location.origin}/challenges/${c.id}`;
+    shareToTelegram(link, t("Shu challenge'ni birga qilamizmi? 🔥 {title}", { title: c.title }));
+  }
   const meta = CATEGORY[c.category];
   const Icon = meta.icon;
 
@@ -65,6 +75,12 @@ export default function ChallengeDetail() {
             <Camera className="size-3.5" /> {c.proof_types.includes("text") ? t("rasm yoki matn") : t("rasm")}
           </Badge>
         </div>
+        <button
+          onClick={share}
+          className="relative mt-5 inline-flex items-center gap-2 rounded-xl border border-white/25 bg-black/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-black/30"
+        >
+          <Send className="size-4" /> {t("Do'stga yuborish")}
+        </button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">

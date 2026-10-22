@@ -95,6 +95,21 @@ TEXTS: Final[dict[str, dict[str, str]]] = {
         "btn_site": "📱 Ilovani ochish",
         "login_ok": "✅ Tasdiqlandi! Saytga qayting — kirish o'zi davom etadi.",
         "login_expired": "⌛ Bu havola eskirgan. Saytda «Telegram orqali kirish»ni qayta bosing.",
+        "invited": (
+            "👥 <b>{owner}</b> sizni birga challenge'ga chaqiryapti:\n\n"
+            "🔥 <b>{title}</b>\n\n"
+            "Pastdagi tugmani bosing — challenge shu yerda, Telegram ichida ochiladi. "
+            "Bir kunda boshlaysiz va kim bugun bajarganini ko'rib turasiz."
+        ),
+        "shared_challenge": (
+            "🔥 <b>{title}</b>\n\n"
+            "Do'stingiz sizga shu challenge'ni yubordi. Pastdagi tugmani bosing — ichida kimlar "
+            "borligini ko'rasiz va bir bosishda qo'shilasiz."
+        ),
+        "link_broken": (
+            "😕 Bu havola eskirgan yoki noto'g'ri. Ilovani pastdagi tugma orqali oching."
+        ),
+        "btn_open_shared": "🚀 Ochish",
         "btn_help": "❓ Yordam",
         "btn_stop": "🔕 Eslatmalarni o'chirish",
         "no_photo_tasks": "Bugun rasm kutayotgan vazifa yo'q 🙂 Ro'yxat: {today}",
@@ -205,6 +220,19 @@ TEXTS: Final[dict[str, dict[str, str]]] = {
         "btn_site": "📱 Открыть приложение",
         "login_ok": "✅ Подтверждено! Вернитесь на сайт — вход продолжится сам.",
         "login_expired": "⌛ Ссылка устарела. Нажмите на сайте «Войти через Telegram» ещё раз.",
+        "invited": (
+            "👥 <b>{owner}</b> зовёт вас в совместный челлендж:\n\n"
+            "🔥 <b>{title}</b>\n\n"
+            "Нажмите кнопку ниже — челлендж откроется прямо здесь, в Telegram. "
+            "Начнёте в один день и будете видеть, кто сегодня уже сделал."
+        ),
+        "shared_challenge": (
+            "🔥 <b>{title}</b>\n\n"
+            "Друг прислал вам этот челлендж. Нажмите кнопку ниже — увидите, кто в нём "
+            "участвует, и присоединитесь в одно касание."
+        ),
+        "link_broken": "😕 Ссылка устарела или неверна. Откройте приложение кнопкой ниже.",
+        "btn_open_shared": "🚀 Открыть",
         "btn_help": "❓ Помощь",
         "btn_stop": "🔕 Отключить напоминания",
         "no_photo_tasks": "Сегодня нет задач, ждущих фото 🙂 Список: {today}",

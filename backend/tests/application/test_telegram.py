@@ -4,6 +4,7 @@ from datetime import date
 
 import pytest
 
+from pit.modules.challenges.application.commands import CreateGroup
 from pit.modules.challenges.domain.challenge import ProofType
 from pit.modules.challenges.domain.schedule import Schedule, TaskSpec
 from pit.modules.coaching.domain.messages import Moment
@@ -110,6 +111,35 @@ async def test_signing_up_in_the_app_greets_in_the_chat(world: World) -> None:
     welcome = world.telegram.last(CHAT)
     assert "vali_tg" in welcome.text and welcome.menu == MAIN_MENU  # back in the chat: buttons
     assert len(world.telegram.sent) == 1
+
+
+async def test_an_invite_link_opens_the_group_inside_telegram(
+    world: World, bot: TelegramBot
+) -> None:
+    owner = world.add_user()
+    challenge = world.add_challenge()
+    pid = await world.join(owner, challenge)
+    code = await world.bus.handle(CreateGroup(user_id=owner.id, participation_id=pid))
+
+    await say(bot, f"/start j_{code}", chat=8001)  # a friend who has never used PIT
+    invite = world.telegram.last(8001)
+    assert owner.username in invite.text and challenge.title in invite.text
+    assert invite.apps == [f"https://pit.uz/tg?next=/join/{code}"]  # sign-up, then the group
+
+
+async def test_a_shared_catalog_challenge_opens_inside_telegram(
+    world: World, bot: TelegramBot
+) -> None:
+    challenge = world.add_challenge()
+    await say(bot, f"/start c_{challenge.id.hex}", chat=8002)
+    shared = world.telegram.last(8002)
+    assert challenge.title in shared.text
+    assert shared.apps == [f"https://pit.uz/tg?next=/challenges/{challenge.id}"]
+
+    for broken in (f"c_{'0' * 32}", "c_not-a-uuid", "j_ZZZZZZZZ"):
+        await say(bot, f"/start {broken}", chat=8003)
+        assert "eskirgan" in world.telegram.last(8003).text
+        assert world.telegram.last(8003).apps == ["https://pit.uz/tg?next=/routine"]
 
 
 async def test_a_chat_follows_the_latest_account(world: World, bot: TelegramBot) -> None:

@@ -698,4 +698,6 @@ export const RU: Record<string, string> = {
   "{n} kishi qo'shilgan": "Участников: {n}",
   "Hali hech kim yo'q — birinchi bo'ling! 🏁": "Пока никого — будьте первым! 🏁",
   "Kamroq ko'rsatish": "Свернуть",
+  "Do'stga yuborish": "Отправить другу",
+  "Shu challenge'ni birga qilamizmi? 🔥 {title}": "Сделаем этот челлендж вместе? 🔥 {title}",
 };

@@ -11,7 +11,9 @@ import { Button, Card, StreakFlame } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
 import type { GroupBoard, GroupMember } from "@/lib/types";
+import { useFeatures } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
+import { botLink, shareToTelegram } from "@/lib/telegram";
 
 const noSubscription = () => () => {};
 const readOrigin = () => window.location.origin;
@@ -155,6 +157,7 @@ export function TogetherCard({ participationId, open }: { participationId: strin
     refreshInterval: 30_000,
   });
   const origin = useSyncExternalStore(noSubscription, readOrigin, () => "");
+  const { telegramBot } = useFeatures();
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [everyone, setEveryone] = useState(false);
@@ -193,9 +196,9 @@ export function TogetherCard({ participationId, open }: { participationId: strin
     );
   }
 
-  const link = `${origin}/join/${board.invite_code}`;
+  // Through the bot: friends stay in Telegram, sign up in a minute and land in the group.
+  const link = telegramBot ? botLink(telegramBot, `j_${board.invite_code}`) : `${origin}/join/${board.invite_code}`;
   const shareText = t("Men bilan birga challenge'ni boshla! Har kuni bir-birimizni ko'rib turamiz 🔥");
-  const telegramShare = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}`;
 
   async function copy() {
     try {
@@ -248,7 +251,7 @@ export function TogetherCard({ participationId, open }: { participationId: strin
               {copied ? <Check className="size-4 text-mint" /> : <Copy className="size-4" />}
             </Button>
           </div>
-          <Button href={telegramShare} external variant="sky" size="sm" className="mt-2 w-full">
+          <Button onClick={() => shareToTelegram(link, shareText)} variant="sky" size="sm" className="mt-2 w-full">
             <Send className="size-4" /> {t("Telegram'da ulashish")}
           </Button>
         </div>

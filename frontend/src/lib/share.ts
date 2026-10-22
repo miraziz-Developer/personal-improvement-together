@@ -30,6 +30,16 @@ export async function fetchShared(token: string, lang: "uz" | "ru" = "uz"): Prom
   }
 }
 
+/** The bot's username, for a "start in Telegram" button; null when no bot is set up. */
+export async function fetchBot(): Promise<string | null> {
+  try {
+    const response = await fetch(`${API_URL}/api/v1/features`, { next: { revalidate: 3600 } });
+    return response.ok ? (((await response.json()) as { telegram_bot: string | null }).telegram_bot ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
 const WORDS = {
   uz: { done: "kun — challenge yakunlandi! 🏆", streak: "kun ketma-ket 🔥", days: "kun bajarildi" },
   ru: { done: "дн. — челлендж завершён! 🏆", streak: "дн. подряд 🔥", days: "дн. выполнено" },

@@ -7,6 +7,7 @@ import { useToast } from "@/components/toast";
 import { Button, Modal } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { shareToTelegram } from "@/lib/telegram";
 
 /** Share a run: a link with a picture card (Telegram shows it), a story image, the phone's menu. */
 export function ShareButton({ participationId }: { participationId: string }) {
@@ -60,7 +61,7 @@ export function ShareButton({ participationId }: { participationId: string }) {
           <div className="flex flex-col gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`${link}/opengraph-image`} alt={t("Ulashish kartasi")} className="w-full rounded-2xl border border-white/10" />
-            <Button href={`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`} external variant="sky">
+            <Button onClick={() => shareToTelegram(link, text)} variant="sky">
               <Send className="size-4" /> {t("Telegram'da ulashish")}
             </Button>
             <Button href={`${link}/story`} external variant="secondary">

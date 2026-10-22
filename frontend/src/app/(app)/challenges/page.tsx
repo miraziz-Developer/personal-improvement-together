@@ -14,6 +14,7 @@ import { useFeatures } from "@/lib/auth";
 import { CATEGORY, minutes, STATUS_LABEL } from "@/lib/format";
 import type { Category, Challenge, Participation } from "@/lib/types";
 import { useI18n } from "@/lib/i18n";
+import { botLink, shareToTelegram } from "@/lib/telegram";
 
 export function Difficulty({ level }: { level: number }) {
   const { t } = useI18n();
@@ -30,6 +31,7 @@ function GoalCard({ run }: { run: Participation }) {
   const { t } = useI18n();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const { telegramBot } = useFeatures();
   const meta = CATEGORY[run.category];
   const Icon = meta.icon;
   const open = run.status === "active" || run.status === "scheduled";
@@ -37,7 +39,8 @@ function GoalCard({ run }: { run: Participation }) {
 
   async function inviteLink(): Promise<string> {
     const { invite_code } = await api<{ invite_code: string }>(`/me/participations/${run.id}/group`, { method: "POST" });
-    return `${window.location.origin}/join/${invite_code}`;
+    // Through the bot: friends stay in Telegram, sign up in a minute and land in the group.
+    return telegramBot ? botLink(telegramBot, `j_${invite_code}`) : `${window.location.origin}/join/${invite_code}`;
   }
 
   async function copy() {
@@ -57,7 +60,7 @@ function GoalCard({ run }: { run: Participation }) {
     try {
       const link = await inviteLink();
       const text = t("Men bilan birga challenge'ni boshla! Har kuni bir-birimizni ko'rib turamiz 🔥");
-      window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`, "_blank", "noopener");
+      shareToTelegram(link, text);
     } catch (error) {
       toast("error", errorMessage(error));
     } finally {

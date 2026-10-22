@@ -3,7 +3,11 @@ from html import escape
 from typing import Protocol
 from urllib.parse import quote
 
-from pit.modules.challenges.domain.repositories import ChallengeRepository, ParticipationRepository
+from pit.modules.challenges.domain.repositories import (
+    ChallengeRepository,
+    GroupRepository,
+    ParticipationRepository,
+)
 from pit.modules.coaching.domain.repositories import NotificationRepository
 from pit.modules.identity.domain.repositories import UserRepository
 from pit.modules.telegram.application.ports import Button, Keyboard
@@ -24,6 +28,9 @@ class TelegramUoW(Transaction, Protocol):
 
     @property
     def participations(self) -> ParticipationRepository: ...
+
+    @property
+    def groups(self) -> GroupRepository: ...
 
     @property
     def proofs(self) -> ProofRepository: ...
