@@ -7,7 +7,7 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import { RegionSelect, TermsConsent } from "@/components/AuthFields";
 import { GOOGLE_SIGNUP_KEY, type GoogleSignup } from "@/components/GoogleButton";
 import { useToast } from "@/components/toast";
-import { Button, Input, Label } from "@/components/ui";
+import { Button, Input, Label, Spinner } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { safeNext, useAuth, useFeatures } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
@@ -36,12 +36,21 @@ export default function GoogleRegisterPage() {
   const [regionId, setRegionId] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [finished, setFinished] = useState(false);
 
+  // Signed up: the signup is cleared before the next page opens, so don't flash "not found".
+  if (finished) {
+    return (
+      <div className="grid place-items-center py-16">
+        <Spinner className="size-8" />
+      </div>
+    );
+  }
   if (!signup) {
     return (
       <div className="flex flex-col gap-4 text-center">
         <h1 className="font-display text-2xl font-bold">{t("Sessiya topilmadi")}</h1>
-        <p className="text-mist">{t("Google orqali qaytadan kiring — bu bir soniya oladi.")}</p>
+        <p className="text-mist">{t("Qaytadan boshlang — bu bir soniya oladi.")}</p>
         <Button href="/register">{t("Ro'yxatdan o'tish")}</Button>
       </div>
     );
@@ -63,6 +72,7 @@ export default function GoogleRegisterPage() {
           accepted_terms_version: agreed ? termsVersion : "",
         },
       });
+      setFinished(true);
       sessionStorage.removeItem(GOOGLE_SIGNUP_KEY);
       signIn(access_token);
       toast("success", t("Xush kelibsiz! 🎉"), t("Keling, birinchi maqsadingizni belgilaymiz."));

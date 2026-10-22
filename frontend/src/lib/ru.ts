@@ -112,7 +112,7 @@ export const RU: Record<string, string> = {
   "Maxfiylik siyosati": "Политика конфиденциальности",
   "yoki": "или",
   "Sessiya topilmadi": "Сессия не найдена",
-  "Google orqali qaytadan kiring — bu bir soniya oladi.": "Войдите через Google ещё раз — это займёт секунду.",
+  "Qaytadan boshlang — bu bir soniya oladi.": "Начните заново — это займёт секунду.",
   "Ro'yxatdan o'tish": "Регистрация",
   "Oxirgi qadam ✨": "Последний шаг ✨",
   "Google akkauntingiz": "Ваш Google-аккаунт",
